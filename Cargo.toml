@@ -1,0 +1,14 @@
+workspace.resolver = "2"
+
+workspace.members = ["db-service", "grpc-service", "service-api"]
+
+[workspace.dependencies]
+tokio = { version = "1.45.0", features = ["full"] }
+uuid = { version = "1.16.0", features = ["serde", "v5"] }
+serde = "1.0.219"
+serde_json = "1.0.140"
+chrono = { version = "0.4.41", features = ["serde"] }
+tracing = "0.1"
+tracing-subscriber = "0.3.0"
+rust_decimal = { version = "1.37.1", features = ["serde"] }
+rust_decimal_macros = "1.37.1"
