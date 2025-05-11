@@ -12,7 +12,8 @@ CREATE TYPE "polymarket"."user_transaction_status" AS ENUM ('PENDING', 'COMPLETE
 -- users
 CREATE TABLE IF NOT EXISTS "polymarket"."users" (
     "id" uuid DEFAULT gen_random_uuid() PRIMARY KEY,
-    "public_address" varchar(255) NOT NULL,
+    "public_key" varchar(255) NOT NULL,
+    "private_key" varchar(255) NOT NULL,
     "balance" decimal NOT NULL DEFAULT 0,
     "created_at" timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP,
     "updated_at" timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP

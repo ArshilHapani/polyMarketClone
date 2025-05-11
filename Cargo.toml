@@ -1,6 +1,11 @@
 workspace.resolver = "2"
 
-workspace.members = ["db-service", "grpc-service", "service-api"]
+workspace.members = [
+    "auth-service",
+    "db-service",
+    "grpc-service",
+    "service-api",
+]
 
 [workspace.dependencies]
 tokio = { version = "1.45.0", features = ["full"] }
@@ -12,3 +17,5 @@ tracing = "0.1"
 tracing-subscriber = "0.3.0"
 rust_decimal = { version = "1.37.1", features = ["serde"] }
 rust_decimal_macros = "1.37.1"
+solana-sdk = "2.2.2"
+dotenv = "0.15.0"

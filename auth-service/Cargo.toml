@@ -1,0 +1,12 @@
+[package]
+name = "auth-service"
+version = "0.1.0"
+edition = "2024"
+
+[dependencies]
+jsonwebtoken = "9.3.1"
+aes = "0.8.4"
+aes-gcm = "0.10.3"
+chrono = { workspace = true }
+serde = { workspace = true }
+dotenv = { workspace = true }
