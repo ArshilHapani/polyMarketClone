@@ -12,9 +12,18 @@ CREATE TYPE "polymarket"."user_transaction_status" AS ENUM ('PENDING', 'COMPLETE
 -- users
 CREATE TABLE IF NOT EXISTS "polymarket"."users" (
     "id" uuid DEFAULT gen_random_uuid() PRIMARY KEY,
+    -- oAuth2 fields
+    "google_id" varchar(255) UNIQUE,
+    "email" varchar(255) UNIQUE NOT NULL,
+    "name" varchar(255) NOT NULL,
+    "avatar" varchar(255) NOT NULL,
+    "last_login" timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "refresh_token" TEXT NOT NULL DEFAULT '',
+
+    -- wallet fields
     "public_key" varchar(255) NOT NULL,
-    "private_key" varchar(255) NOT NULL,
-    "balance" decimal NOT NULL DEFAULT 0,
+    "private_key" TEXT NOT NULL,
+    "balance" decimal(20,8) NOT NULL DEFAULT 0,            
     "created_at" timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP,
     "updated_at" timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP
 );
@@ -43,7 +52,8 @@ CREATE TABLE IF NOT EXISTS "polymarket"."orders" (
     "quantity" decimal NOT NULL CHECK ("quantity" > 0),
     "filled_quantity" decimal NOT NULL DEFAULT 0,
     "status" "polymarket"."order_status" NOT NULL DEFAULT 'OPEN',
-    "created_at" timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP
+    "created_at" timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "updated_at" timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP
 );
 
 -- user_trades
@@ -55,7 +65,9 @@ CREATE TABLE IF NOT EXISTS "polymarket"."user_trades" (
     "outcome" "polymarket"."outcome" NOT NULL,
     "price" decimal NOT NULL,
     "quantity" decimal NOT NULL CHECK ("quantity" > 0),
-    "timestamp" timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP
+    "timestamp" timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "created_at" timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "updated_at" timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP
 );
 
 -- user_holdings
@@ -64,7 +76,9 @@ CREATE TABLE IF NOT EXISTS "polymarket"."user_holdings" (
     "user_id" uuid NOT NULL REFERENCES "polymarket"."users"("id"),
     "market_id" uuid NOT NULL REFERENCES "polymarket"."markets"("id"),    
     "outcome" "polymarket"."outcome" NOT NULL,
-    "shares" decimal NOT NULL CHECK ("shares" >= 0)
+    "shares" decimal NOT NULL CHECK ("shares" >= 0),
+    "created_at" timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "updated_at" timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP
 );
 
 -- user_transactions
@@ -75,7 +89,7 @@ CREATE TABLE IF NOT EXISTS "polymarket"."user_transactions" (
     "transaction_type" "polymarket"."user_transaction_type" NOT NULL,
     "transaction_status" "polymarket"."user_transaction_status" NOT NULL,
     "tx_hash" varchar(255) NOT NULL,
-    "created_at" timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP,
     "confirmed_at" timestamp,
+    "created_at" timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP,
     "updated_at" timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP
 );

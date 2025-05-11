@@ -9,4 +9,8 @@ aes = "0.8.4"
 aes-gcm = "0.10.3"
 chrono = { workspace = true }
 serde = { workspace = true }
+serde_json = { workspace = true }
 dotenv = { workspace = true }
+deadpool = { workspace = true }
+deadpool-redis = { workspace = true }
+reqwest = { workspace = true }

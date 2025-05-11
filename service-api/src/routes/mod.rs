@@ -1,5 +1,7 @@
-use axum::{Json, http::StatusCode, response::IntoResponse};
+use axum::{Json, Router, http::StatusCode, response::IntoResponse, routing::get};
 use serde_json::json;
+
+use crate::state::AppState;
 
 pub mod user;
 
@@ -8,4 +10,10 @@ pub async fn default_home_route() -> (StatusCode, impl IntoResponse) {
         "message": "Welcome to the Polymarket clone service API!"
     });
     (StatusCode::OK, Json(welcome_message))
+}
+
+pub fn router() -> Router<AppState> {
+    Router::new()
+        .route("/", get(default_home_route))
+        .nest("/user", user::router())
 }

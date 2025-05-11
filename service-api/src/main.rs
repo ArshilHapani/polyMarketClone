@@ -1,8 +1,10 @@
-use axum::{Router, routing::get};
+use axum::Router;
 use db_service::{SHOW_LOGS, log_info};
-use routes::default_home_route;
+
+use state::AppState;
 
 mod routes;
+mod state;
 
 const PORT: u16 = 8080;
 
@@ -11,7 +13,9 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     tracing_subscriber::fmt::init();
     let addr = format!("[::]:{}", PORT);
 
-    let app = Router::new().route("/", get(default_home_route));
+    let state = AppState::new().await?;
+
+    let app = Router::new().merge(routes::router()).with_state(state);
 
     let listener = tokio::net::TcpListener::bind(addr).await.unwrap();
 

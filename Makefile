@@ -8,10 +8,35 @@ POSTGRES_PUBLIC_SCHEMA := public
 
 DATABASE_URL := postgres://$(POSTGRES_USER):$(POSTGRES_PASSWORD)@localhost:$(POSTGRES_PORT)/$(POSTGRES_DB)
 
+
+REDIS_CONTAINER_NAME := polyMarket_redis
+REDIS_PORT := 6379
+REDIS_IMAGE := redis:7.4.1-alpine
+
+DEFAULT_TARGET := help
+
+.PHONY: help
+help:
+	@echo "Available targets:"
+	@echo "  start-pg-container: Start PostgreSQL container"
+	@echo "  start-redis-container: Start Redis container"
+	@echo "  create-new-migration: Create a new SQLx migration"
+	@echo "  apply-sqlx-migrations: Apply SQLx migrations"
+	@echo "  revert-migration: Revert the last SQLx migration"
+	@echo "  print-db-url: Print the database URL"
+	@echo "  reset-db: Reset the database"
+	@echo "  help: Show this help message"
+
+
+# Containers management
+
 start-pg-container:
 	@echo "Checking if PostgreSQL container is already running..."
 	@if [ $$(docker ps -q -f name=$(POSTGRES_CONTAINER_NAME)) ]; then \
 		echo "PostgreSQL container is already running."; \
+	elif [ $$(docker ps -aq -f status=exited -f name=$(POSTGRES_CONTAINER_NAME)) ]; then \
+		echo "PostgreSQL container is stopped. Starting it..."; \
+		docker start $(POSTGRES_CONTAINER_NAME); \
 	else \
 		echo "Starting PostgreSQL container..."; \
 		docker run --name $(POSTGRES_CONTAINER_NAME) -d -p $(POSTGRES_PORT):5432 \
@@ -22,6 +47,25 @@ start-pg-container:
 			$(POSTGRES_IMAGE); \
 	fi
 
+
+start-redis-container:
+	@echo "Checking if Redis container is already running..."
+	@if [ $$(docker ps -q -f name=$(REDIS_CONTAINER_NAME)) ]; then \
+		echo "Redis container is already running."; \
+	elif [ $$(docker ps -aq -f status=exited -f name=$(REDIS_CONTAINER_NAME)) ]; then \
+		echo "Redis container is stopped. Starting it..."; \
+		docker start $(REDIS_CONTAINER_NAME); \
+	else \
+		echo "Starting Redis container..."; \
+		docker run --name $(REDIS_CONTAINER_NAME) -d -p $(REDIS_PORT):6379 $(REDIS_IMAGE); \
+	fi
+
+
+
+start-required-containers: start-pg-container start-redis-container
+
+
+# Utility targets
 
 create-new-migration:
 	@echo "Enter migration name:"
@@ -50,3 +94,4 @@ reset-db:
 	@docker exec -it $(POSTGRES_CONTAINER_NAME) psql -U $(POSTGRES_USER) -c "CREATE SCHEMA $(POSTGRES_DB);"
 	@docker exec -it $(POSTGRES_CONTAINER_NAME) psql -U $(POSTGRES_USER) -c "CREATE SCHEMA $(POSTGRES_PUBLIC_SCHEMA);"
 	@echo "Database dropped."
+
