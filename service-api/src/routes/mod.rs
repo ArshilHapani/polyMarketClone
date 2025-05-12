@@ -1,9 +1,19 @@
-use axum::{Json, Router, http::StatusCode, response::IntoResponse, routing::get};
+use axum::{
+    Json, Router,
+    http::StatusCode,
+    middleware,
+    response::IntoResponse,
+    routing::{get, post},
+};
 use serde_json::json;
+use std::sync::Arc;
 
 use crate::state::AppState;
+use crate::utils::middleware as custom_middleware;
 
 pub mod admin;
+pub mod login;
+pub mod market;
 pub mod user;
 
 async fn default_home_route() -> (StatusCode, impl IntoResponse) {
@@ -13,8 +23,16 @@ async fn default_home_route() -> (StatusCode, impl IntoResponse) {
     (StatusCode::OK, Json(welcome_message))
 }
 
-pub fn router() -> Router<AppState> {
+pub fn router(app_state: AppState) -> Router<AppState> {
+    let app_state = Arc::new(app_state.clone());
+    let user_routes = user::router().layer(middleware::from_fn_with_state(
+        app_state,
+        custom_middleware::validate_jwt,
+    ));
+
     Router::new()
         .route("/", get(default_home_route))
-        .nest("/user", user::router())
+        .route("/login", post(login::oauth_login))
+        .nest("/user", user_routes)
+        .nest("/market", market::router())
 }

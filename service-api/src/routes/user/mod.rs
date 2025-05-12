@@ -1,10 +1,9 @@
-use axum::{Router, routing::post};
+use axum::{Router, routing::get};
 
 use crate::state::AppState;
-use login::oauth_login;
 
-pub mod login;
+pub mod profile;
 
 pub fn router() -> Router<AppState> {
-    Router::new().route("/login", post(oauth_login))
+    Router::new().route("/profile", get(profile::get_profile))
 }

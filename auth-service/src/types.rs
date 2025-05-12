@@ -52,7 +52,7 @@ pub struct GoogleTokenInfoResponse {
     pub typ: Option<String>,
 }
 
-#[derive(Deserialize, Serialize, Debug)]
+#[derive(Deserialize, Serialize, Debug, Clone)]
 pub struct SessionTokenClaims {
     pub user_id: String,
     pub google_sub: String,

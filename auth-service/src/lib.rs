@@ -148,7 +148,10 @@ impl AuthService {
             &jsonwebtoken::DecodingKey::from_secret(self.jwt_secret.as_ref()),
             &validation,
         )
-        .map_err(|_| "Failed to decode session token".to_string())?;
+        .map_err(|e| {
+            println!("Error decoding session token: {:?}", e);
+            "Failed to decode session token".to_string()
+        })?;
         let claims = token_data.claims;
         let current_time = chrono::Utc::now().timestamp() as usize;
         if claims.exp < current_time {

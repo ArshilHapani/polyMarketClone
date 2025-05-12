@@ -16,7 +16,9 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     let state = AppState::new().await?;
 
-    let app = Router::new().merge(routes::router()).with_state(state);
+    let app = Router::new()
+        .merge(routes::router(state.clone()))
+        .with_state(state);
 
     let listener = tokio::net::TcpListener::bind(addr).await.unwrap();
 
