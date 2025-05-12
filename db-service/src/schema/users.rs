@@ -7,7 +7,7 @@ use sqlx::PgPool;
 use uuid::Uuid;
 
 use crate::log_info;
-use auth_service::{symmetric::encrypt, types::GoogleClaims};
+use utility_helpers::{symmetric::encrypt, types::GoogleClaims};
 
 #[derive(Debug, Serialize, Deserialize, Default)]
 pub struct User {
@@ -19,7 +19,6 @@ pub struct User {
     pub name: String,
     pub avatar: String,
     pub last_login: NaiveDateTime,
-    pub refresh_token: String,
 
     // wallet fields
     pub public_key: String,
@@ -30,7 +29,10 @@ pub struct User {
 }
 
 impl User {
-    pub async fn create_new_user(pool: &PgPool, claims: GoogleClaims) -> Result<Self, sqlx::Error> {
+    pub async fn create_new_user(
+        pool: &PgPool,
+        claims: &GoogleClaims,
+    ) -> Result<Self, sqlx::Error> {
         let new_key_pair = Keypair::new();
 
         let private_key = new_key_pair.to_base58_string();
@@ -52,7 +54,7 @@ impl User {
                 private_key
             ) VALUES (
                 $1, $2, $3, $4, $5, $6
-            ) RETURNING *
+            ) RETURNING *                
             "#,
             claims.sub,
             claims.email,
@@ -68,16 +70,58 @@ impl User {
 
         Ok(user)
     }
+
+    pub async fn create_or_update_existing_user(
+        pool: &PgPool,
+        claims: &GoogleClaims,
+    ) -> Result<Self, sqlx::Error> {
+        let existing_user = sqlx::query_as!(
+            User,
+            r#"
+            SELECT * FROM "polymarket"."users" WHERE google_id = $1
+            "#,
+            claims.sub
+        )
+        .fetch_optional(pool)
+        .await?;
+
+        if let Some(user) = existing_user {
+            let updated_user = sqlx::query_as!(
+                User,
+                r#"
+                UPDATE "polymarket"."users" SET
+                    email = $1,
+                    name = $2,
+                    avatar = $3,
+                    last_login = CURRENT_TIMESTAMP
+                WHERE id = $4
+                RETURNING *
+                "#,
+                claims.email,
+                claims.name,
+                claims.picture,
+                user.id
+            )
+            .fetch_one(pool)
+            .await?;
+
+            log_info!("User updated {}", updated_user.id);
+            Ok(updated_user)
+        } else {
+            // Create a new user
+            Self::create_new_user(pool, claims).await
+        }
+    }
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
-    use auth_service::symmetric::decrypt;
     use sqlx::PgPool;
     use std::env;
     use tracing::Level;
     use tracing_subscriber::FmtSubscriber;
+    use utility_helpers::symmetric::decrypt;
 
     fn setup_tracing() {
         let subscriber = FmtSubscriber::builder()
@@ -95,7 +139,19 @@ mod tests {
         let database_url = env::var("DATABASE_URL").expect("DATABASE_URL must be set");
         let pool = PgPool::connect(&database_url).await.unwrap();
 
-        let user = User::create_new_user(&pool).await.unwrap();
+        let unique_id = Uuid::new_v5(&Uuid::NAMESPACE_OID, b"test_user");
+        let unique_email = format!("test_{}@gmail.com", unique_id);
+        let unique_sub = format!("test_google_id_{}", unique_id);
+
+        let google_claims = GoogleClaims {
+            sub: unique_sub,
+            email: unique_email,
+            exp: 60 * 60 * 24 * 3, // 3 days,
+            name: "Test User".to_string(),
+            picture: "https://example.com/avatar.png".to_string(),
+        };
+
+        let user = User::create_new_user(&pool, &google_claims).await.unwrap();
 
         let decoded_private_key = base64_engine.decode(&user.private_key).unwrap();
         let decrypted_private_key = decrypt(&decoded_private_key).unwrap();

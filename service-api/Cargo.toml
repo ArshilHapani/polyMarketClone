@@ -6,6 +6,7 @@ edition = "2024"
 [dependencies]
 axum = "0.8.4"
 db-service = { path = "../db-service" }
+auth-service = { path = "../auth-service" }
 serde = { workspace = true }
 serde_json = { workspace = true }
 tokio = { workspace = true }

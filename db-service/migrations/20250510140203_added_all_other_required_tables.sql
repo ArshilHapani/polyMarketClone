@@ -13,13 +13,12 @@ CREATE TYPE "polymarket"."user_transaction_status" AS ENUM ('PENDING', 'COMPLETE
 CREATE TABLE IF NOT EXISTS "polymarket"."users" (
     "id" uuid DEFAULT gen_random_uuid() PRIMARY KEY,
     -- oAuth2 fields
-    "google_id" varchar(255) UNIQUE,
+    "google_id" varchar(255) UNIQUE NOT NULL,
     "email" varchar(255) UNIQUE NOT NULL,
     "name" varchar(255) NOT NULL,
     "avatar" varchar(255) NOT NULL,
     "last_login" timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    "refresh_token" TEXT NOT NULL DEFAULT '',
-
+    
     -- wallet fields
     "public_key" varchar(255) NOT NULL,
     "private_key" TEXT NOT NULL,

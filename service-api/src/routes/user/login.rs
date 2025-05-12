@@ -1,11 +1,52 @@
-use axum::{extract::State, http::StatusCode, response::IntoResponse};
+use auth_service::types::AuthenticateUserError;
+use axum::{Json, extract::State, http::StatusCode, response::IntoResponse};
+use db_service::log_error;
 use serde::{Deserialize, Serialize};
+use serde_json::json;
 
-use crate::state::AppState;
+use crate::{require_field, state::AppState, utils::types::ReturnType};
 
 #[derive(Deserialize, Serialize)]
-pub struct LoginRequest {}
+pub struct LoginRequest {
+    id_token: Option<String>,
+}
 
-pub async fn login(State(app_state): State<AppState>) -> (StatusCode, impl IntoResponse) {
-    (StatusCode::OK, "Login successful")
+pub async fn oauth_login(
+    State(app_state): State<AppState>,
+    Json(payload): Json<LoginRequest>,
+) -> Result<ReturnType, ReturnType> {
+    require_field!(payload.id_token);
+    let id_token = payload.id_token.as_ref().unwrap();
+
+    let (user_id, session_token) = app_state
+        .auth_service
+        .authenticate_user(id_token)
+        .await
+        .map_err(|e| {
+            log_error!("Failed to authenticate user: {:?}", e);
+            match e {
+                AuthenticateUserError::InvalidToken => (
+                    StatusCode::UNAUTHORIZED,
+                    Json(json!({"error": "Invalid token"})).into_response(),
+                ),
+                AuthenticateUserError::FailedToInsertUser => (
+                    StatusCode::INTERNAL_SERVER_ERROR,
+                    Json(json!({"error": "Failed to insert user"})).into_response(),
+                ),
+                AuthenticateUserError::FailedToGenerateSessionToken => (
+                    StatusCode::INTERNAL_SERVER_ERROR,
+                    Json(json!({"error": "Failed to generate session token"})).into_response(),
+                ),
+            }
+        })?;
+
+    Ok((
+        StatusCode::OK,
+        Json(json!({
+            "message": "User authenticated successfully",
+            "user_id": user_id,
+            "session_token": session_token,
+        }))
+        .into_response(),
+    ))
 }

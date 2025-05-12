@@ -5,6 +5,7 @@ workspace.members = [
     "db-service",
     "grpc-service",
     "service-api",
+    "utility-helpers",
 ]
 
 [workspace.dependencies]
@@ -38,3 +39,4 @@ sqlx = { version = "0.8", features = [
     "rust_decimal",
 ] }
 reqwest = { version = "0.12.15", features = ["json"] }
+jsonwebtoken = "9.3.1"

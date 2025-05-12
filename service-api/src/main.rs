@@ -5,6 +5,7 @@ use state::AppState;
 
 mod routes;
 mod state;
+mod utils;
 
 const PORT: u16 = 8080;
 

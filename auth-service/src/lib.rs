@@ -1,35 +1,41 @@
-pub mod symmetric;
 pub mod token_services;
 pub mod types;
 
-use deadpool_redis::{Config, Pool, redis::AsyncCommands};
+use base64::{Engine, engine::general_purpose};
 use dotenv::dotenv;
-use jsonwebtoken::{Algorithm, DecodingKey, Validation, decode, decode_header};
-use reqwest::Client;
-use std::{collections::HashMap, env, error::Error as StdError};
+use jsonwebtoken::{Algorithm, Validation, jwk::JwkSet};
+use reqwest::{Client, StatusCode};
+use std::error::Error as StdError;
+use utility_helpers::types::GoogleClaims;
+
 use token_services::Claims;
+use types::{
+    AuthenticateUserError, GoogleClaimsError, GoogleTokenInfoResponse, SessionTokenClaims,
+};
 
-use types::{GoogleClaims, GoogleClaimsError};
-
+#[derive(Clone)]
 pub struct AuthService {
-    pub redis_pool: Pool,
     pub client: Client,
+    pub google_client_id: String,
+    pub jwt_secret: String,
+    pub pool: sqlx::PgPool,
 }
 
 impl AuthService {
-    pub fn new() -> Result<Self, Box<dyn StdError>> {
+    pub fn new(
+        google_client_id: String,
+        jwt_secret: String,
+        pg_pool: sqlx::PgPool,
+    ) -> Result<Self, Box<dyn StdError>> {
         dotenv().ok();
 
-        let redis_url = env::var("REDIS_URL")
-            .map_err(|_| "REDIS_URL must be set in the environment variables".to_string())?;
-        let cfg = Config::from_url(&redis_url);
-
-        let pool = cfg.create_pool(None)?;
         let client = Client::new();
 
         let auth_service = AuthService {
-            redis_pool: pool,
             client,
+            google_client_id,
+            jwt_secret,
+            pool: pg_pool,
         };
 
         Ok(auth_service)
@@ -39,91 +45,194 @@ impl AuthService {
         Claims::new(data, exp)
     }
 
-    pub async fn generate_refresh_token(
-        &self,
-        claims: &Claims,
-    ) -> Result<String, Box<dyn StdError>> {
-        let token = claims.new_token()?;
-        let mut conn = self.redis_pool.get().await?;
-        let expiry = 60 * 60 * 24 * 3; // 3 days
-
-        let _: () = conn.set_ex(&claims.sub, &token, expiry).await?;
-        Ok(token)
-    }
-
-    pub async fn verify_refresh_token(&self, token: &String) -> Result<Claims, Box<dyn StdError>> {
-        let mut conn = self.redis_pool.get().await?;
-
-        let claims = Claims::verify_token(token.as_str())?;
-
-        let stored_token: Option<String> = conn.get(&claims.sub).await?;
-
-        if stored_token.is_none() {
-            return Err("Token not found in Redis".into());
-        }
-        if stored_token.unwrap() == *token {
-            Ok(claims)
-        } else {
-            Err("Token mismatch".into())
-        }
-    }
-
     pub async fn get_google_claims(
         &self,
         id_token: &String,
     ) -> Result<GoogleClaims, GoogleClaimsError> {
+        let id_token_component = id_token.split(".").collect::<Vec<_>>();
+
+        if id_token_component.len() != 3 {
+            return Err(GoogleClaimsError::InvalidTokenId);
+        }
+
         let client = self.client.clone();
 
-        let header = decode_header(id_token).map_err(|_| GoogleClaimsError::InvalidTokenId)?;
-        let kid = header.kid.ok_or(GoogleClaimsError::MissingKid)?;
+        let header_json = general_purpose::URL_SAFE_NO_PAD
+            .decode(id_token_component[0])
+            .map_err(|_| GoogleClaimsError::FailedToDecodeHeader)?;
+        let header: serde_json::Value = serde_json::from_slice(&header_json)
+            .map_err(|_| GoogleClaimsError::FailedToGetHeaderSlice)?;
+        let kid = header
+            .get("kid")
+            .and_then(|k| k.as_str())
+            .ok_or(GoogleClaimsError::MissingKid)?;
 
-        let keys: Result<HashMap<String, DecodingKey>, GoogleClaimsError> = {
-            let res = client
-                .get("https://www.googleapis.com/oauth2/v3/certs")
-                .send()
-                .await
-                .map_err(|_| GoogleClaimsError::FailedToGetKeyFromGoogle)?;
+        let jwks_url = "https://www.googleapis.com/oauth2/v3/certs";
+        let auth_url = format!(
+            "https://oauth2.googleapis.com/tokeninfo?id_token={}",
+            id_token
+        );
 
-            let jwks: serde_json::Value = res
-                .json()
-                .await
-                .map_err(|_| GoogleClaimsError::InvalidResponseTypeFromGoogle)?;
+        let (token_auth_response, jwk_sets_response) = tokio::join!(
+            get_token_auth_resp(&client, &auth_url, &self.google_client_id),
+            get_jwk_set_resp_string(&client, jwks_url)
+        );
 
-            jwks["keys"]
-                .as_array()
-                .ok_or(GoogleClaimsError::InvalidResponseTypeFromGoogle)?
-                .iter()
-                .map(|k| {
-                    let kid = k["kid"]
-                        .as_str()
-                        .ok_or(GoogleClaimsError::InvalidKeyComponentFromGoogle)?;
-                    let n = k["n"]
-                        .as_str()
-                        .ok_or(GoogleClaimsError::InvalidKeyComponentFromGoogle)?;
-                    let e = k["e"]
-                        .as_str()
-                        .ok_or(GoogleClaimsError::InvalidKeyComponentFromGoogle)?;
+        let (token_auth_response, jwk_sets_response) =
+            match (token_auth_response, jwk_sets_response) {
+                (Ok(token_auth_response), Ok(jwk_sets_response)) => {
+                    (token_auth_response, jwk_sets_response)
+                }
+                (Err(e), _) => return Err(e),
+                (_, Err(e)) => return Err(e),
+            };
 
-                    Ok((
-                        kid.to_string(),
-                        DecodingKey::from_rsa_components(n, e)
-                            .map_err(|_| GoogleClaimsError::FailedToDecodeRsaComponents)?,
-                    ))
-                })
-                .collect()
+        let jwk_set: JwkSet = serde_json::from_str(&jwk_sets_response)
+            .map_err(|_| GoogleClaimsError::FailedToSetJwkSetFromGoogle)?;
+
+        let google_pk_kid = jwk_set
+            .keys
+            .iter()
+            .find(|key| key.common.key_id.as_deref() == Some(kid))
+            .ok_or(GoogleClaimsError::KeyNotFound)?;
+
+        if token_auth_response.kid.unwrap() != kid
+            || google_pk_kid.common.key_id != Some(kid.to_string())
+        {
+            return Err(GoogleClaimsError::InvalidTokenId);
+        }
+
+        Ok(GoogleClaims {
+            sub: token_auth_response.sub,
+            email: token_auth_response.email,
+            name: token_auth_response.name,
+            picture: token_auth_response.picture,
+            exp: token_auth_response
+                .exp
+                .parse::<usize>()
+                .map_err(|_| GoogleClaimsError::FailedToDecodeRsaComponents)?,
+        })
+    }
+
+    fn generate_session_token(
+        &self,
+        google_claims: &GoogleClaims,
+        user_id: String,
+    ) -> Result<String, Box<dyn StdError>> {
+        let current_time = chrono::Utc::now().timestamp() as usize;
+        let session_claims = SessionTokenClaims {
+            user_id,
+            google_sub: google_claims.sub.clone(),
+            email: Some(google_claims.email.clone()),
+            exp: current_time + 60 * 60 * 24 * 30, // 30 days
         };
 
-        let keys = keys?;
+        let session_token = jsonwebtoken::encode(
+            &jsonwebtoken::Header::default(),
+            &session_claims,
+            &jsonwebtoken::EncodingKey::from_secret(self.jwt_secret.as_ref()),
+        )
+        .map_err(|_| "Failed to encode session token".to_string())?;
 
-        let key = keys.get(&kid).ok_or(GoogleClaimsError::KeyNotFound)?;
+        Ok(session_token)
+    }
 
-        let token_data = decode::<GoogleClaims>(&id_token, key, &Validation::new(Algorithm::RS256))
-            .map_err(|_| GoogleClaimsError::InvalidTokenId)?;
+    pub fn verify_session_token(
+        &self,
+        session_token: &str,
+    ) -> Result<SessionTokenClaims, Box<dyn StdError>> {
+        let validation = Validation::new(Algorithm::HS256);
 
+        let token_data = jsonwebtoken::decode::<SessionTokenClaims>(
+            session_token,
+            &jsonwebtoken::DecodingKey::from_secret(self.jwt_secret.as_ref()),
+            &validation,
+        )
+        .map_err(|_| "Failed to decode session token".to_string())?;
         let claims = token_data.claims;
-        if claims.exp < chrono::Utc::now().timestamp() as usize {
-            return Err(GoogleClaimsError::ExpiredToken);
+        let current_time = chrono::Utc::now().timestamp() as usize;
+        if claims.exp < current_time {
+            return Err("Session token expired".into());
         }
+
         Ok(claims)
     }
+
+    pub async fn authenticate_user(
+        &self,
+        id_token: &String,
+    ) -> Result<(String, String), AuthenticateUserError> {
+        // validate google id token
+        let google_claims = self
+            .get_google_claims(&id_token)
+            .await
+            .map_err(|_| AuthenticateUserError::InvalidToken)?;
+
+        // check or create user in db
+        let user = db_service::schema::users::User::create_or_update_existing_user(
+            &self.pool,
+            &google_claims,
+        )
+        .await
+        .map_err(|_| AuthenticateUserError::FailedToInsertUser)?;
+
+        // generate session token
+        let session_token = self
+            .generate_session_token(&google_claims, user.id.to_string())
+            .map_err(|_| AuthenticateUserError::FailedToGenerateSessionToken)?;
+
+        Ok((user.id.to_string(), session_token))
+    }
+}
+
+async fn get_token_auth_resp(
+    client: &Client,
+    url: &str,
+    google_client_id: &str,
+) -> Result<GoogleTokenInfoResponse, GoogleClaimsError> {
+    let req = client
+        .get(url)
+        .send()
+        .await
+        .map_err(|_| GoogleClaimsError::FailedToValidateTokenFromGoogle)?;
+
+    if req.status() != StatusCode::OK {
+        return Err(GoogleClaimsError::ExpiredOrInvalidToken);
+    }
+
+    let response = req
+        .json::<GoogleTokenInfoResponse>()
+        .await
+        .map_err(|_| GoogleClaimsError::FailedToDecodeAuthResponseFromGoogle)?;
+
+    if response.iss != "accounts.google.com" && response.iss != "https://accounts.google.com" {
+        return Err(GoogleClaimsError::InvalidIssuer);
+    }
+
+    if response.aud != google_client_id {
+        return Err(GoogleClaimsError::InvalidClientId);
+    }
+
+    if let Some(kid) = &response.kid {
+        if kid.is_empty() {
+            return Err(GoogleClaimsError::MissingKid);
+        }
+    } else {
+        return Err(GoogleClaimsError::MissingKid);
+    }
+
+    Ok(response)
+}
+
+async fn get_jwk_set_resp_string(client: &Client, url: &str) -> Result<String, GoogleClaimsError> {
+    let response = client
+        .get(url)
+        .send()
+        .await
+        .map_err(|_| GoogleClaimsError::FailedToGetKeyFromGoogle)?
+        .text()
+        .await
+        .map_err(|_| GoogleClaimsError::FailedToDecodeKeyFromGoogle)?;
+
+    Ok(response)
 }

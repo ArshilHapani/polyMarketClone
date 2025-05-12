@@ -3,9 +3,10 @@ use serde_json::json;
 
 use crate::state::AppState;
 
+pub mod admin;
 pub mod user;
 
-pub async fn default_home_route() -> (StatusCode, impl IntoResponse) {
+async fn default_home_route() -> (StatusCode, impl IntoResponse) {
     let welcome_message = json!({
         "message": "Welcome to the Polymarket clone service API!"
     });

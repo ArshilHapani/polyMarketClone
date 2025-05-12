@@ -4,7 +4,7 @@ version = "0.1.0"
 edition = "2024"
 
 [dependencies]
-auth-service = { path = "../auth-service" }
+utility-helpers = { path = "../utility-helpers" }
 sqlx = { workspace = true }
 uuid = { workspace = true }
 serde = { workspace = true }
