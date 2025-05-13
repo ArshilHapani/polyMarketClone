@@ -1,6 +1,7 @@
 use dotenv::dotenv;
 use std::{env, error::Error as StdError};
 
+pub mod pagination;
 pub mod schema;
 pub mod utils;
 

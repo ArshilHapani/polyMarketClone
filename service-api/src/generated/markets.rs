@@ -4,4 +4,101 @@
 pub struct Market {
     #[prost(string, tag = "1")]
     pub id: ::prost::alloc::string::String,
+    #[prost(string, tag = "2")]
+    pub name: ::prost::alloc::string::String,
+    #[prost(string, tag = "3")]
+    pub description: ::prost::alloc::string::String,
+    #[prost(string, tag = "4")]
+    pub logo: ::prost::alloc::string::String,
+    #[prost(enumeration = "MarketStatus", tag = "5")]
+    pub status: i32,
+    #[prost(double, tag = "6")]
+    pub liquidity_b: f64,
+    #[prost(string, tag = "7")]
+    pub created_at: ::prost::alloc::string::String,
+    #[prost(string, tag = "8")]
+    pub updated_at: ::prost::alloc::string::String,
+}
+#[derive(serde::Serialize, serde::Deserialize)]
+#[derive(Clone, PartialEq, ::prost::Message)]
+pub struct GetPaginatedMarketResponse {
+    #[prost(message, repeated, tag = "1")]
+    pub markets: ::prost::alloc::vec::Vec<Market>,
+    #[prost(uint64, tag = "2")]
+    pub page: u64,
+    #[prost(uint64, tag = "3")]
+    pub page_size: u64,
+    #[prost(uint64, tag = "4")]
+    pub total_items: u64,
+    #[prost(uint64, tag = "5")]
+    pub total_pages: u64,
+}
+#[derive(serde::Serialize, serde::Deserialize)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Hash, PartialOrd, Ord, ::prost::Enumeration)]
+#[repr(i32)]
+pub enum MarketStatus {
+    UnspecifiedMarketStatus = 0,
+    Open = 1,
+    Closed = 2,
+    Settled = 3,
+}
+impl MarketStatus {
+    /// String value of the enum field names used in the ProtoBuf definition.
+    ///
+    /// The values are not transformed in any way and thus are considered stable
+    /// (if the ProtoBuf definition does not change) and safe for programmatic use.
+    pub fn as_str_name(&self) -> &'static str {
+        match self {
+            Self::UnspecifiedMarketStatus => "UNSPECIFIED_MARKET_STATUS",
+            Self::Open => "OPEN",
+            Self::Closed => "CLOSED",
+            Self::Settled => "SETTLED",
+        }
+    }
+    /// Creates an enum from field names used in the ProtoBuf definition.
+    pub fn from_str_name(value: &str) -> ::core::option::Option<Self> {
+        match value {
+            "UNSPECIFIED_MARKET_STATUS" => Some(Self::UnspecifiedMarketStatus),
+            "OPEN" => Some(Self::Open),
+            "CLOSED" => Some(Self::Closed),
+            "SETTLED" => Some(Self::Settled),
+            _ => None,
+        }
+    }
+}
+#[derive(serde::Serialize, serde::Deserialize)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Hash, PartialOrd, Ord, ::prost::Enumeration)]
+#[repr(i32)]
+pub enum Outcome {
+    UnspecifiedOutcome = 0,
+    Yes = 1,
+    No = 2,
+    Invalid = 3,
+    Unspecified = 4,
+}
+impl Outcome {
+    /// String value of the enum field names used in the ProtoBuf definition.
+    ///
+    /// The values are not transformed in any way and thus are considered stable
+    /// (if the ProtoBuf definition does not change) and safe for programmatic use.
+    pub fn as_str_name(&self) -> &'static str {
+        match self {
+            Self::UnspecifiedOutcome => "UNSPECIFIED_OUTCOME",
+            Self::Yes => "YES",
+            Self::No => "NO",
+            Self::Invalid => "INVALID",
+            Self::Unspecified => "UNSPECIFIED",
+        }
+    }
+    /// Creates an enum from field names used in the ProtoBuf definition.
+    pub fn from_str_name(value: &str) -> ::core::option::Option<Self> {
+        match value {
+            "UNSPECIFIED_OUTCOME" => Some(Self::UnspecifiedOutcome),
+            "YES" => Some(Self::Yes),
+            "NO" => Some(Self::No),
+            "INVALID" => Some(Self::Invalid),
+            "UNSPECIFIED" => Some(Self::Unspecified),
+            _ => None,
+        }
+    }
 }

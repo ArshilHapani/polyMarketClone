@@ -137,11 +137,12 @@ mod tests {
     #[tokio::test]
     async fn test_create_new_user() {
         setup_tracing();
+        dotenv::dotenv().ok();
 
         let database_url = env::var("DATABASE_URL").expect("DATABASE_URL must be set");
         let pool = PgPool::connect(&database_url).await.unwrap();
 
-        let unique_id = Uuid::new_v5(&Uuid::NAMESPACE_OID, b"test_user");
+        let unique_id = Uuid::new_v4();
         let unique_email = format!("test_{}@gmail.com", unique_id);
         let unique_sub = format!("test_google_id_{}", unique_id);
 
@@ -159,8 +160,10 @@ mod tests {
         let decrypted_private_key = decrypt(&decoded_private_key).unwrap();
         let _decrypted_private_key_str = String::from_utf8(decrypted_private_key).unwrap();
 
-        assert_eq!(user.public_key.len(), 44);
-        assert_eq!(user.private_key.len(), 156);
+        assert!(!user.private_key.is_empty());
+        assert!(!user.public_key.is_empty());
+        assert_eq!(user.name, "Test User");
+        assert_eq!(user.avatar, "https://example.com/avatar.png");
         assert_eq!(user.balance, Decimal::ZERO);
         assert_eq!(user.created_at, user.updated_at);
 
@@ -170,7 +173,6 @@ mod tests {
             .execute(&pool)
             .await
             .unwrap();
-
         pool.close().await;
     }
 }

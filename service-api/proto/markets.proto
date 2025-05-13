@@ -2,6 +2,36 @@ syntax = "proto3";
 
 package markets;
 
+enum MarketStatus {
+    UNSPECIFIED_MARKET_STATUS = 0;
+    OPEN = 1;
+    CLOSED = 2;
+    SETTLED = 3;
+}
+
+enum Outcome {
+    UNSPECIFIED_OUTCOME = 0;
+    YES = 1;
+    NO = 2;
+    INVALID = 3;
+    UNSPECIFIED = 4;
+}
+
 message Market {
     string id = 1;
+    string name = 2;
+    string description = 3;
+    string logo = 4;
+    MarketStatus status = 5;
+    double liquidity_b = 6;
+    string created_at = 7;
+    string updated_at = 8;
+}
+
+message GetPaginatedMarketResponse {
+    repeated Market markets = 1;
+    uint64 page = 2;
+    uint64 page_size = 3;
+    uint64 total_items = 4;
+    uint64 total_pages = 5;
 }
