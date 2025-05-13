@@ -164,7 +164,7 @@ impl AuthService {
     pub async fn authenticate_user(
         &self,
         id_token: &String,
-    ) -> Result<(String, String), AuthenticateUserError> {
+    ) -> Result<(String, String, bool), AuthenticateUserError> {
         // validate google id token
         let google_claims = self
             .get_google_claims(&id_token)
@@ -172,7 +172,7 @@ impl AuthService {
             .map_err(|_| AuthenticateUserError::InvalidToken)?;
 
         // check or create user in db
-        let user = db_service::schema::users::User::create_or_update_existing_user(
+        let (user, is_new_user) = db_service::schema::users::User::create_or_update_existing_user(
             &self.pool,
             &google_claims,
         )
@@ -184,7 +184,7 @@ impl AuthService {
             .generate_session_token(&google_claims, user.id.to_string())
             .map_err(|_| AuthenticateUserError::FailedToGenerateSessionToken)?;
 
-        Ok((user.id.to_string(), session_token))
+        Ok((user.id.to_string(), session_token, is_new_user))
     }
 }
 

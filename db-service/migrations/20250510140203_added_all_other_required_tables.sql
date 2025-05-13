@@ -1,12 +1,12 @@
 -- Add migration script here
 
 -- enums
-CREATE TYPE "polymarket"."market_status" AS ENUM ('OPEN', 'CLOSED', 'SETTLED');
-CREATE TYPE "polymarket"."outcome" AS ENUM ('YES', 'NO', 'NO_OUTCOME');
-CREATE TYPE "polymarket"."order_side" AS ENUM ('BUY', 'SELL');
-CREATE TYPE "polymarket"."order_status" AS ENUM ('OPEN', 'FILLED', 'CANCELLED');
-CREATE TYPE "polymarket"."user_transaction_type" AS ENUM ('DEPOSIT', 'WITHDRAWAL', 'TRADE');
-CREATE TYPE "polymarket"."user_transaction_status" AS ENUM ('PENDING', 'COMPLETED', 'FAILED');
+CREATE TYPE "polymarket"."market_status" AS ENUM ('open', 'closed', 'settled');
+CREATE TYPE "polymarket"."outcome" AS ENUM ('yes', 'no', 'unspecified');
+CREATE TYPE "polymarket"."order_side" AS ENUM ('buy', 'sell');
+CREATE TYPE "polymarket"."order_status" AS ENUM ('open', 'filled', 'cancelled');
+CREATE TYPE "polymarket"."user_transaction_type" AS ENUM ('deposit', 'withdrawal', 'trade');
+CREATE TYPE "polymarket"."user_transaction_status" AS ENUM ('pending', 'complete', 'failed');
 
 
 -- users
@@ -33,9 +33,9 @@ CREATE TABLE IF NOT EXISTS "polymarket"."markets" (
     "name" varchar(255) NOT NULL,
     "description" text NOT NULL,
     "logo" varchar(255) NOT NULL,
-    "status" "polymarket"."market_status" NOT NULL DEFAULT 'OPEN',
+    "status" "polymarket"."market_status" NOT NULL DEFAULT 'open',
     "liquidity_b" decimal NOT NULL DEFAULT 0,
-    "final_outcome" "polymarket"."outcome" NOT NULL DEFAULT 'NO_OUTCOME',
+    "final_outcome" "polymarket"."outcome" NOT NULL DEFAULT 'unspecified',
     "created_at" timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP,
     "updated_at" timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP
 );
@@ -50,7 +50,7 @@ CREATE TABLE IF NOT EXISTS "polymarket"."orders" (
     "price" decimal NOT NULL CHECK ("price" >= 0 AND "price" <= 1),
     "quantity" decimal NOT NULL CHECK ("quantity" > 0),
     "filled_quantity" decimal NOT NULL DEFAULT 0,
-    "status" "polymarket"."order_status" NOT NULL DEFAULT 'OPEN',
+    "status" "polymarket"."order_status" NOT NULL DEFAULT 'open',
     "created_at" timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP,
     "updated_at" timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP
 );

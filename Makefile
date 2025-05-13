@@ -13,9 +13,12 @@ REDIS_CONTAINER_NAME := polyMarket_redis
 REDIS_PORT := 6379
 REDIS_IMAGE := redis:7.4.1-alpine
 
+SERVICE_API_PORT := 8080
+
 DEFAULT_TARGET := help
 
 .PHONY: help
+
 help:
 	@echo "Available targets:"
 	@echo "  start-pg-container: Start PostgreSQL container"
@@ -27,6 +30,24 @@ help:
 	@echo "  reset-db: Reset the database"
 	@echo "  help: Show this help message"
 
+# definitions
+define kill_process
+@bash -c '\
+PORT_TO_KILL=$(1); \
+PID=$$(lsof -ti tcp:$$PORT_TO_KILL); \
+if [ -n "$$PID" ]; then \
+  kill -9 $$PID; \
+  echo "Killed process on port $$PORT_TO_KILL"; \
+else \
+  echo "No process found on port $$PORT_TO_KILL"; \
+fi'
+endef
+
+# services
+start-service-api:
+	$(call kill_process, 8080)
+	@cd ./service-api && \
+		cargo watch -x run
 
 # Containers management
 

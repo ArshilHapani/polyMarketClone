@@ -18,7 +18,7 @@ pub async fn oauth_login(
     require_field!(payload.id_token);
     let id_token = payload.id_token.as_ref().unwrap();
 
-    let (user_id, session_token) = app_state
+    let (user_id, session_token, is_new_user) = app_state
         .auth_service
         .authenticate_user(id_token)
         .await
@@ -43,9 +43,14 @@ pub async fn oauth_login(
     Ok((
         StatusCode::OK,
         Json(json!({
-            "message": "User authenticated successfully",
-            "user_id": user_id,
-            "session_token": session_token,
+            "message": if is_new_user {
+                "User created successfully"
+            } else {
+                "User logged in successfully"
+            },
+            "userId": user_id,
+            "sessionToken": session_token,
+            "success": true
         }))
         .into_response(),
     ))

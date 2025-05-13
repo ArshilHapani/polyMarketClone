@@ -74,7 +74,7 @@ impl User {
     pub async fn create_or_update_existing_user(
         pool: &PgPool,
         claims: &GoogleClaims,
-    ) -> Result<Self, sqlx::Error> {
+    ) -> Result<(Self, bool), sqlx::Error> {
         let existing_user = sqlx::query_as!(
             User,
             r#"
@@ -106,10 +106,12 @@ impl User {
             .await?;
 
             log_info!("User updated {}", updated_user.id);
-            Ok(updated_user)
+            Ok((updated_user, false))
         } else {
             // Create a new user
-            Self::create_new_user(pool, claims).await
+
+            let new_user = Self::create_new_user(pool, claims).await?;
+            Ok((new_user, true))
         }
     }
 }

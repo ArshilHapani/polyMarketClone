@@ -40,3 +40,5 @@ sqlx = { version = "0.8", features = [
 ] }
 reqwest = { version = "0.12.15", features = ["json"] }
 jsonwebtoken = "9.3.1"
+prost = "0.13.5"
+prost-types = "0.13.5"
