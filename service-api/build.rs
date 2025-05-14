@@ -1,4 +1,8 @@
-use std::{fs, path::PathBuf};
+use std::{
+    fs::{self, File},
+    io::Write,
+    path::PathBuf,
+};
 
 fn main() -> Result<(), Box<dyn std::error::Error>> {
     let out_dir = PathBuf::from("./src/generated");
@@ -11,6 +15,23 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         .out_dir(&out_dir)
         .type_attribute(".", "#[derive(serde::Serialize, serde::Deserialize)]")
         .compile_protos(&["proto/markets.proto"], &["proto"])?;
+
+    let entries = fs::read_dir(&out_dir)?
+        .filter_map(|e| e.ok())
+        .filter(|e| e.path().extension().map(|ext| ext == "rs").unwrap_or(false));
+
+    let mut mod_rs = File::create(out_dir.join("mod.rs"))?;
+    for entry in entries {
+        let file_name = entry.file_name();
+        let module_name = file_name
+            .to_string_lossy()
+            .trim_end_matches(".rs")
+            .to_string();
+        if module_name == "mod" {
+            continue;
+        }
+        writeln!(mod_rs, "pub mod {};", module_name)?;
+    }
 
     println!("cargo:rerun-if-changed=proto/");
 

@@ -1,8 +1,8 @@
 use auth_service::types::AuthenticateUserError;
 use axum::{Json, extract::State, http::StatusCode, response::IntoResponse};
-use db_service::log_error;
 use serde::{Deserialize, Serialize};
 use serde_json::json;
+use utility_helpers::log_error;
 
 use crate::{require_field, state::AppState, utils::types::ReturnType};
 

@@ -5,6 +5,7 @@ pub type ReturnType = (StatusCode, Response);
 
 #[derive(Serialize, Deserialize, Clone, Debug)]
 pub struct PaginationRequestQuery {
-    pub page: i64,
-    pub page_size: i64,
+    pub page: u64,
+    #[serde(rename = "pageSize")]
+    pub page_size: u64,
 }

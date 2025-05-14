@@ -30,9 +30,12 @@ pub fn router(app_state: AppState) -> Router<AppState> {
         custom_middleware::validate_jwt,
     ));
 
+    let admin_routes = admin::router(); // for now without middleware
+
     Router::new()
         .route("/", get(default_home_route))
         .route("/login", post(login::oauth_login))
         .nest("/user", user_routes)
+        .nest("/admin", admin_routes)
         .nest("/market", market::router())
 }

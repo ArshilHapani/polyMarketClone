@@ -1,6 +1,6 @@
 {
   "db_name": "PostgreSQL",
-  "query": "\n            INSERT INTO \"polymarket\".\"markets\" (\n                name,\n                description,\n                logo,\n                liquidity_b \n            ) VALUES (\n                $1,\n                $2,\n                $3,\n                $4 \n            ) RETURNING \n                id,\n                name,\n                description,\n                logo,\n                status as \"status: MarketStatus\",\n                liquidity_b,\n                final_outcome as \"final_outcome: Outcome\",\n                created_at,\n                updated_at\n            ",
+  "query": "\n            SELECT \n                id,\n                name,\n                description,\n                logo,\n                status as \"status: MarketStatus\",\n                final_outcome as \"final_outcome: Outcome\",\n                liquidity_b,\n                created_at,\n                updated_at\n            FROM \"polymarket\".\"markets\"\n            ",
   "describe": {
     "columns": [
       {
@@ -41,11 +41,6 @@
       },
       {
         "ordinal": 5,
-        "name": "liquidity_b",
-        "type_info": "Numeric"
-      },
-      {
-        "ordinal": 6,
         "name": "final_outcome: Outcome",
         "type_info": {
           "Custom": {
@@ -61,6 +56,11 @@
         }
       },
       {
+        "ordinal": 6,
+        "name": "liquidity_b",
+        "type_info": "Numeric"
+      },
+      {
         "ordinal": 7,
         "name": "created_at",
         "type_info": "Timestamp"
@@ -72,12 +72,7 @@
       }
     ],
     "parameters": {
-      "Left": [
-        "Varchar",
-        "Text",
-        "Varchar",
-        "Numeric"
-      ]
+      "Left": []
     },
     "nullable": [
       false,
@@ -91,5 +86,5 @@
       false
     ]
   },
-  "hash": "df1190e518b69d2ea84d67fb3917e07ae2c1a6baec77c845739787c060619c30"
+  "hash": "b1e1a9a54e2119aa8c292d75bf89dc4d092fbcc05a959379ff85e8b61d22086d"
 }

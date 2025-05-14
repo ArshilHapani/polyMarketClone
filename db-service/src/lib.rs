@@ -5,8 +5,6 @@ pub mod pagination;
 pub mod schema;
 pub mod utils;
 
-pub const SHOW_LOGS: bool = true;
-
 pub struct DbService {
     pub pool: sqlx::PgPool,
 }

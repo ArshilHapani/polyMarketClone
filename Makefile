@@ -13,6 +13,11 @@ REDIS_CONTAINER_NAME := polyMarket_redis
 REDIS_PORT := 6379
 REDIS_IMAGE := redis:7.4.1-alpine
 
+
+NATS_CONTAINER_NAME := polyMarket_nats
+NATS_IMAGE := nats:2.11.3-alpine3.21
+NATS_PORT := 4222
+
 SERVICE_API_PORT := 8080
 
 DEFAULT_TARGET := help
@@ -81,9 +86,19 @@ start-redis-container:
 		docker run --name $(REDIS_CONTAINER_NAME) -d -p $(REDIS_PORT):6379 $(REDIS_IMAGE); \
 	fi
 
+start-nats-container:
+	@echo "Checking if NATS container is already running..."
+	@if [ $$(docker ps -q -f name=$(NATS_CONTAINER_NAME)) ]; then \
+		echo "NATS container is already running."; \
+	elif [ $$(docker ps -aq -f status=exited -f name=$(NATS_CONTAINER_NAME)) ]; then \
+		echo "NATS container is stopped. Starting it..."; \
+		docker start $(NATS_CONTAINER_NAME); \
+	else \
+		echo "Starting NATS container..."; \
+		docker run --name $(NATS_CONTAINER_NAME) -d -p $(NATS_PORT):4222 -p 8222:8222 $(NATS_IMAGE) -js; \
+	fi
 
-
-start-required-containers: start-pg-container start-redis-container
+start-required-containers: start-pg-container start-redis-container start-nats-container
 
 
 # Utility targets
@@ -116,3 +131,11 @@ reset-db:
 	@docker exec -it $(POSTGRES_CONTAINER_NAME) psql -U $(POSTGRES_USER) -c "CREATE SCHEMA $(POSTGRES_PUBLIC_SCHEMA);"
 	@echo "Database dropped."
 
+move-proto-files-to-client:
+	@cp -r ./service-api/proto/*.proto ./app/public/proto/
+	@echo "Proto files moved to client directory."
+
+start-order-service:
+	@echo "Starting order service..."
+	@cd ./order-service && \
+		cargo watch -x run

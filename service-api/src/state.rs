@@ -1,11 +1,16 @@
 use std::error::Error as StdError;
 
+use async_nats::{
+    connect,
+    jetstream::{self, Context},
+};
 use auth_service::AuthService;
 
 #[derive(Clone)]
 pub struct AppState {
     pub pg_pool: sqlx::PgPool,
     pub auth_service: AuthService,
+    pub jetstream: Context,
 }
 
 impl AppState {
@@ -17,6 +22,10 @@ impl AppState {
             .map_err(|_| "GOOGLE_CLIENT_ID not set in .env file")?;
         let jwt_secret =
             std::env::var("JWT_SECRET").map_err(|_| "JWT_SECRET not set in .env file")?;
+        let nats_url = std::env::var("NC_URL").map_err(|_| "NC_URL not set in .env file")?;
+
+        let ns = connect(nats_url).await?;
+        let jetstream = jetstream::new(ns);
 
         let pg_pool = sqlx::PgPool::connect(&database_url).await?;
         let auth_service = AuthService::new(google_client_id, jwt_secret, pg_pool.clone())?;
@@ -24,6 +33,7 @@ impl AppState {
         let state = AppState {
             pg_pool,
             auth_service,
+            jetstream,
         };
 
         Ok(state)

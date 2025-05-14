@@ -4,6 +4,7 @@ workspace.members = [
     "auth-service",
     "db-service",
     "grpc-service",
+    "order-service",
     "service-api",
     "utility-helpers",
 ]
@@ -43,3 +44,5 @@ reqwest = { version = "0.12.15", features = ["json"] }
 jsonwebtoken = "9.3.1"
 prost = "0.13.5"
 prost-types = "0.13.5"
+async-nats = { version = "0.40.0" }
+futures-util = "0.3.31"

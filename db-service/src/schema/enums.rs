@@ -1,36 +1,39 @@
 use serde::{Deserialize, Serialize};
 
-#[derive(Debug, Serialize, Deserialize, sqlx::Type, Clone, PartialEq)]
+#[derive(Debug, Serialize, Deserialize, sqlx::Type, Clone, PartialEq, Default)]
 #[sqlx(type_name = "\"polymarket\".\"market_status\"")]
 #[sqlx(rename_all = "lowercase")]
 pub enum MarketStatus {
+    #[default]
     OPEN,
     CLOSED,
     SETTLED,
 }
 
-#[derive(Debug, Serialize, Deserialize, sqlx::Type, Clone, PartialEq)]
+#[derive(Debug, Serialize, Deserialize, sqlx::Type, Clone, PartialEq, Default)]
 #[sqlx(type_name = "\"polymarket\".\"outcome\"")]
 #[sqlx(rename_all = "lowercase")]
 pub enum Outcome {
     YES,
     NO,
-    INVALID,
+    #[default]
     UNSPECIFIED,
 }
 
-#[derive(Debug, Serialize, Deserialize, sqlx::Type, Clone, PartialEq)]
+#[derive(Debug, Serialize, Deserialize, sqlx::Type, Clone, PartialEq, Default)]
 #[sqlx(type_name = "\"polymarket\".\"order_side\"")]
 #[sqlx(rename_all = "lowercase")]
 pub enum OrderSide {
+    #[default]
     BUY,
     SELL,
 }
 
-#[derive(Debug, Serialize, Deserialize, sqlx::Type, Clone, PartialEq)]
+#[derive(Debug, Serialize, Deserialize, sqlx::Type, Clone, PartialEq, Default)]
 #[sqlx(type_name = "\"polymarket\".\"order_status\"")]
 #[sqlx(rename_all = "lowercase")]
 pub enum OrderStatus {
+    #[default]
     OPEN,
     FILLED,
     CANCELLED,

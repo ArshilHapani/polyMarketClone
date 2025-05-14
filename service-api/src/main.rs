@@ -1,8 +1,8 @@
-use axum::{Router, http::HeaderValue};
-use db_service::{SHOW_LOGS, log_info};
+use axum::Router;
 use tower_http::cors::{Any, CorsLayer};
 
 use state::AppState;
+use utility_helpers::log_info;
 
 mod routes;
 mod state;
@@ -14,8 +14,6 @@ const PORT: u16 = 8080;
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
     tracing_subscriber::fmt::init();
     let addr = format!("[::]:{}", PORT);
-
-    let origins = ["http://localhost:3000".parse::<HeaderValue>().unwrap()];
 
     let state = AppState::new().await?;
     let cors = CorsLayer::new()

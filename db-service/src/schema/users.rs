@@ -6,8 +6,7 @@ use solana_sdk::{signature::Keypair, signer::Signer};
 use sqlx::PgPool;
 use uuid::Uuid;
 
-use crate::log_info;
-use utility_helpers::{symmetric::encrypt, types::GoogleClaims};
+use utility_helpers::{log_info, symmetric::encrypt, types::GoogleClaims};
 
 #[derive(Debug, Serialize, Deserialize, Default)]
 pub struct User {
@@ -113,6 +112,22 @@ impl User {
             let new_user = Self::create_new_user(pool, claims).await?;
             Ok((new_user, true))
         }
+    }
+
+    pub async fn get_user_by_id(pool: &PgPool, user_id: String) -> Result<Self, sqlx::Error> {
+        let user_id = Uuid::parse_str(&user_id)
+            .map_err(|_| sqlx::Error::Decode("Invalid UUID format".into()))?;
+        let user = sqlx::query_as!(
+            User,
+            r#"
+            SELECT * FROM "polymarket"."users" WHERE id = $1
+            "#,
+            user_id
+        )
+        .fetch_one(pool)
+        .await?;
+
+        Ok(user)
     }
 }
 

@@ -2,12 +2,13 @@ use chrono::NaiveDateTime;
 use rust_decimal::Decimal;
 use serde::{Deserialize, Serialize};
 use sqlx::PgPool;
+use utility_helpers::log_info;
 use uuid::Uuid;
 
 use super::enums::{MarketStatus, Outcome};
-use crate::{log_info, pagination::PaginatedResponse};
+use crate::pagination::PaginatedResponse;
 
-#[derive(Debug, Serialize, Deserialize, sqlx::FromRow)]
+#[derive(Debug, Serialize, Deserialize, sqlx::FromRow, Default)]
 pub struct Market {
     pub id: Uuid,
     pub name: String,
@@ -89,8 +90,8 @@ impl Market {
 
     pub async fn get_all_markets_paginated(
         pg_pool: &PgPool,
-        page: i64,
-        page_size: i64,
+        page: u64,
+        page_size: u64,
     ) -> Result<PaginatedResponse<Self>, sqlx::Error> {
         let offset = (page - 1) * page_size;
 
@@ -105,7 +106,7 @@ impl Market {
         .total_count
         .unwrap_or(0);
 
-        let total_pages = (total_count + page_size - 1) / page_size;
+        let total_pages = (total_count as u64 + page_size - 1) / page_size;
 
         let markets = sqlx::query_as!(
             Market,
@@ -124,8 +125,8 @@ impl Market {
             ORDER BY created_at DESC
             LIMIT $1 OFFSET $2
             "#,
-            page_size,
-            offset
+            page_size as i64,
+            offset as i64
         )
         .fetch_all(pg_pool)
         .await?;
@@ -231,7 +232,6 @@ mod tests {
             .unwrap();
         assert_eq!(paginated_response.page_info.page, 1);
         assert_eq!(paginated_response.page_info.page_size, 10);
-        assert!(paginated_response.page_info.total_pages >= 0);
     }
 
     #[tokio::test]

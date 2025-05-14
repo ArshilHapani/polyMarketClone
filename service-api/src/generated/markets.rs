@@ -14,9 +14,11 @@ pub struct Market {
     pub status: i32,
     #[prost(double, tag = "6")]
     pub liquidity_b: f64,
-    #[prost(string, tag = "7")]
-    pub created_at: ::prost::alloc::string::String,
+    #[prost(enumeration = "Outcome", tag = "7")]
+    pub final_outcome: i32,
     #[prost(string, tag = "8")]
+    pub created_at: ::prost::alloc::string::String,
+    #[prost(string, tag = "9")]
     pub updated_at: ::prost::alloc::string::String,
 }
 #[derive(serde::Serialize, serde::Deserialize)]
@@ -73,8 +75,7 @@ pub enum Outcome {
     UnspecifiedOutcome = 0,
     Yes = 1,
     No = 2,
-    Invalid = 3,
-    Unspecified = 4,
+    Unspecified = 3,
 }
 impl Outcome {
     /// String value of the enum field names used in the ProtoBuf definition.
@@ -86,7 +87,6 @@ impl Outcome {
             Self::UnspecifiedOutcome => "UNSPECIFIED_OUTCOME",
             Self::Yes => "YES",
             Self::No => "NO",
-            Self::Invalid => "INVALID",
             Self::Unspecified => "UNSPECIFIED",
         }
     }
@@ -96,7 +96,6 @@ impl Outcome {
             "UNSPECIFIED_OUTCOME" => Some(Self::UnspecifiedOutcome),
             "YES" => Some(Self::Yes),
             "NO" => Some(Self::No),
-            "INVALID" => Some(Self::Invalid),
             "UNSPECIFIED" => Some(Self::Unspecified),
             _ => None,
         }

@@ -1,7 +1,7 @@
 #[macro_export]
 macro_rules! log_info {
     ($($arg:tt)*) => {
-        if crate::SHOW_LOGS {
+        if $crate::SHOW_LOGS {
             tracing::info!($($arg)*);
         }
     };
@@ -10,7 +10,7 @@ macro_rules! log_info {
 #[macro_export]
 macro_rules! log_error {
     ($($arg:tt)*) => {
-        if crate::SHOW_LOGS {
+        if $crate::SHOW_LOGS {
             tracing::error!($($arg)*);
         }
     };
@@ -19,7 +19,7 @@ macro_rules! log_error {
 #[macro_export]
 macro_rules! log_debug {
     ($($arg:tt)*) => {
-        if crate::SHOW_LOGS {
+        if $crate::SHOW_LOGS {
             tracing::debug!($($arg)*);
         }
     };
@@ -28,7 +28,7 @@ macro_rules! log_debug {
 #[macro_export]
 macro_rules! log_warn {
     ($($arg:tt)*) => {
-        if crate::SHOW_LOGS {
+        if $crate::SHOW_LOGS {
             tracing::warn!($($arg)*);
         }
     };
@@ -37,7 +37,7 @@ macro_rules! log_warn {
 #[macro_export]
 macro_rules! log_trace {
     ($($arg:tt)*) => {
-        if crate::SHOW_LOGS {
+        if $crate::SHOW_LOGS {
             tracing::trace!($($arg)*);
         }
     };
