@@ -1,6 +1,6 @@
 use serde::{Deserialize, Serialize};
 
-#[derive(Debug, Serialize, Deserialize, sqlx::Type, Clone, PartialEq, Default)]
+#[derive(Debug, Serialize, Deserialize, sqlx::Type, Clone, PartialEq, Default, Copy)]
 #[sqlx(type_name = "\"polymarket\".\"market_status\"")]
 #[sqlx(rename_all = "lowercase")]
 pub enum MarketStatus {
@@ -10,7 +10,7 @@ pub enum MarketStatus {
     SETTLED,
 }
 
-#[derive(Debug, Serialize, Deserialize, sqlx::Type, Clone, PartialEq, Default)]
+#[derive(Debug, Serialize, Deserialize, sqlx::Type, Clone, PartialEq, Default, Copy)]
 #[sqlx(type_name = "\"polymarket\".\"outcome\"")]
 #[sqlx(rename_all = "lowercase")]
 pub enum Outcome {
@@ -20,7 +20,7 @@ pub enum Outcome {
     UNSPECIFIED,
 }
 
-#[derive(Debug, Serialize, Deserialize, sqlx::Type, Clone, PartialEq, Default)]
+#[derive(Debug, Serialize, Deserialize, sqlx::Type, Clone, PartialEq, Default, Copy)]
 #[sqlx(type_name = "\"polymarket\".\"order_side\"")]
 #[sqlx(rename_all = "lowercase")]
 pub enum OrderSide {
@@ -29,7 +29,7 @@ pub enum OrderSide {
     SELL,
 }
 
-#[derive(Debug, Serialize, Deserialize, sqlx::Type, Clone, PartialEq, Default)]
+#[derive(Debug, Serialize, Deserialize, sqlx::Type, Clone, PartialEq, Default, Copy)]
 #[sqlx(type_name = "\"polymarket\".\"order_status\"")]
 #[sqlx(rename_all = "lowercase")]
 pub enum OrderStatus {
@@ -39,19 +39,21 @@ pub enum OrderStatus {
     CANCELLED,
 }
 
-#[derive(Debug, Serialize, Deserialize, sqlx::Type, Clone, PartialEq)]
+#[derive(Debug, Serialize, Deserialize, sqlx::Type, Clone, PartialEq, Default, Copy)]
 #[sqlx(type_name = "\"polymarket\".\"user_transaction_type\"")]
 #[sqlx(rename_all = "lowercase")]
 pub enum UserTransactionType {
+    #[default]
     DEPOSIT,
     WITHDRAWAL,
     TRADE,
 }
 
-#[derive(Debug, Serialize, Deserialize, sqlx::Type, Clone, PartialEq)]
+#[derive(Debug, Serialize, Deserialize, sqlx::Type, Clone, PartialEq, Default, Copy)]
 #[sqlx(type_name = "\"polymarket\".\"user_transaction_status\"")]
 #[sqlx(rename_all = "lowercase")]
 pub enum UserTransactionStatus {
+    #[default]
     PENDING,
     COMPLETED,
     FAILED,

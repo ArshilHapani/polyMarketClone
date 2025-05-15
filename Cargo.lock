@@ -2269,8 +2269,10 @@ version = "0.1.0"
 dependencies = [
  "async-nats",
  "chrono",
+ "db-service",
  "dotenv",
  "futures-util",
+ "parking_lot",
  "rust_decimal",
  "rust_decimal_macros",
  "serde",

@@ -5,6 +5,7 @@ edition = "2024"
 
 [dependencies]
 utility-helpers = { path = "../utility-helpers" }
+db-service = { path = "../db-service" }
 async-nats = { workspace = true }
 tokio = { workspace = true }
 uuid = { workspace = true }
@@ -18,3 +19,4 @@ rust_decimal_macros = { workspace = true }
 dotenv = { workspace = true }
 sqlx = { workspace = true }
 futures-util = { workspace = true }
+parking_lot = { version = "0.12.3" }

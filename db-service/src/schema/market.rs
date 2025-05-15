@@ -141,7 +141,7 @@ impl Market {
 
     pub async fn get_market_by_id(
         pg_pool: &PgPool,
-        market_id: Uuid,
+        market_id: &Uuid,
     ) -> Result<Option<Self>, sqlx::Error> {
         let market = sqlx::query_as!(
             Market,
@@ -165,6 +165,50 @@ impl Market {
         .await?;
 
         Ok(market)
+    }
+
+    pub async fn update_market_price(
+        pg_pool: &PgPool,
+        market_id: Uuid,
+        price: Decimal,
+    ) -> Result<(), sqlx::Error> {
+        sqlx::query!(
+            r#"
+            UPDATE "polymarket"."markets" 
+            SET liquidity_b = $1
+            WHERE id = $2
+            "#,
+            price,
+            market_id
+        )
+        .execute(pg_pool)
+        .await?;
+
+        Ok(())
+    }
+
+    pub async fn get_all_open_markets(pg_pool: &PgPool) -> Result<Vec<Market>, sqlx::Error> {
+        let orders = sqlx::query_as!(
+            Market,
+            r#"
+            SELECT 
+                id,
+                name,
+                description,
+                logo,
+                status as "status: MarketStatus",
+                final_outcome as "final_outcome: Outcome",
+                liquidity_b,
+                created_at,
+                updated_at
+            FROM polymarket.markets WHERE
+            status = 'open'::polymarket.market_status;
+            "#
+        )
+        .fetch_all(pg_pool)
+        .await?;
+
+        Ok(orders)
     }
 }
 
@@ -251,7 +295,7 @@ mod tests {
         .await
         .unwrap();
 
-        let fetched_market = Market::get_market_by_id(&pg_pool, market.id)
+        let fetched_market = Market::get_market_by_id(&pg_pool, &market.id)
             .await
             .unwrap()
             .unwrap();

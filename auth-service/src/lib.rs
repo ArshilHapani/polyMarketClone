@@ -6,7 +6,7 @@ use dotenv::dotenv;
 use jsonwebtoken::{Algorithm, Validation, jwk::JwkSet};
 use reqwest::{Client, StatusCode};
 use std::error::Error as StdError;
-use utility_helpers::types::GoogleClaims;
+use utility_helpers::types::{EnvVarConfig, GoogleClaims};
 
 use token_services::Claims;
 use types::{
@@ -16,25 +16,20 @@ use types::{
 #[derive(Clone)]
 pub struct AuthService {
     pub client: Client,
-    pub google_client_id: String,
-    pub jwt_secret: String,
     pub pool: sqlx::PgPool,
+    pub env_var_config: EnvVarConfig,
 }
 
 impl AuthService {
-    pub fn new(
-        google_client_id: String,
-        jwt_secret: String,
-        pg_pool: sqlx::PgPool,
-    ) -> Result<Self, Box<dyn StdError>> {
+    pub fn new(pg_pool: sqlx::PgPool) -> Result<Self, Box<dyn StdError>> {
         dotenv().ok();
 
         let client = Client::new();
+        let env_var_config = EnvVarConfig::new()?;
 
         let auth_service = AuthService {
             client,
-            google_client_id,
-            jwt_secret,
+            env_var_config,
             pool: pg_pool,
         };
 
@@ -74,7 +69,7 @@ impl AuthService {
         );
 
         let (token_auth_response, jwk_sets_response) = tokio::join!(
-            get_token_auth_resp(&client, &auth_url, &self.google_client_id),
+            get_token_auth_resp(&client, &auth_url, &self.env_var_config.google_client_id),
             get_jwk_set_resp_string(&client, jwks_url)
         );
 
@@ -130,7 +125,7 @@ impl AuthService {
         let session_token = jsonwebtoken::encode(
             &jsonwebtoken::Header::default(),
             &session_claims,
-            &jsonwebtoken::EncodingKey::from_secret(self.jwt_secret.as_ref()),
+            &jsonwebtoken::EncodingKey::from_secret(self.env_var_config.jwt_secret.as_ref()),
         )
         .map_err(|_| "Failed to encode session token".to_string())?;
 
@@ -145,7 +140,7 @@ impl AuthService {
 
         let token_data = jsonwebtoken::decode::<SessionTokenClaims>(
             session_token,
-            &jsonwebtoken::DecodingKey::from_secret(self.jwt_secret.as_ref()),
+            &jsonwebtoken::DecodingKey::from_secret(self.env_var_config.jwt_secret.as_ref()),
             &validation,
         )
         .map_err(|e| {

@@ -1,22 +1,35 @@
+use std::sync::Arc;
+
 use async_nats::{
     connect,
     jetstream::{self, Context},
 };
+use parking_lot::RwLock;
+use utility_helpers::types::EnvVarConfig;
+
+use crate::order_book::GlobalOrderBook;
 
 pub struct AppState {
     pub jetstream: Context,
+    pub db_pool: sqlx::PgPool,
+    pub order_book: Arc<RwLock<GlobalOrderBook>>,
 }
 
 impl AppState {
     pub async fn new() -> Result<Self, Box<dyn std::error::Error>> {
         dotenv::dotenv().ok();
 
-        let nats_url = std::env::var("NC_URL")
-            .map_err(|_| "NC_URL environment variable not set".to_string())?;
+        let env_var_config = EnvVarConfig::new()?;
 
-        let nc = connect(nats_url).await?;
+        let nc = connect(&env_var_config.nc_url).await?;
         let js = jetstream::new(nc);
+        let db_pool = sqlx::PgPool::connect(&env_var_config.database_url).await?;
+        let order_book = Arc::new(RwLock::new(GlobalOrderBook::new()));
 
-        Ok(AppState { jetstream: js })
+        Ok(AppState {
+            jetstream: js,
+            db_pool,
+            order_book,
+        })
     }
 }

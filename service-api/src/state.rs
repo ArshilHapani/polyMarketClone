@@ -5,6 +5,7 @@ use async_nats::{
     jetstream::{self, Context},
 };
 use auth_service::AuthService;
+use utility_helpers::types::EnvVarConfig;
 
 #[derive(Clone)]
 pub struct AppState {
@@ -16,19 +17,14 @@ pub struct AppState {
 impl AppState {
     pub async fn new() -> Result<Self, Box<dyn StdError>> {
         dotenv::dotenv().ok();
-        let database_url =
-            std::env::var("DATABASE_URL").map_err(|_| "DATABASE_URL not set in .env file")?;
-        let google_client_id = std::env::var("GOOGLE_CLIENT_ID")
-            .map_err(|_| "GOOGLE_CLIENT_ID not set in .env file")?;
-        let jwt_secret =
-            std::env::var("JWT_SECRET").map_err(|_| "JWT_SECRET not set in .env file")?;
-        let nats_url = std::env::var("NC_URL").map_err(|_| "NC_URL not set in .env file")?;
 
-        let ns = connect(nats_url).await?;
+        let env_var_config = EnvVarConfig::new()?;
+
+        let ns = connect(&env_var_config.nc_url).await?;
         let jetstream = jetstream::new(ns);
 
-        let pg_pool = sqlx::PgPool::connect(&database_url).await?;
-        let auth_service = AuthService::new(google_client_id, jwt_secret, pg_pool.clone())?;
+        let pg_pool = sqlx::PgPool::connect(&env_var_config.database_url).await?;
+        let auth_service = AuthService::new(pg_pool.clone())?;
 
         let state = AppState {
             pg_pool,
