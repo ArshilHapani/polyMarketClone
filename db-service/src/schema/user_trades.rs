@@ -11,6 +11,7 @@ pub struct UserTrades {
     id: Uuid,
     buy_order_id: Uuid,
     sell_order_id: Uuid,
+    user_id: Uuid,
     market_id: Uuid,
     outcome: Outcome,
     price: Decimal,
@@ -25,6 +26,7 @@ impl UserTrades {
         pg_pool: &PgPool,
         buy_order_id: Uuid,
         sell_order_id: Uuid,
+        user_id: Uuid,
         market_id: Uuid,
         outcome: Outcome,
         price: Decimal,
@@ -33,14 +35,15 @@ impl UserTrades {
         let trade = sqlx::query_as!(
             UserTrades,
             r#"
-            INSERT INTO polymarket.user_trades (buy_order_id, sell_order_id, market_id, outcome, price, quantity)
-            VALUES ($1, $2, $3, $4, $5, $6)
-            RETURNING id, buy_order_id, sell_order_id, market_id,
+            INSERT INTO polymarket.user_trades (buy_order_id, sell_order_id, user_id, market_id, outcome, price, quantity)
+            VALUES ($1, $2, $3, $4, $5, $6, $7)
+            RETURNING id, buy_order_id, sell_order_id, user_id, market_id,
             outcome as "outcome: Outcome",
             price, quantity, timestamp, created_at, updated_at
             "#,
             buy_order_id,
             sell_order_id,
+            user_id,
             market_id,
             outcome as Outcome,
             price,

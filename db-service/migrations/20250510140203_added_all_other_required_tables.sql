@@ -20,8 +20,8 @@ CREATE TABLE IF NOT EXISTS "polymarket"."users" (
     "last_login" timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP,
     
     -- wallet fields
-    "public_key" varchar(255) NOT NULL,
-    "private_key" TEXT NOT NULL,
+    "public_key" varchar(255) NOT NULL UNIQUE,
+    "private_key" TEXT NOT NULL UNIQUE,
     "balance" decimal(20,8) NOT NULL DEFAULT 0,            
     "created_at" timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP,
     "updated_at" timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP
@@ -58,6 +58,7 @@ CREATE TABLE IF NOT EXISTS "polymarket"."orders" (
 -- user_trades
 CREATE TABLE IF NOT EXISTS "polymarket"."user_trades" (
     "id" uuid DEFAULT gen_random_uuid() PRIMARY KEY,
+    "user_id" uuid NOT NULL REFERENCES "polymarket"."users"("id"),
     "buy_order_id" uuid NOT NULL REFERENCES "polymarket"."orders"("id"),
     "sell_order_id" uuid NOT NULL REFERENCES "polymarket"."orders"("id"),
     "market_id" uuid NOT NULL REFERENCES "polymarket"."markets"("id"),

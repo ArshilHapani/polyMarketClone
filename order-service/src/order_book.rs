@@ -24,13 +24,13 @@ pub(crate) struct MarketOrderBook {
 
 #[derive(Debug, Default)]
 pub(crate) struct OutcomeOrderBook {
-    pub(crate) bids: BTreeMap<Decimal, PriceLevel>,
-    pub(crate) asks: BTreeMap<Decimal, PriceLevel>,
+    pub(crate) bids: BTreeMap<Decimal, PriceLevel>, // sellers
+    pub(crate) asks: BTreeMap<Decimal, PriceLevel>, // buyers
 }
 
 #[derive(Debug, Default)]
 pub(crate) struct PriceLevel {
-    pub(crate) orders: Vec<OrderBookEntry>,
+    orders: Vec<OrderBookEntry>,
     pub(crate) total_quantity: Decimal,
 }
 
@@ -44,7 +44,6 @@ struct OrderBookEntry {
 }
 
 impl OutcomeOrderBook {
-    // add an order to the book
     pub(crate) fn add_order(&mut self, order: &Order) {
         let price_map = match order.side {
             OrderSide::BUY => &mut self.bids,
@@ -62,15 +61,13 @@ impl OutcomeOrderBook {
         };
 
         price_level.orders.push(entry);
-        price_level.total_quantity += order.quantity;
+        price_level.total_quantity += order.quantity - order.filled_quantity;
     }
 
-    // get best bid price
     pub(crate) fn best_bid(&self) -> Option<Decimal> {
         self.bids.keys().next_back().cloned()
     }
 
-    // get best ask price
     pub(crate) fn best_ask(&self) -> Option<Decimal> {
         self.asks.keys().next().cloned()
     }
@@ -88,7 +85,8 @@ impl OutcomeOrderBook {
                 .position(|o| o.order_id == order_id)
             {
                 let removed_order = price_level.orders.remove(pos);
-                price_level.total_quantity -= removed_order.quantity;
+                price_level.total_quantity -=
+                    removed_order.quantity - removed_order.filled_quantity;
 
                 if price_level.orders.is_empty() {
                     price_map.remove(&price);
@@ -100,7 +98,6 @@ impl OutcomeOrderBook {
         false
     }
 
-    // update order
     pub(crate) fn update_order(
         &mut self,
         order_id: Uuid,
@@ -119,10 +116,12 @@ impl OutcomeOrderBook {
                 .iter_mut()
                 .find(|o| o.order_id == order_id)
             {
-                let quantity_change = new_filled_quantity - order.filled_quantity;
+                let prev_remaining = order.quantity - order.filled_quantity;
+                let new_remaining = order.quantity - new_filled_quantity;
+                price_level.total_quantity =
+                    price_level.total_quantity + new_remaining - prev_remaining;
 
                 order.filled_quantity = new_filled_quantity;
-                price_level.total_quantity -= quantity_change;
 
                 if price_level.total_quantity <= Decimal::ZERO {
                     price_map.remove(&price);
@@ -134,72 +133,67 @@ impl OutcomeOrderBook {
         false
     }
 
-    // match order
     pub(crate) fn match_order(&mut self, order: &mut Order) -> Vec<(Uuid, Uuid, Decimal, Decimal)> {
         let mut matches: Vec<(Uuid, Uuid, Decimal, Decimal)> = Vec::new();
 
-        let (opposite_side_book, is_buy) = match order.side {
+        let (book, is_buy) = match order.side {
             OrderSide::BUY => (&mut self.asks, true),
             OrderSide::SELL => (&mut self.bids, false),
         };
 
-        let price_levels: Vec<(&Decimal, &mut PriceLevel)> = if is_buy {
-            opposite_side_book.iter_mut().collect()
+        let mut keys: Vec<Decimal> = book.keys().cloned().collect();
+        if is_buy {
+            keys.sort_by(|a, b| a.partial_cmp(b).unwrap());
         } else {
-            opposite_side_book.iter_mut().rev().collect()
-        };
+            keys.sort_by(|a, b| b.partial_cmp(a).unwrap());
+        }
 
-        let mut remaining_quantity = order.quantity - order.filled_quantity;
-        let mut to_remove_price: Option<Decimal> = None;
-        for (price, price_level) in price_levels {
-            if (is_buy && order.price < *price) || (!is_buy && order.price > *price) {
+        let mut remaining = order.quantity - order.filled_quantity;
+
+        for price in keys {
+            if (is_buy && order.price < price) || (!is_buy && order.price > price) {
                 continue;
             }
 
-            let mut i = 0;
-            while i < price_level.orders.len() && remaining_quantity > Decimal::ZERO {
-                let opposite_order = &mut price_level.orders[i];
-                let opposite_remaining = opposite_order.quantity - opposite_order.filled_quantity;
+            if let Some(price_level) = book.get_mut(&price) {
+                let mut new_orders = Vec::new();
+                for mut opposite_order in price_level.orders.drain(..) {
+                    let opp_remaining = opposite_order.quantity - opposite_order.filled_quantity;
+                    if opp_remaining <= Decimal::ZERO {
+                        continue;
+                    }
 
-                if opposite_remaining <= Decimal::ZERO {
-                    i += 1;
-                    continue;
+                    let match_qty = remaining.min(opp_remaining);
+
+                    opposite_order.filled_quantity += match_qty;
+                    order.filled_quantity += match_qty;
+                    remaining -= match_qty;
+
+                    matches.push((order.id, opposite_order.order_id, match_qty, price));
+
+                    if opposite_order.filled_quantity < opposite_order.quantity {
+                        new_orders.push(opposite_order);
+                    }
+
+                    if remaining == Decimal::ZERO {
+                        break;
+                    }
+                }
+                price_level.orders = new_orders;
+                price_level.total_quantity = price_level
+                    .orders
+                    .iter()
+                    .map(|o| o.quantity - o.filled_quantity)
+                    .sum();
+
+                if price_level.orders.is_empty() {
+                    book.remove(&price);
                 }
 
-                let match_quantity = opposite_remaining.min(remaining_quantity);
-
-                opposite_order.filled_quantity += match_quantity;
-                remaining_quantity -= match_quantity;
-                order.filled_quantity += match_quantity;
-
-                matches.push((order.id, opposite_order.order_id, match_quantity, *price));
-
-                if opposite_remaining == match_quantity {
-                    i += 1;
-                }
-
-                if remaining_quantity == Decimal::ZERO {
+                if remaining == Decimal::ZERO {
                     break;
                 }
             }
-
-            price_level.total_quantity = price_level
-                .orders
-                .iter()
-                .map(|o| o.quantity - o.filled_quantity)
-                .sum();
-
-            if price_level.total_quantity <= Decimal::ZERO {
-                to_remove_price = Some(*price);
-            }
-
-            if remaining_quantity == Decimal::ZERO {
-                break;
-            }
-        }
-
-        if let Some(price) = to_remove_price {
-            opposite_side_book.remove(&price);
         }
 
         if order.filled_quantity == order.quantity {
@@ -265,16 +259,16 @@ impl MarketOrderBook {
             self.current_yes_price = self.liquidity_b / (self.liquidity_b + funds_no);
             self.current_no_price = self.liquidity_b / (self.liquidity_b + funds_yes);
         } else {
-            if let Some(best_bid) = self.yes_book.best_bid() {
-                if let Some(best_ask) = self.yes_book.best_ask() {
-                    self.current_yes_price = (best_bid + best_ask) / Decimal::new(2, 0);
-                }
+            if let (Some(best_bid), Some(best_ask)) =
+                (self.yes_book.best_bid(), self.yes_book.best_ask())
+            {
+                self.current_yes_price = (best_bid + best_ask) / Decimal::new(2, 0);
             }
 
-            if let Some(best_bid) = self.no_book.best_bid() {
-                if let Some(best_ask) = self.no_book.best_ask() {
-                    self.current_no_price = (best_bid + best_ask) / Decimal::new(2, 0);
-                }
+            if let (Some(best_bid), Some(best_ask)) =
+                (self.no_book.best_bid(), self.no_book.best_ask())
+            {
+                self.current_no_price = (best_bid + best_ask) / Decimal::new(2, 0);
             }
         }
     }
@@ -285,13 +279,13 @@ impl MarketOrderBook {
                 .yes_book
                 .bids
                 .iter()
-                .map(|(price, level)| *price * level.total_quantity)
+                .map(|(p, l)| *p * l.total_quantity)
                 .sum(),
             Outcome::NO => self
                 .no_book
                 .bids
                 .iter()
-                .map(|(price, level)| *price * level.total_quantity)
+                .map(|(p, l)| *p * l.total_quantity)
                 .sum(),
             _ => Decimal::ZERO,
         }

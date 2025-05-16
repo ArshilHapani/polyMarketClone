@@ -36,7 +36,7 @@ pub struct OrderWithMarket {
     pub status: OrderStatus,
     pub created_at: NaiveDateTime,
     pub updated_at: NaiveDateTime,
-    pub liquidity_b: Option<Decimal>,
+    pub liquidity_b: Decimal,
 }
 
 impl From<&OrderWithMarket> for Order {
@@ -88,8 +88,8 @@ impl Order {
             Order,
             r#"
             INSERT INTO "polymarket"."orders"
-            (user_id, market_id, price, quantity, side)
-            VALUES ($1, $2, $3, $4, $5)
+            (user_id, market_id, price, quantity, side, status)
+            VALUES ($1, $2, $3, $4, $5, $6)
             RETURNING 
             id, user_id, market_id,
             outcome as "outcome: Outcome",
@@ -103,6 +103,7 @@ impl Order {
             price,
             quantity,
             side as _,
+            OrderStatus::CANCELLED as _,
         )
         .fetch_one(pool)
         .await?;
@@ -225,7 +226,7 @@ impl Order {
             o.side as "side: OrderSide",
             o.created_at, o.updated_at, m.liquidity_b
             FROM polymarket.orders o
-            LEFT JOIN polymarket.markets m ON o.market_id = m.id
+            JOIN polymarket.markets m ON o.market_id = m.id
             WHERE o.status = 'open'::polymarket.order_status            
             "#,
         )
@@ -274,6 +275,29 @@ impl Order {
 
         log_info!("Order updated - {:?}", order.id);
         Ok(order)
+    }
+
+    pub async fn get_buyer_and_seller_user_id(
+        pg_pool: &sqlx::PgPool,
+        buy_order_id: Uuid,
+        sell_order_id: Uuid,
+    ) -> Result<(Uuid, Uuid), sqlx::Error> {
+        let order = sqlx::query!(
+            r#"
+            SELECT user_id FROM polymarket.orders
+            WHERE id = $1 OR id = $2
+            "#,
+            buy_order_id,
+            sell_order_id
+        )
+        .fetch_all(pg_pool)
+        .await?;
+
+        if order.len() != 2 {
+            return Err(sqlx::Error::RowNotFound);
+        }
+
+        Ok((order[0].user_id, order[1].user_id))
     }
 }
 

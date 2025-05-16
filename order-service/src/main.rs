@@ -86,14 +86,12 @@ async fn initialize_app() -> Result<AppState, Box<dyn std::error::Error>> {
             if db_order.outcome == Outcome::UNSPECIFIED {
                 continue;
             }
-            if let Some(liquidity_b) = db_order.liquidity_b {
-                let market = global_book.get_or_create_market(db_order.market_id, liquidity_b);
+            let market = global_book.get_or_create_market(db_order.market_id, db_order.liquidity_b);
 
-                if let Some(book) = market.get_order_book(&db_order.outcome) {
-                    log_info!("Order added to book - {:?}", db_order.id);
-                    let order: Order = db_order.into();
-                    book.add_order(&order);
-                }
+            if let Some(book) = market.get_order_book(&db_order.outcome) {
+                log_info!("Order added to book - {:?}", db_order.id);
+                let order: Order = db_order.into();
+                book.add_order(&order);
             }
         }
     }
