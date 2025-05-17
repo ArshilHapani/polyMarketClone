@@ -6,6 +6,7 @@ use db_service::schema::{
     orders::Order,
 };
 use rust_decimal::Decimal;
+use utility_helpers::log_warn;
 use uuid::Uuid;
 
 pub(crate) struct GlobalOrderBook {
@@ -38,7 +39,9 @@ pub(crate) struct PriceLevel {
 struct OrderBookEntry {
     pub(crate) order_id: Uuid,
     pub(crate) user_id: Uuid,
+    /// Total quantity of the order
     pub(crate) quantity: Decimal,
+    /// Filled quantity of the order
     pub(crate) filled_quantity: Decimal,
     pub(crate) timestamp: NaiveDateTime,
 }
@@ -160,7 +163,14 @@ impl OutcomeOrderBook {
         }
 
         for price in keys {
+            // order price boundary check
             if (is_buy && order.price < price) || (!is_buy && order.price > price) {
+                log_warn!(
+                    "Order {} not matched: price {} is not within the limit price {}",
+                    order.id,
+                    price,
+                    order.price
+                );
                 continue;
             }
 
@@ -259,7 +269,7 @@ impl MarketOrderBook {
         self.update_market_prices();
         matches
     }
-
+    // TODO - backtracked till here
     pub(crate) fn update_market_prices(&mut self) {
         let funds_yes = self.calculate_total_funds(Outcome::YES);
         let funds_no = self.calculate_total_funds(Outcome::NO);
