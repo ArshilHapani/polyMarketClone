@@ -4,7 +4,7 @@
 CREATE TYPE "polymarket"."market_status" AS ENUM ('open', 'closed', 'settled');
 CREATE TYPE "polymarket"."outcome" AS ENUM ('yes', 'no', 'unspecified');
 CREATE TYPE "polymarket"."order_side" AS ENUM ('buy', 'sell');
-CREATE TYPE "polymarket"."order_status" AS ENUM ('open', 'filled', 'cancelled');
+CREATE TYPE "polymarket"."order_status" AS ENUM ('open', 'filled', 'cancelled', 'unspecified', 'expired');
 CREATE TYPE "polymarket"."user_transaction_type" AS ENUM ('deposit', 'withdrawal', 'trade');
 CREATE TYPE "polymarket"."user_transaction_status" AS ENUM ('pending', 'complete', 'failed');
 
@@ -50,7 +50,7 @@ CREATE TABLE IF NOT EXISTS "polymarket"."orders" (
     "price" decimal NOT NULL CHECK ("price" >= 0 AND "price" <= 1),
     "quantity" decimal NOT NULL CHECK ("quantity" > 0),
     "filled_quantity" decimal NOT NULL DEFAULT 0,
-    "status" "polymarket"."order_status" NOT NULL DEFAULT 'open',
+    "status" "polymarket"."order_status" NOT NULL DEFAULT 'unspecified',
     "created_at" timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP,
     "updated_at" timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP
 );

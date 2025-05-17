@@ -65,10 +65,12 @@ impl OutcomeOrderBook {
     }
 
     pub(crate) fn best_bid(&self) -> Option<Decimal> {
+        // sorted in descending order, so we take the last one (highest)
         self.bids.keys().next_back().cloned()
     }
 
     pub(crate) fn best_ask(&self) -> Option<Decimal> {
+        // sorted in ascending order, so we take the first one (cheapest)
         self.asks.keys().next().cloned()
     }
 
@@ -88,6 +90,7 @@ impl OutcomeOrderBook {
                 price_level.total_quantity -=
                     removed_order.quantity - removed_order.filled_quantity;
 
+                // if there are no orders left at this price level, remove it
                 if price_level.orders.is_empty() {
                     price_map.remove(&price);
                 }
@@ -134,6 +137,7 @@ impl OutcomeOrderBook {
     }
 
     pub(crate) fn match_order(&mut self, order: &mut Order) -> Vec<(Uuid, Uuid, Decimal, Decimal)> {
+        // order id, opposite order id, quantity matched, price
         let mut matches: Vec<(Uuid, Uuid, Decimal, Decimal)> = Vec::new();
 
         let (book, is_buy) = match order.side {
@@ -143,12 +147,17 @@ impl OutcomeOrderBook {
 
         let mut keys: Vec<Decimal> = book.keys().cloned().collect();
         if is_buy {
+            // sort in ascending order
             keys.sort_by(|a, b| a.partial_cmp(b).unwrap());
         } else {
+            // sort in descending order
             keys.sort_by(|a, b| b.partial_cmp(a).unwrap());
         }
 
-        let mut remaining = order.quantity - order.filled_quantity;
+        let mut remaining = order.quantity - order.filled_quantity; // remaining quantity to match
+        if remaining <= Decimal::ZERO {
+            return matches;
+        }
 
         for price in keys {
             if (is_buy && order.price < price) || (!is_buy && order.price > price) {

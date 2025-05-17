@@ -88,8 +88,8 @@ impl Order {
             Order,
             r#"
             INSERT INTO "polymarket"."orders"
-            (user_id, market_id, price, quantity, side, status)
-            VALUES ($1, $2, $3, $4, $5, $6)
+            (user_id, market_id, price, quantity, side)
+            VALUES ($1, $2, $3, $4, $5)
             RETURNING 
             id, user_id, market_id,
             outcome as "outcome: Outcome",
@@ -103,7 +103,6 @@ impl Order {
             price,
             quantity,
             side as _,
-            OrderStatus::CANCELLED as _,
         )
         .fetch_one(pool)
         .await?;
@@ -400,7 +399,7 @@ mod tests {
         assert_eq!(order.quantity, quantity);
         assert_eq!(order.side, side);
         assert_eq!(order.filled_quantity, Decimal::ZERO);
-        assert_eq!(order.status, OrderStatus::OPEN);
+        assert_eq!(order.status, OrderStatus::UNSPECIFIED);
         assert_eq!(order.outcome, Outcome::UNSPECIFIED);
         assert_eq!(order.created_at, order.updated_at);
 

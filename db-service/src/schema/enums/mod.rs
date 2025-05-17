@@ -37,6 +37,8 @@ pub enum OrderStatus {
     OPEN,
     FILLED,
     CANCELLED,
+    EXPIRED,
+    UNSPECIFIED,
 }
 
 #[derive(Debug, Serialize, Deserialize, sqlx::Type, Clone, PartialEq, Default, Copy)]
