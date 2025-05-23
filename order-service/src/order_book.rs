@@ -6,7 +6,6 @@ use db_service::schema::{
     orders::Order,
 };
 use rust_decimal::Decimal;
-use utility_helpers::log_warn;
 use uuid::Uuid;
 
 pub(crate) struct GlobalOrderBook {
@@ -15,8 +14,8 @@ pub(crate) struct GlobalOrderBook {
 
 #[derive(Debug, Default)]
 pub(crate) struct MarketOrderBook {
-    pub(crate) yes_book: OutcomeOrderBook,
-    pub(crate) no_book: OutcomeOrderBook,
+    yes_book: OutcomeOrderBook,
+    no_book: OutcomeOrderBook,
     pub(crate) market_id: Uuid,
     pub(crate) current_yes_price: Decimal,
     pub(crate) current_no_price: Decimal,
@@ -157,7 +156,7 @@ impl OutcomeOrderBook {
             keys.sort_by(|a, b| b.partial_cmp(a).unwrap());
         }
 
-        let mut remaining = order.quantity - order.filled_quantity; // remaining quantity to match
+        let mut remaining = order.quantity - order.filled_quantity; // if order is already filled
         if remaining <= Decimal::ZERO {
             return matches;
         }
@@ -165,17 +164,11 @@ impl OutcomeOrderBook {
         for price in keys {
             // order price boundary check
             if (is_buy && order.price < price) || (!is_buy && order.price > price) {
-                log_warn!(
-                    "Order {} not matched: price {} is not within the limit price {}",
-                    order.id,
-                    price,
-                    order.price
-                );
                 continue;
             }
 
             if let Some(price_level) = book.get_mut(&price) {
-                let mut new_orders = Vec::new();
+                let mut new_orders = Vec::new(); // FIXME: creating new vector every time... instead of internal vector mutation
                 for mut opposite_order in price_level.orders.drain(..) {
                     let opp_remaining = opposite_order.quantity - opposite_order.filled_quantity;
                     if opp_remaining <= Decimal::ZERO {
@@ -269,6 +262,7 @@ impl MarketOrderBook {
         self.update_market_prices();
         matches
     }
+
     // TODO - backtracked till here
     pub(crate) fn update_market_prices(&mut self) {
         let funds_yes = self.calculate_total_funds(Outcome::YES);

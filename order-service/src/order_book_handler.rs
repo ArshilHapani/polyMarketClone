@@ -1,5 +1,5 @@
 use rust_decimal::Decimal;
-use std::str::FromStr;
+use std::{rc::Rc, str::FromStr};
 use uuid::Uuid;
 
 use crate::state::AppState;
@@ -12,7 +12,7 @@ use db_service::schema::{
 use utility_helpers::log_info;
 
 pub async fn handle_orders(
-    app_state: &AppState,
+    app_state: Rc<AppState>,
     order_id: String,
 ) -> Result<(), Box<dyn std::error::Error>> {
     let order_id = Uuid::from_str(&order_id).map_err(|_| "Invalid order ID format".to_string())?;
@@ -118,6 +118,8 @@ pub async fn handle_orders(
 
     // store yes_price and no_price in some time series db
     log_info!("yes_price: {:?}, no_price: {:?}", yes_price, no_price);
+    // print active orders
+    log_info!("Orders {:?}", app_state.order_book.read().markets);
 
     Ok(())
 }

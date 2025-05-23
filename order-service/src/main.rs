@@ -1,4 +1,5 @@
-use async_nats::jetstream;
+use std::rc::Rc;
+
 use db_service::schema::{
     enums::{OrderStatus, Outcome},
     market::Market,
@@ -7,7 +8,6 @@ use db_service::schema::{
 use futures_util::stream::StreamExt;
 use order_book_handler::handle_orders;
 use state::AppState;
-use tokio::time;
 use utility_helpers::{log_error, log_info};
 
 mod order_book;
@@ -17,54 +17,36 @@ mod state;
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
     let app_state = initialize_app().await?;
+    let app_state = Rc::new(app_state);
     tracing_subscriber::fmt::init();
 
     log_info!("Connected to NATS JetStream");
-    let stream = app_state.jetstream.get_stream("ORDERS").await?;
-    let consumer = stream
-        .get_or_create_consumer(
-            "ORDERS",
-            jetstream::consumer::pull::Config {
-                durable_name: Some("order-worker".into()),
-                filter_subject: "orders.created".into(),
-                ..Default::default()
-            },
-        )
-        .await?;
 
-    log_info!("Listening for messages...");
+    let subscription = app_state
+        .nats_client
+        .subscribe("orders.created")
+        .await?
+        .take(50);
 
     initialize_app().await?;
+    log_info!("Application initialized");
+    log_info!("Listening for order events...");
 
-    loop {
-        let mut messages = consumer
-            .batch()
-            .max_messages(10)
-            .expires(std::time::Duration::from_secs(5))
-            .messages()
-            .await?;
-
-        while let Some(message_result) = messages.next().await {
-            match message_result {
-                Ok(msg) => {
-                    let order_id = std::str::from_utf8(&msg.payload)?.to_string();
-
-                    log_info!("Received message: {:?}", order_id);
-
-                    handle_orders(&app_state, order_id).await?;
-
-                    msg.ack()
-                        .await
-                        .map_err(|_| "Failed to acknowledge message".to_string())?;
-                }
-                Err(e) => {
-                    log_error!("Error receiving message: {}", e);
+    subscription
+        .for_each(|message| {
+            let app_state = app_state.clone();
+            async move {
+                let order_id = String::from_utf8_lossy(&message.payload).to_string();
+                println!("Received message: {:?}", order_id);
+                let er = handle_orders(app_state, order_id).await;
+                if let Err(e) = er {
+                    log_error!("Error handling order: {:?}", e);
                 }
             }
-        }
+        })
+        .await;
 
-        time::sleep(time::Duration::from_millis(100)).await;
-    }
+    Ok(())
 }
 
 async fn initialize_app() -> Result<AppState, Box<dyn std::error::Error>> {
