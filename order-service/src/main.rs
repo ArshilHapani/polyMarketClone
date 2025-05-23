@@ -1,5 +1,4 @@
-use std::rc::Rc;
-
+use async_nats::jetstream;
 use db_service::schema::{
     enums::{OrderStatus, Outcome},
     market::Market,
@@ -8,7 +7,8 @@ use db_service::schema::{
 use futures_util::stream::StreamExt;
 use order_book_handler::handle_orders;
 use state::AppState;
-use utility_helpers::{log_error, log_info};
+use std::sync::Arc;
+use utility_helpers::log_info;
 
 mod order_book;
 mod order_book_handler;
@@ -17,34 +17,45 @@ mod state;
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
     let app_state = initialize_app().await?;
-    let app_state = Rc::new(app_state);
+    let app_state = Arc::new(app_state);
     tracing_subscriber::fmt::init();
 
     log_info!("Connected to NATS JetStream");
 
-    let subscription = app_state
-        .nats_client
-        .subscribe("orders.created")
-        .await?
-        .take(50);
-
-    initialize_app().await?;
-    log_info!("Application initialized");
-    log_info!("Listening for order events...");
-
-    subscription
-        .for_each(|message| {
-            let app_state = app_state.clone();
-            async move {
-                let order_id = String::from_utf8_lossy(&message.payload).to_string();
-                println!("Received message: {:?}", order_id);
-                let er = handle_orders(app_state, order_id).await;
-                if let Err(e) = er {
-                    log_error!("Error handling order: {:?}", e);
-                }
-            }
+    let stream = app_state
+        .jetstream
+        .get_or_create_stream(jetstream::stream::Config {
+            name: "ORDERS".to_string(),
+            subjects: vec!["orders.>".to_string()],
+            ..Default::default()
         })
-        .await;
+        .await?;
+
+    let consumer = stream
+        .create_consumer(jetstream::consumer::pull::Config {
+            durable_name: Some("orders".to_string()),
+            ..Default::default()
+        })
+        .await?;
+
+    let mut messages = consumer.messages().await?.take(50);
+
+    while let Some(message) = messages.next().await {
+        let message = message?;
+        let order_id = String::from_utf8(message.payload.to_vec())
+            .map_err(|_| "Failed to convert payload to string".to_string())?;
+        println!("Received order ID: {}", order_id);
+        println!(
+            "App state orders length: {:?}",
+            app_state.order_book.read().markets
+        );
+        // handle_orders(app_state.clone(), order_id).await?;
+
+        message
+            .ack()
+            .await
+            .map_err(|_| "Failed to acknowledge message".to_string())?;
+    }
 
     Ok(())
 }
@@ -78,4 +89,23 @@ async fn initialize_app() -> Result<AppState, Box<dyn std::error::Error>> {
         }
     }
     Ok(app_state)
+}
+
+#[cfg(test)]
+mod tests {
+
+    use super::*;
+
+    #[tokio::test]
+    async fn test_handle_orders() {
+        let app_state = initialize_app().await.unwrap();
+        let app_state = Arc::new(app_state);
+        let order_id = "d7bed0dd-e8e0-46e3-bfcf-72631bd8e36b".to_string();
+
+        let result = handle_orders(app_state, order_id).await;
+
+        assert!(result.is_ok());
+
+        assert!(true);
+    }
 }

@@ -1,0 +1,83 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "\n            UPDATE polymarket.user_holdings\n            SET shares = shares + $1\n            WHERE user_id = $2 AND market_id = $3 AND outcome = $4\n            RETURNING id, user_id, market_id, outcome as \"outcome: Outcome\", shares, created_at, updated_at\n            ",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "id",
+        "type_info": "Uuid"
+      },
+      {
+        "ordinal": 1,
+        "name": "user_id",
+        "type_info": "Uuid"
+      },
+      {
+        "ordinal": 2,
+        "name": "market_id",
+        "type_info": "Uuid"
+      },
+      {
+        "ordinal": 3,
+        "name": "outcome: Outcome",
+        "type_info": {
+          "Custom": {
+            "name": "polymarket.outcome",
+            "kind": {
+              "Enum": [
+                "yes",
+                "no",
+                "unspecified"
+              ]
+            }
+          }
+        }
+      },
+      {
+        "ordinal": 4,
+        "name": "shares",
+        "type_info": "Numeric"
+      },
+      {
+        "ordinal": 5,
+        "name": "created_at",
+        "type_info": "Timestamp"
+      },
+      {
+        "ordinal": 6,
+        "name": "updated_at",
+        "type_info": "Timestamp"
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Numeric",
+        "Uuid",
+        "Uuid",
+        {
+          "Custom": {
+            "name": "polymarket.outcome",
+            "kind": {
+              "Enum": [
+                "yes",
+                "no",
+                "unspecified"
+              ]
+            }
+          }
+        }
+      ]
+    },
+    "nullable": [
+      false,
+      false,
+      false,
+      false,
+      false,
+      false,
+      false
+    ]
+  },
+  "hash": "323fb248bb1d450b8f6ef7bd452e3ed222324466a199be9f4e591314dab2088b"
+}
