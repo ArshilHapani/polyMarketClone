@@ -1,0 +1,1 @@
+select * from polymarket.user_trades;

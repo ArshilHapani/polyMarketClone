@@ -9,7 +9,7 @@ use axum::{
     response::{IntoResponse, Response},
 };
 use db_service::schema::{
-    enums::{OrderSide, OrderStatus},
+    enums::{OrderSide, OrderStatus, Outcome},
     orders::Order,
 };
 use rust_decimal::{Decimal, prelude::FromPrimitive};
@@ -26,6 +26,7 @@ pub struct CreateOrderPayload {
     price: Option<f64>,
     quantity: Option<f64>,
     side: Option<String>,
+    outcome_side: Option<String>,
 }
 
 pub async fn create_order(
@@ -37,6 +38,7 @@ pub async fn create_order(
     require_field!(payload.price);
     require_field!(payload.quantity);
     require_field!(payload.side);
+    require_field!(payload.outcome_side);
 
     let side: OrderSide = match payload.side.as_deref().unwrap().to_lowercase().as_str() {
         "buy" => OrderSide::BUY,
@@ -51,6 +53,26 @@ pub async fn create_order(
             ));
         }
     };
+    let outcome_side: Outcome = match payload
+        .outcome_side
+        .as_deref()
+        .unwrap()
+        .to_lowercase()
+        .as_str()
+    {
+        "yes" => Outcome::YES,
+        "no" => Outcome::NO,
+        _ => {
+            return Err((
+                StatusCode::BAD_REQUEST,
+                Json(json!({
+                    "error":"Invalid outcome side - must be 'yes' or 'no'"
+                }))
+                .into_response(),
+            ));
+        }
+    };
+
     let user_id = Uuid::from_str(&claims.user_id).map_err(|_| {
         (
             StatusCode::BAD_REQUEST,
@@ -85,7 +107,7 @@ pub async fn create_order(
         .jetstream
         .get_or_create_stream(jetstream::stream::Config {
             name: "ORDERS".into(),
-            subjects: vec!["orders.*".into()],
+            subjects: vec!["orders.>".into()],
             ..Default::default()
         })
         .await
@@ -106,6 +128,7 @@ pub async fn create_order(
         from_f64(payload.price),
         from_f64(payload.quantity),
         side,
+        outcome_side,
         &app_state.pg_pool,
     )
     .await

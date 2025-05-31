@@ -139,3 +139,7 @@ start-order-service:
 	@echo "Starting order service..."
 	@cd ./order-service && \
 		cargo watch -x run
+
+
+run-test-with-output:
+	@cargo test -- --nocapture

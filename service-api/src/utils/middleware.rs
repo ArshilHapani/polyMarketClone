@@ -44,6 +44,8 @@ pub async fn validate_jwt(
         .verify_session_token(token)
         .map_err(|_| invalid_token_error)?;
 
+    // FIXME: do i need to check whether user exists in db or not...
+
     let mut req = req;
     req.extensions_mut().insert(claims);
 

@@ -1,6 +1,6 @@
 {
   "db_name": "PostgreSQL",
-  "query": "\n            INSERT INTO \"polymarket\".\"orders\"\n            (user_id, market_id, price, quantity, side)\n            VALUES ($1, $2, $3, $4, $5)\n            RETURNING \n            id, user_id, market_id,\n            outcome as \"outcome: Outcome\",\n            price, quantity, filled_quantity,\n            status as \"status: OrderStatus\",\n            side as \"side: OrderSide\",\n            created_at, updated_at\n            ",
+  "query": "\n            INSERT INTO \"polymarket\".\"orders\"\n            (user_id, market_id, price, quantity, side, outcome)\n            VALUES ($1, $2, $3, $4, $5, $6)\n            RETURNING \n            id, user_id, market_id,\n            outcome as \"outcome: Outcome\",\n            price, quantity, filled_quantity,\n            status as \"status: OrderStatus\",\n            side as \"side: OrderSide\",            \n            created_at, updated_at\n            ",
   "describe": {
     "columns": [
       {
@@ -109,6 +109,18 @@
               ]
             }
           }
+        },
+        {
+          "Custom": {
+            "name": "polymarket.outcome",
+            "kind": {
+              "Enum": [
+                "yes",
+                "no",
+                "unspecified"
+              ]
+            }
+          }
         }
       ]
     },
@@ -126,5 +138,5 @@
       false
     ]
   },
-  "hash": "7104bfe0c1310419c4ff8123d4005fa2debea2dafa1ac9db16b9aa11d72dbde0"
+  "hash": "709737066f0f137ac879b20423de2f8d663461645f439f227b18dd761c10aca3"
 }

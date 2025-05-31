@@ -82,20 +82,21 @@ impl Order {
         price: Decimal,
         quantity: Decimal,
         side: OrderSide,
+        outcome_side: Outcome,
         pool: &PgPool,
     ) -> Result<Order, sqlx::Error> {
         let order = sqlx::query_as!(
             Order,
             r#"
             INSERT INTO "polymarket"."orders"
-            (user_id, market_id, price, quantity, side)
-            VALUES ($1, $2, $3, $4, $5)
+            (user_id, market_id, price, quantity, side, outcome)
+            VALUES ($1, $2, $3, $4, $5, $6)
             RETURNING 
             id, user_id, market_id,
             outcome as "outcome: Outcome",
             price, quantity, filled_quantity,
             status as "status: OrderStatus",
-            side as "side: OrderSide",
+            side as "side: OrderSide",            
             created_at, updated_at
             "#,
             user_id,
@@ -103,6 +104,7 @@ impl Order {
             price,
             quantity,
             side as _,
+            outcome_side as _
         )
         .fetch_one(pool)
         .await?;
@@ -226,13 +228,12 @@ impl Order {
             o.created_at, o.updated_at, m.liquidity_b
             FROM polymarket.orders o
             JOIN polymarket.markets m ON o.market_id = m.id
-            WHERE o.status = 'open'::polymarket.order_status            
+            WHERE o.status = 'open'::polymarket.order_status         
             "#,
         )
         .fetch_all(pool)
         .await?;
 
-        log_info!("Orders found - {:?}", orders.len());
         Ok(orders)
     }
 
@@ -389,9 +390,17 @@ mod tests {
         let quantity = Decimal::from_str("1.0").unwrap();
         let side = OrderSide::BUY;
 
-        let order = Order::create_order(user_id, market_id, price, quantity, side.clone(), &pool)
-            .await
-            .unwrap();
+        let order = Order::create_order(
+            user_id,
+            market_id,
+            price,
+            quantity,
+            side.clone(),
+            Outcome::YES,
+            &pool,
+        )
+        .await
+        .unwrap();
 
         assert_eq!(order.user_id, user_id);
         assert_eq!(order.market_id, market_id);
@@ -400,7 +409,7 @@ mod tests {
         assert_eq!(order.side, side);
         assert_eq!(order.filled_quantity, Decimal::ZERO);
         assert_eq!(order.status, OrderStatus::UNSPECIFIED);
-        assert_eq!(order.outcome, Outcome::UNSPECIFIED);
+        assert_eq!(order.outcome, Outcome::YES);
         assert_eq!(order.created_at, order.updated_at);
 
         // Clean up
