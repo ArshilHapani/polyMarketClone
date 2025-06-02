@@ -8,6 +8,7 @@ use utility_helpers::log_info;
 
 mod order_book;
 mod order_book_handler;
+mod order_book_v2;
 mod state;
 
 #[tokio::main]

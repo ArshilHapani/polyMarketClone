@@ -4,7 +4,7 @@ use async_nats::connect;
 use parking_lot::RwLock;
 use utility_helpers::types::EnvVarConfig;
 
-use crate::order_book::GlobalOrderBook;
+use crate::order_book::global_order_book::GlobalOrderBook;
 
 pub struct AppState {
     pub db_pool: sqlx::PgPool,

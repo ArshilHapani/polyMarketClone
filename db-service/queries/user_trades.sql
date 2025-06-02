@@ -1,1 +1,1 @@
-select * from polymarket.user_trades;
+select * from polymarket.user_trades ORDER BY created_at DESC;

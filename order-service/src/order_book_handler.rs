@@ -20,7 +20,7 @@ pub async fn handle_orders(
         .await
         .map_err(|_| "Failed to find order".to_string())?;
 
-    // default is UNSPECIFIED
+    // default is UNSPECIFIED (checked before two time, still for security reason)
     if order.status == OrderStatus::OPEN {
         log_info!("Order already open - {:?}", order.id);
         return Ok(());

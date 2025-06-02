@@ -143,3 +143,6 @@ start-order-service:
 
 run-test-with-output:
 	@cargo test -- --nocapture
+
+run-particular-test:
+	@cargo test --package order-service --bin order-service -- order_book_v2::outcome_book::test
