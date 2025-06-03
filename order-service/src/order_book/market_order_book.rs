@@ -64,46 +64,6 @@ impl MarketOrderBook {
         matches
     }
 
-    pub(crate) fn update_market_prices(&mut self) {
-        let funds_yes = self.calculate_total_funds(Outcome::YES);
-        let funds_no = self.calculate_total_funds(Outcome::NO);
-
-        if self.liquidity_b > Decimal::ZERO {
-            self.current_yes_price = self.liquidity_b / (self.liquidity_b + funds_no);
-            self.current_no_price = self.liquidity_b / (self.liquidity_b + funds_yes);
-        } else {
-            if let (Some(best_bid), Some(best_ask)) =
-                (self.yes_book.best_bid(), self.yes_book.best_ask())
-            {
-                self.current_yes_price = (best_bid + best_ask) / Decimal::new(2, 0);
-            }
-
-            if let (Some(best_bid), Some(best_ask)) =
-                (self.no_book.best_bid(), self.no_book.best_ask())
-            {
-                self.current_no_price = (best_bid + best_ask) / Decimal::new(2, 0);
-            }
-        }
-    }
-
-    pub(crate) fn calculate_total_funds(&self, outcome: Outcome) -> Decimal {
-        match outcome {
-            Outcome::YES => self
-                .yes_book
-                .bids
-                .iter()
-                .map(|(p, l)| *p * l.total_quantity)
-                .sum(),
-            Outcome::NO => self
-                .no_book
-                .bids
-                .iter()
-                .map(|(p, l)| *p * l.total_quantity)
-                .sum(),
-            _ => Decimal::ZERO,
-        }
-    }
-
     pub(crate) fn remove_order(
         &mut self,
         order_id: Uuid,
@@ -143,5 +103,45 @@ impl MarketOrderBook {
             self.update_market_prices();
         }
         result
+    }
+
+    pub(crate) fn update_market_prices(&mut self) {
+        let funds_yes = self.calculate_total_funds(Outcome::YES);
+        let funds_no = self.calculate_total_funds(Outcome::NO);
+
+        if self.liquidity_b > Decimal::ZERO {
+            self.current_yes_price = self.liquidity_b / (self.liquidity_b + funds_no);
+            self.current_no_price = self.liquidity_b / (self.liquidity_b + funds_yes);
+        } else {
+            if let (Some(best_bid), Some(best_ask)) =
+                (self.yes_book.best_bid(), self.yes_book.best_ask())
+            {
+                self.current_yes_price = (best_bid + best_ask) / Decimal::new(2, 0);
+            }
+
+            if let (Some(best_bid), Some(best_ask)) =
+                (self.no_book.best_bid(), self.no_book.best_ask())
+            {
+                self.current_no_price = (best_bid + best_ask) / Decimal::new(2, 0);
+            }
+        }
+    }
+
+    pub(crate) fn calculate_total_funds(&self, outcome: Outcome) -> Decimal {
+        match outcome {
+            Outcome::YES => self
+                .yes_book
+                .bids
+                .iter()
+                .map(|(p, l)| *p * l.total_quantity)
+                .sum(),
+            Outcome::NO => self
+                .no_book
+                .bids
+                .iter()
+                .map(|(p, l)| *p * l.total_quantity)
+                .sum(),
+            _ => Decimal::ZERO,
+        }
     }
 }

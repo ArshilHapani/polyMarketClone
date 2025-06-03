@@ -25,8 +25,8 @@ pub enum Outcome {
 #[sqlx(rename_all = "lowercase")]
 pub enum OrderSide {
     #[default]
-    BUY,
-    SELL,
+    BUY, // bids
+    SELL, // asks
 }
 
 #[derive(Debug, Serialize, Deserialize, sqlx::Type, Clone, PartialEq, Default, Copy)]

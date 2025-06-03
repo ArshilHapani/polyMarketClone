@@ -140,6 +140,12 @@ impl OutcomeBook {
         false
     }
 
+    /// vector item sequence
+    ///
+    /// * order id - 1st item UUID
+    /// * opposite order id - 2nd item UUID
+    /// * matched quantity - 3rd item decimal  
+    /// * price - 4th item decimal
     pub(super) fn match_order(&mut self, order: &mut Order) -> Vec<(Uuid, Uuid, Decimal, Decimal)> {
         // order id, opposite order id, matched quantity, price
         let mut matches: Vec<(Uuid, Uuid, Decimal, Decimal)> = Vec::new();
@@ -162,8 +168,6 @@ impl OutcomeBook {
         if remaining <= Decimal::ZERO {
             return matches;
         }
-
-        println!("Keys {:?}", keys);
 
         for price in keys {
             if (is_buy && price > order.price) || (!is_buy && price < order.price) {
