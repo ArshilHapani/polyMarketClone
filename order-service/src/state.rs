@@ -4,11 +4,11 @@ use async_nats::connect;
 use parking_lot::RwLock;
 use utility_helpers::types::EnvVarConfig;
 
-use crate::order_book::global_order_book::GlobalOrderBook;
+use crate::order_book_v2::global_book::GlobalMarketBook;
 
 pub struct AppState {
     pub db_pool: sqlx::PgPool,
-    pub order_book: Arc<RwLock<GlobalOrderBook>>,
+    pub order_book: Arc<RwLock<GlobalMarketBook>>,
     pub jetstream: async_nats::jetstream::Context,
 }
 
@@ -21,7 +21,7 @@ impl AppState {
         let nc = connect(&env_var_config.nc_url).await?;
         let jetstream = async_nats::jetstream::new(nc);
         let db_pool = sqlx::PgPool::connect(&env_var_config.database_url).await?;
-        let order_book = Arc::new(RwLock::new(GlobalOrderBook::new()));
+        let order_book = Arc::new(RwLock::new(GlobalMarketBook::new()));
 
         Ok(AppState {
             db_pool,

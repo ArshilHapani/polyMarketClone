@@ -25,13 +25,13 @@ struct OrderBookEntry {
 }
 
 #[derive(Debug, Default)]
-pub(super) struct OutcomeBook {
+pub(crate) struct OutcomeBook {
     pub(super) bids: BTreeMap<Decimal, PriceLevel>, // buyers side
     pub(super) asks: BTreeMap<Decimal, PriceLevel>, // sellers side
 }
 
 impl OutcomeBook {
-    pub(super) fn add_order(&mut self, order: &Order) {
+    pub(crate) fn add_order(&mut self, order: &Order) {
         let side = match order.side {
             OrderSide::BUY => &mut self.bids,
             OrderSide::SELL => &mut self.asks,
@@ -188,6 +188,10 @@ impl OutcomeBook {
 
                     ///// ATOMIC Operation START
                     opposite_order.filled_quantity += match_qty;
+                    if opposite_order.filled_quantity == opposite_order.total_quantity {
+                        // FIXME: I also have to update the status of opposite order in db...
+                    }
+
                     order.filled_quantity += match_qty;
                     remaining -= match_qty;
 
@@ -229,6 +233,7 @@ impl OutcomeBook {
 #[cfg(test)]
 mod test {
     use db_service::schema::enums::Outcome;
+    use rust_decimal_macros::dec;
 
     use super::*;
 
@@ -422,6 +427,12 @@ mod test {
         outcome_book.add_order(&buy_order_3);
 
         let resp = outcome_book.match_order(&mut sell_order_1);
+        // NEED TO PERFORM POST UPDATES ON ADDED ORDERS....
+        let order_book_entry = outcome_book.bids.get(&dec!(0.20));
+        assert!(order_book_entry.is_some());
+        let order_book_entry = order_book_entry.unwrap();
+        assert!(order_book_entry.orders.len() == 1);
+        assert!(order_book_entry.orders[0].filled_quantity == dec!(1));
 
         assert_eq!(sell_order_1.status, OrderStatus::FILLED);
         assert_eq!(resp.len(), 3);
@@ -429,7 +440,7 @@ mod test {
         // Verify matching happened in price-time priority order
         assert_eq!(resp[0].1, buy_order_1.id); // Best price (0.25) first
         assert_eq!(resp[1].1, buy_order_3.id); // Second best price (0.23)
-        assert_eq!(resp[2].1, buy_order_2.id); // Third best price (0.20)
+        assert_eq!(resp[2].1, buy_order_2.id); // Third best price (0.20)        
     }
 
     #[test]

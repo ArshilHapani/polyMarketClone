@@ -1,14 +1,14 @@
 use async_nats::jetstream;
 use db_service::schema::{enums::OrderStatus, market::Market, orders::Order};
 use futures_util::stream::StreamExt;
-use order_book_handler::handle_orders;
 use state::AppState;
 use std::sync::Arc;
 use utility_helpers::log_info;
 
-mod order_book;
-mod order_book_handler;
+use crate::order_book_v2_handler::order_book_v2_handler;
+
 mod order_book_v2;
+mod order_book_v2_handler;
 mod state;
 
 #[tokio::main]
@@ -43,7 +43,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         let order_id = String::from_utf8(message.payload.to_vec())
             .map_err(|_| "Failed to convert payload to string".to_string())?;
         log_info!("Received order ID: {}", order_id);
-        handle_orders(app_state.clone(), order_id).await?;
+        order_book_v2_handler(app_state.clone(), order_id).await?;
 
         message
             .ack()
@@ -63,22 +63,25 @@ async fn initialize_app() -> Result<AppState, Box<dyn std::error::Error>> {
     {
         let mut global_book = app_state.order_book.write();
 
+        // iterating over open markets
         for market in &open_markets {
             global_book.get_or_create_market(market.id, market.liquidity_b);
         }
+
         let mut loaded_markets = 0;
+
+        // iterate over open orders
         for db_order in &open_orders {
             if db_order.status != OrderStatus::OPEN {
                 continue;
             }
             let market = global_book.get_or_create_market(db_order.market_id, db_order.liquidity_b);
 
-            if let Some(book) = market.get_order_book(&db_order.outcome) {
+            if let Some(book) = market.get_order_book(db_order.outcome) {
                 let order: Order = db_order.into();
                 loaded_markets += 1;
                 book.add_order(&order);
-            } else {
-                println!("Else condition met for order {}", db_order.id);
+                // whether you should process the order or add the order... TILL HERE
             }
         }
         log_info!("Loaded {} open markets from db", loaded_markets);

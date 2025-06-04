@@ -117,7 +117,7 @@ impl Order {
         let order = sqlx::query_as!(
             Order,
             r#"
-            DELETE FROM "polymarket"."orders"
+            DELETE FROM polymarket.orders
             WHERE id = $1
             RETURNING 
             id, user_id, market_id,
@@ -144,7 +144,7 @@ impl Order {
         let order = sqlx::query_as!(
             Order,
             r#"
-            UPDATE "polymarket"."orders"
+            UPDATE polymarket.orders
             SET status = $1
             WHERE id = $2
             RETURNING 
@@ -176,7 +176,7 @@ impl Order {
             status as "status: OrderStatus",
             side as "side: OrderSide",
             created_at, updated_at            
-            FROM "polymarket"."orders"
+            FROM polymarket.orders
             WHERE id = $1
             "#,
             order_id

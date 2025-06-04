@@ -111,7 +111,7 @@ impl MarketBook {
         result
     }
 
-    pub(super) fn get_order_book(&mut self, outcome: Outcome) -> Option<&mut OutcomeBook> {
+    pub(crate) fn get_order_book(&mut self, outcome: Outcome) -> Option<&mut OutcomeBook> {
         match outcome {
             Outcome::YES => Some(&mut self.yes_order_book),
             Outcome::NO => Some(&mut self.no_order_book),
@@ -122,8 +122,8 @@ impl MarketBook {
     ///// Helpers //////
 
     fn update_market_price(&mut self) {
-        /// https://www.cultivatelabs.com/crowdsourced-forecasting-guide/how-does-logarithmic-market-scoring-rule-lmsr-work
-        /// Refer above blogpost for better understanding on LMSR price mechanism for prediction markets
+        // https://www.cultivatelabs.com/crowdsourced-forecasting-guide/how-does-logarithmic-market-scoring-rule-lmsr-work
+        // Refer above blogpost for better understanding on LMSR (Logarithmic Market Scoring Rule) price mechanism for prediction markets
         if self.liquidity_b > Decimal::ZERO {
             let funds_yes = self.calculate_total_funds(Outcome::YES);
             let funds_no = self.calculate_total_funds(Outcome::NO);
@@ -722,5 +722,51 @@ mod test {
         assert_eq!(matches.len(), 0);
         assert_eq!(order.filled_quantity, dec!(0));
         assert_eq!(order.status, OrderStatus::OPEN);
+    }
+
+    #[test]
+    fn test_if_price_reaches_at_one_if_certain_range_of_order_hits() {
+        let market_id = get_random_uuid();
+
+        let buy_order_yes = Order {
+            created_at: get_created_at(),
+            filled_quantity: Decimal::ZERO,
+            id: get_random_uuid(),
+            market_id,
+            outcome: Outcome::YES,
+            price: dec!(0.5),
+            quantity: dec!(10),
+            side: OrderSide::BUY,
+            status: OrderStatus::OPEN,
+            updated_at: get_created_at(),
+            user_id: get_random_uuid(),
+        };
+
+        let buy_order_no = Order {
+            created_at: get_created_at(),
+            filled_quantity: Decimal::ZERO,
+            id: get_random_uuid(),
+            market_id,
+            outcome: Outcome::NO,
+            price: dec!(0.5),
+            quantity: dec!(10),
+            side: OrderSide::BUY,
+            status: OrderStatus::OPEN,
+            updated_at: get_created_at(),
+            user_id: get_random_uuid(),
+        };
+
+        let mut market_book = MarketBook::new(dec!(100));
+        for _ in 0..1000 {
+            market_book.add_order(&buy_order_yes);
+        }
+        for _ in 0..100 {
+            market_book.add_order(&buy_order_no);
+        }
+
+        println!(
+            "yes price: {}\nNo price: {}",
+            market_book.current_yes_price, market_book.current_no_price
+        );
     }
 }
