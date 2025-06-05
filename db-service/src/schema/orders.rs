@@ -75,6 +75,12 @@ impl From<OrderWithMarket> for Order {
     }
 }
 
+impl<'a> From<&'a mut OrderWithMarket> for &'a mut Order {
+    fn from(order: &'a mut OrderWithMarket) -> &'a mut Order {
+        unsafe { &mut *(order as *mut OrderWithMarket as *mut Order) }
+    }
+}
+
 impl Order {
     pub async fn create_order(
         user_id: Uuid,
@@ -299,6 +305,37 @@ impl Order {
 
         Ok((order[0].user_id, order[1].user_id))
     }
+
+    pub async fn update_order_status_and_filled_quantity(
+        pool: &PgPool,
+        order_id: Uuid,
+        order_status: OrderStatus,
+        new_filled_quantity: Decimal,
+    ) -> Result<Order, sqlx::Error> {
+        let order = sqlx::query_as!(
+            Order,
+            r#"
+            UPDATE polymarket.orders
+            SET status = $1, filled_quantity = $2
+            WHERE id = $3
+            RETURNING 
+            id, user_id, market_id,
+            outcome as "outcome: Outcome",
+            price, quantity, filled_quantity,
+            status as "status: OrderStatus",
+            side as "side: OrderSide",
+            created_at, updated_at
+            "#,
+            order_status as _,
+            new_filled_quantity,
+            order_id
+        )
+        .fetch_one(pool)
+        .await?;
+
+        log_info!("Order updated - {:?}", order.id);
+        Ok(order)
+    }
 }
 
 impl OrderWithMarket {
@@ -444,5 +481,113 @@ mod tests {
         .execute(&pool)
         .await
         .unwrap();
+    }
+
+    #[tokio::test]
+    async fn test_update_order_status_filled_quantity() {
+        dotenv::dotenv().ok();
+        let pool = PgPool::connect(&std::env::var("DATABASE_URL").unwrap())
+            .await
+            .unwrap();
+
+        let user = User::create_new_user(
+            &pool,
+            &GoogleClaims {
+                email: "nami".to_string(),
+                exp: 0,
+                name: "nami".to_string(),
+                picture: "nami".to_string(),
+                sub: "nami".to_string(),
+            },
+        )
+        .await
+        .unwrap();
+
+        let market = Market::create_new_market(
+            "Arshil".to_string(),
+            "...".to_string(),
+            "...".to_string(),
+            Decimal::from_str("10.0").unwrap(),
+            &pool,
+        )
+        .await
+        .unwrap();
+        // values are taken from the database
+        let user_id = user.id;
+        let market_id = market.id;
+        let price = Decimal::from_str("0.5").unwrap();
+        let quantity = Decimal::from_str("1.0").unwrap();
+        let side = OrderSide::BUY;
+        let order = Order::create_order(
+            user_id,
+            market_id,
+            price,
+            quantity,
+            side.clone(),
+            Outcome::YES,
+            &pool,
+        )
+        .await
+        .unwrap();
+
+        assert_eq!(order.user_id, user_id);
+        assert_eq!(order.market_id, market_id);
+        assert_eq!(order.price, price);
+        assert_eq!(order.quantity, quantity);
+        assert_eq!(order.side, side);
+        assert_eq!(order.filled_quantity, Decimal::ZERO);
+        assert_eq!(order.status, OrderStatus::UNSPECIFIED);
+        assert_eq!(order.outcome, Outcome::YES);
+
+        // Update the order status to FILLED and set filled quantity
+        let new_filled_quantity = Decimal::from_str("1.0").unwrap();
+        let updated_order = Order::update_order_status_and_filled_quantity(
+            &pool,
+            order.id,
+            OrderStatus::FILLED,
+            new_filled_quantity,
+        )
+        .await
+        .unwrap();
+
+        assert_eq!(updated_order.id, order.id);
+        assert_eq!(updated_order.status, OrderStatus::FILLED);
+        assert_eq!(updated_order.filled_quantity, new_filled_quantity);
+
+        // Clean up
+        sqlx::query!(
+            r#"
+            DELETE FROM "polymarket"."orders"
+            WHERE id = $1
+            "#,
+            updated_order.id
+        )
+        .execute(&pool)
+        .await
+        .unwrap();
+
+        sqlx::query!(
+            r#"
+            DELETE FROM "polymarket"."markets"
+            WHERE id = $1
+            "#,
+            market.id
+        )
+        .execute(&pool)
+        .await
+        .unwrap();
+
+        sqlx::query!(
+            r#"
+            DELETE FROM "polymarket"."users"
+            WHERE id = $1
+            "#,
+            user.id
+        )
+        .execute(&pool)
+        .await
+        .unwrap();
+
+        log_info!("Order updated - {:?}", updated_order.id);
     }
 }

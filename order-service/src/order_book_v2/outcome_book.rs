@@ -30,6 +30,15 @@ pub(crate) struct OutcomeBook {
     pub(super) asks: BTreeMap<Decimal, PriceLevel>, // sellers side
 }
 
+pub(crate) struct OrderBookMatchedOutput {
+    pub order_id: Uuid,
+    pub opposite_order_id: Uuid,
+    pub matched_quantity: Decimal,
+    pub price: Decimal,
+    pub opposite_order_total_quantity: Decimal,
+    pub opposite_order_filled_quantity: Decimal,
+}
+
 impl OutcomeBook {
     pub(crate) fn add_order(&mut self, order: &Order) {
         let side = match order.side {
@@ -146,9 +155,15 @@ impl OutcomeBook {
     /// * opposite order id - 2nd item UUID
     /// * matched quantity - 3rd item decimal  
     /// * price - 4th item decimal
-    pub(super) fn match_order(&mut self, order: &mut Order) -> Vec<(Uuid, Uuid, Decimal, Decimal)> {
+    /// * opposite order total quantity - 5th item decimal
+    /// * opposite order filled quantity - 6th item decimal
+    pub(super) fn match_order(&mut self, order: &mut Order) -> Vec<OrderBookMatchedOutput> {
         // order id, opposite order id, matched quantity, price
-        let mut matches: Vec<(Uuid, Uuid, Decimal, Decimal)> = Vec::new();
+        let mut matches: Vec<OrderBookMatchedOutput> = Vec::new();
+
+        if order.status != OrderStatus::OPEN {
+            return matches; // only open orders can be matched
+        }
 
         let (book, is_buy) = match order.side {
             OrderSide::BUY => (&mut self.asks, true), // inverse matching
@@ -188,14 +203,19 @@ impl OutcomeBook {
 
                     ///// ATOMIC Operation START
                     opposite_order.filled_quantity += match_qty;
-                    if opposite_order.filled_quantity == opposite_order.total_quantity {
-                        // FIXME: I also have to update the status of opposite order in db...
-                    }
 
                     order.filled_quantity += match_qty;
                     remaining -= match_qty;
 
-                    matches.push((order.id, opposite_order.order_id, match_qty, price));
+                    matches.push(OrderBookMatchedOutput {
+                        order_id: order.id,
+                        opposite_order_id: opposite_order.order_id,
+                        matched_quantity: match_qty,
+                        price,
+                        // price: opposite_order.price, // price of matching order
+                        opposite_order_total_quantity: opposite_order.total_quantity,
+                        opposite_order_filled_quantity: opposite_order.filled_quantity,
+                    });
 
                     if opposite_order.filled_quantity < opposite_order.total_quantity {
                         new_orders.push(opposite_order);
@@ -438,9 +458,9 @@ mod test {
         assert_eq!(resp.len(), 3);
 
         // Verify matching happened in price-time priority order
-        assert_eq!(resp[0].1, buy_order_1.id); // Best price (0.25) first
-        assert_eq!(resp[1].1, buy_order_3.id); // Second best price (0.23)
-        assert_eq!(resp[2].1, buy_order_2.id); // Third best price (0.20)        
+        assert_eq!(resp[0].opposite_order_id, buy_order_1.id); // Best price (0.25) first
+        assert_eq!(resp[1].opposite_order_id, buy_order_3.id); // Second best price (0.23)
+        assert_eq!(resp[2].opposite_order_id, buy_order_2.id); // Third best price (0.20)        
     }
 
     #[test]
@@ -483,7 +503,7 @@ mod test {
         assert_eq!(sell_order.status, OrderStatus::OPEN);
         assert_eq!(sell_order.filled_quantity, Decimal::new(5, 0));
         assert_eq!(resp.len(), 1);
-        assert_eq!(resp[0].2, Decimal::new(5, 0)); // matched quantity
+        assert_eq!(resp[0].matched_quantity, Decimal::new(5, 0)); // matched quantity
     }
 
     #[test]
@@ -557,8 +577,8 @@ mod test {
 
         assert_eq!(sell_order.status, OrderStatus::FILLED);
         assert_eq!(resp.len(), 2); // Should match with the first two orders
-        assert_eq!(resp[0].1, buy_order_1.id);
-        assert_eq!(resp[1].1, buy_order_2.id);
+        assert_eq!(resp[0].opposite_order_id, buy_order_1.id);
+        assert_eq!(resp[1].opposite_order_id, buy_order_2.id);
     }
 
     #[test]
@@ -689,7 +709,7 @@ mod test {
         assert_eq!(sell_order.status, OrderStatus::FILLED);
         assert_eq!(sell_order.filled_quantity, Decimal::new(10, 0));
         assert_eq!(resp.len(), 1);
-        assert_eq!(resp[0].2, Decimal::new(5, 0)); // Only needed to match 5 more
+        assert_eq!(resp[0].matched_quantity, Decimal::new(5, 0)); // Only needed to match 5 more
     }
 
     #[test]

@@ -3,6 +3,7 @@ use std::error::Error as StdError;
 use utility_helpers::types::EnvVarConfig;
 
 pub mod pagination;
+pub mod procedures;
 pub mod schema;
 pub mod utils;
 

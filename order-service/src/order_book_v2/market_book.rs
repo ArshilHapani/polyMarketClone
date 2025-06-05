@@ -6,6 +6,8 @@ use rust_decimal::Decimal;
 use rust_decimal_macros::dec;
 use uuid::Uuid;
 
+use crate::order_book_v2::outcome_book::OrderBookMatchedOutput;
+
 use super::outcome_book::OutcomeBook;
 
 #[derive(Debug)]
@@ -49,10 +51,9 @@ impl MarketBook {
     /// * opposite order id - 2nd item UUID
     /// * matched quantity - 3rd item decimal  
     /// * price - 4th item decimal
-    pub(super) fn process_order(
-        &mut self,
-        order: &mut Order,
-    ) -> Vec<(Uuid, Uuid, Decimal, Decimal)> {
+    /// * total_quantity of opposite order - 5th item decimal
+    /// * filled_quantity of opposite order - 6th item decimal
+    pub(super) fn process_order(&mut self, order: &mut Order) -> Vec<OrderBookMatchedOutput> {
         let matches = match order.outcome {
             Outcome::YES => self.yes_order_book.match_order(order),
             Outcome::NO => self.no_order_book.match_order(order),
@@ -355,10 +356,13 @@ mod test {
 
         assert_eq!(match_1.len(), 1);
         assert_eq!(match_2.len(), 1);
-        assert_eq!(match_1.get(0).unwrap().0, sell_order_1_no.id);
-        assert_eq!(match_2.get(0).unwrap().0, sell_order_1_yes.id);
-        assert_eq!(match_1.get(0).unwrap().1, buy_order_1_no.id);
-        assert_eq!(match_2.get(0).unwrap().1, buy_order_1_yes.id);
+        assert_eq!(match_1.get(0).unwrap().order_id, sell_order_1_no.id);
+        assert_eq!(match_2.get(0).unwrap().order_id, sell_order_1_yes.id);
+        assert_eq!(match_1.get(0).unwrap().opposite_order_id, buy_order_1_no.id);
+        assert_eq!(
+            match_2.get(0).unwrap().opposite_order_id,
+            buy_order_1_yes.id
+        );
     }
 
     #[test]
@@ -527,8 +531,8 @@ mod test {
 
         // Verify time priority matching
         assert_eq!(matches.len(), 2);
-        assert_eq!(matches[0].1, buy_order_1.id); // First order matched first (time priority)
-        assert_eq!(matches[1].1, buy_order_2.id);
+        assert_eq!(matches[0].opposite_order_id, buy_order_1.id); // First order matched first (time priority)
+        assert_eq!(matches[1].opposite_order_id, buy_order_2.id);
         assert_eq!(sell_order.filled_quantity, dec!(8));
         assert_eq!(sell_order.status, OrderStatus::FILLED);
 
@@ -618,7 +622,7 @@ mod test {
 
         // Verify correct matching considering previous fills
         assert_eq!(matches.len(), 1);
-        assert_eq!(matches[0].2, dec!(5)); // Only 5 more units matched (8-3)
+        assert_eq!(matches[0].matched_quantity, dec!(5)); // Only 5 more units matched (8-3)
         assert_eq!(sell_order.filled_quantity, dec!(8)); // 3 + 5 = 8
         assert_eq!(sell_order.status, OrderStatus::FILLED);
     }

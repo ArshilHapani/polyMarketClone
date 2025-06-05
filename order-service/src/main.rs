@@ -1,9 +1,9 @@
 use async_nats::jetstream;
-use db_service::schema::{enums::OrderStatus, market::Market, orders::Order};
+use db_service::schema::{enums::OrderStatus, orders::Order};
 use futures_util::stream::StreamExt;
 use state::AppState;
 use std::sync::Arc;
-use utility_helpers::log_info;
+use utility_helpers::{log_error, log_info};
 
 use crate::order_book_v2_handler::order_book_v2_handler;
 
@@ -43,7 +43,11 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         let order_id = String::from_utf8(message.payload.to_vec())
             .map_err(|_| "Failed to convert payload to string".to_string())?;
         log_info!("Received order ID: {}", order_id);
-        order_book_v2_handler(app_state.clone(), order_id).await?;
+        let _ = order_book_v2_handler(app_state.clone(), order_id)
+            .await
+            .map_err(|e| {
+                log_error!("Error occur while {e}");
+            });
 
         message
             .ack()
@@ -57,34 +61,20 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 async fn initialize_app() -> Result<AppState, Box<dyn std::error::Error>> {
     let app_state = AppState::new().await?;
 
-    // get all open orders and push it into order book (this is because of restarting the service)
-    let open_markets = Market::get_all_open_markets(&app_state.db_pool).await?;
-    let open_orders = Order::get_all_open_orders(&app_state.db_pool).await?;
+    let mut open_orders = Order::get_all_open_orders(&app_state.db_pool).await?;
     {
         let mut global_book = app_state.order_book.write();
-
-        // iterating over open markets
-        for market in &open_markets {
-            global_book.get_or_create_market(market.id, market.liquidity_b);
-        }
-
-        let mut loaded_markets = 0;
-
+        let mut order_ctn = 0;
         // iterate over open orders
-        for db_order in &open_orders {
+        for db_order in &mut open_orders {
             if db_order.status != OrderStatus::OPEN {
                 continue;
             }
-            let market = global_book.get_or_create_market(db_order.market_id, db_order.liquidity_b);
-
-            if let Some(book) = market.get_order_book(db_order.outcome) {
-                let order: Order = db_order.into();
-                loaded_markets += 1;
-                book.add_order(&order);
-                // whether you should process the order or add the order... TILL HERE
-            }
+            let liquidity_b = db_order.liquidity_b.clone();
+            global_book.process_order(db_order.into(), liquidity_b);
+            order_ctn += 1;
         }
-        log_info!("Loaded {} open markets from db", loaded_markets);
+        log_info!("Loaded {} open orders into the global book", order_ctn);
     }
     Ok(app_state)
 }

@@ -1,7 +1,9 @@
-use db_service::schema::orders::Order;
+use db_service::schema::{enums::Outcome, orders::Order};
 use rust_decimal::Decimal;
 use std::collections::HashMap;
 use uuid::Uuid;
+
+use crate::order_book_v2::outcome_book::OrderBookMatchedOutput;
 
 use super::market_book::MarketBook;
 
@@ -23,21 +25,27 @@ impl GlobalMarketBook {
     /// 2. Matched order ID
     /// 3. Matched quantity
     /// 4. Matched price
+    /// 5. opposite order total quantity
+    /// 6. opposite order total price
     pub(crate) fn process_order(
         &mut self,
         order: &mut Order,
         liquidity_b: Decimal,
-    ) -> Vec<(Uuid, Uuid, Decimal, Decimal)> {
+    ) -> Vec<OrderBookMatchedOutput> {
         let market_id = order.market_id;
         let market_book = self.get_or_create_market(market_id, liquidity_b);
         market_book.process_order(order)
     }
 
-    pub fn get_or_create_market(
-        &mut self,
-        market_id: Uuid,
-        liquidity_b: Decimal,
-    ) -> &mut MarketBook {
+    pub(crate) fn get_market_price(&self, market_id: &Uuid, outcome: Outcome) -> Option<Decimal> {
+        self.markets.get(market_id).map(|market| match outcome {
+            Outcome::YES => market.current_yes_price,
+            Outcome::NO => market.current_no_price,
+            _ => Decimal::ZERO,
+        })
+    }
+
+    fn get_or_create_market(&mut self, market_id: Uuid, liquidity_b: Decimal) -> &mut MarketBook {
         self.markets
             .entry(market_id)
             .or_insert(MarketBook::new(liquidity_b))
@@ -128,10 +136,10 @@ mod test {
 
         let results = global_market_book.process_order(&mut sell_order, liquidity_b);
         assert_eq!(results.len(), 1);
-        assert_eq!(results[0].0, sell_order.id);
-        assert_eq!(results[0].1, buy_order.id);
-        assert_eq!(results[0].2, dec!(10)); // Matched quantity
-        assert_eq!(results[0].3, dec!(0.5)); // Matched price
+        assert_eq!(results[0].order_id, sell_order.id);
+        assert_eq!(results[0].opposite_order_id, buy_order.id);
+        assert_eq!(results[0].matched_quantity, dec!(10)); // Matched quantity
+        assert_eq!(results[0].price, dec!(0.5)); // Matched price
         assert_eq!(global_market_book.markets.len(), 1);
     }
 }
