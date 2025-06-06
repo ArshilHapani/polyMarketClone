@@ -19,14 +19,6 @@ impl GlobalMarketBook {
         }
     }
 
-    /// Items or returning vector
-    ///
-    /// 1. Order ID
-    /// 2. Matched order ID
-    /// 3. Matched quantity
-    /// 4. Matched price
-    /// 5. opposite order total quantity
-    /// 6. opposite order total price
     pub(crate) fn process_order(
         &mut self,
         order: &mut Order,

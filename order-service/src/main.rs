@@ -16,7 +16,6 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     tracing_subscriber::fmt::init();
 
     let app_state = initialize_app().await?;
-    let app_state = Arc::new(app_state);
 
     log_info!("Connected to NATS JetStream");
 
@@ -43,7 +42,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         let order_id = String::from_utf8(message.payload.to_vec())
             .map_err(|_| "Failed to convert payload to string".to_string())?;
         log_info!("Received order ID: {}", order_id);
-        let _ = order_book_v2_handler(app_state.clone(), order_id)
+        let _ = order_book_v2_handler(Arc::clone(&app_state), order_id)
             .await
             .map_err(|e| {
                 log_error!("Error occur while {e}");
@@ -58,20 +57,22 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     Ok(())
 }
 
-async fn initialize_app() -> Result<AppState, Box<dyn std::error::Error>> {
-    let app_state = AppState::new().await?;
+async fn initialize_app() -> Result<Arc<AppState>, Box<dyn std::error::Error>> {
+    let app_state = Arc::new(AppState::new().await?);
 
-    let mut open_orders = Order::get_all_open_orders(&app_state.db_pool).await?;
+    let open_orders = Order::get_all_open_orders(&app_state.db_pool).await?;
     {
         let mut global_book = app_state.order_book.write();
+
         let mut order_ctn = 0;
         // iterate over open orders
-        for db_order in &mut open_orders {
+        for db_order in open_orders {
             if db_order.status != OrderStatus::OPEN {
                 continue;
             }
             let liquidity_b = db_order.liquidity_b.clone();
-            global_book.process_order(db_order.into(), liquidity_b);
+            let mut order: Order = db_order.into();
+            global_book.process_order(&mut order, liquidity_b);
             order_ctn += 1;
         }
         log_info!("Loaded {} open orders into the global book", order_ctn);

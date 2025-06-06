@@ -138,7 +138,7 @@ impl OutcomeOrderBook {
             }
 
             if let Some(price_level) = book.get_mut(&price) {
-                let mut new_orders = Vec::new(); // FIXME: creating new vector every time... instead of internal vector mutation
+                let mut new_orders = Vec::new(); //  creating new vector every time... instead of internal vector mutation (Fixed in V2)
                 for mut opposite_order in price_level.orders.drain(..) {
                     let opp_remaining = opposite_order.quantity - opposite_order.filled_quantity;
                     if opp_remaining <= Decimal::ZERO {

@@ -39,24 +39,6 @@ pub struct OrderWithMarket {
     pub liquidity_b: Decimal,
 }
 
-impl From<&OrderWithMarket> for Order {
-    fn from(order: &OrderWithMarket) -> Self {
-        Order {
-            id: order.id,
-            user_id: order.user_id,
-            market_id: order.market_id,
-            side: order.side,
-            outcome: order.outcome,
-            price: order.price,
-            quantity: order.quantity,
-            filled_quantity: order.filled_quantity,
-            status: order.status,
-            created_at: order.created_at,
-            updated_at: order.updated_at,
-        }
-    }
-}
-
 impl From<OrderWithMarket> for Order {
     fn from(order: OrderWithMarket) -> Self {
         Order {
@@ -72,12 +54,6 @@ impl From<OrderWithMarket> for Order {
             created_at: order.created_at,
             updated_at: order.updated_at,
         }
-    }
-}
-
-impl<'a> From<&'a mut OrderWithMarket> for &'a mut Order {
-    fn from(order: &'a mut OrderWithMarket) -> &'a mut Order {
-        unsafe { &mut *(order as *mut OrderWithMarket as *mut Order) }
     }
 }
 
@@ -338,48 +314,6 @@ impl Order {
     }
 }
 
-impl OrderWithMarket {
-    pub async fn update(&self, pool: &PgPool) -> Result<Order, sqlx::Error> {
-        let order = sqlx::query_as!(
-            Order,
-            r#"
-            UPDATE "polymarket"."orders"
-            SET 
-                user_id = $1,
-                market_id = $2,
-                side = $3,
-                outcome = $4,
-                price = $5,
-                quantity = $6,
-                filled_quantity = $7,
-                status = $8
-            WHERE id = $9
-            RETURNING 
-            id, user_id, market_id,
-            outcome as "outcome: Outcome",
-            price, quantity, filled_quantity,
-            status as "status: OrderStatus",
-            side as "side: OrderSide",
-            created_at, updated_at
-            "#,
-            self.user_id,
-            self.market_id,
-            self.side as _,
-            self.outcome as _,
-            self.price,
-            self.quantity,
-            self.filled_quantity,
-            self.status as _,
-            self.id
-        )
-        .fetch_one(pool)
-        .await?;
-
-        log_info!("Order updated - {:?}", order.id);
-        Ok(order)
-    }
-}
-
 #[cfg(test)]
 mod tests {
     use std::str::FromStr;
@@ -390,6 +324,7 @@ mod tests {
     use crate::schema::{market::Market, users::User};
 
     #[tokio::test]
+    // #[ignore = "just like this"]
     async fn test_create_order() {
         dotenv::dotenv().ok();
         let pool = PgPool::connect(&std::env::var("DATABASE_URL").unwrap())

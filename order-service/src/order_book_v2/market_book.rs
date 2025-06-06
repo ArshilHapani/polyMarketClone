@@ -45,14 +45,6 @@ impl MarketBook {
         self.update_market_price();
     }
 
-    /// vector item sequence
-    ///
-    /// * order id - 1st item UUID
-    /// * opposite order id - 2nd item UUID
-    /// * matched quantity - 3rd item decimal  
-    /// * price - 4th item decimal
-    /// * total_quantity of opposite order - 5th item decimal
-    /// * filled_quantity of opposite order - 6th item decimal
     pub(super) fn process_order(&mut self, order: &mut Order) -> Vec<OrderBookMatchedOutput> {
         let matches = match order.outcome {
             Outcome::YES => self.yes_order_book.match_order(order),

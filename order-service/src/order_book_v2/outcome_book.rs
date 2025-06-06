@@ -30,6 +30,7 @@ pub(crate) struct OutcomeBook {
     pub(super) asks: BTreeMap<Decimal, PriceLevel>, // sellers side
 }
 
+#[derive(Debug)]
 pub(crate) struct OrderBookMatchedOutput {
     pub order_id: Uuid,
     pub opposite_order_id: Uuid,
@@ -149,14 +150,6 @@ impl OutcomeBook {
         false
     }
 
-    /// vector item sequence
-    ///
-    /// * order id - 1st item UUID
-    /// * opposite order id - 2nd item UUID
-    /// * matched quantity - 3rd item decimal  
-    /// * price - 4th item decimal
-    /// * opposite order total quantity - 5th item decimal
-    /// * opposite order filled quantity - 6th item decimal
     pub(super) fn match_order(&mut self, order: &mut Order) -> Vec<OrderBookMatchedOutput> {
         // order id, opposite order id, matched quantity, price
         let mut matches: Vec<OrderBookMatchedOutput> = Vec::new();
@@ -190,9 +183,8 @@ impl OutcomeBook {
             }
 
             if let Some(price_level) = book.get_mut(&price) {
-                let mut new_orders = Vec::new();
-
-                for mut opposite_order in price_level.orders.drain(..) {
+                let mut orders_to_remove = Vec::new();
+                for (idx, opposite_order) in price_level.orders.iter_mut().enumerate() {
                     let opp_remaining =
                         opposite_order.total_quantity - opposite_order.filled_quantity;
                     if opp_remaining <= Decimal::ZERO {
@@ -201,7 +193,7 @@ impl OutcomeBook {
 
                     let match_qty = remaining.min(opp_remaining);
 
-                    ///// ATOMIC Operation START
+                    ///// ATOMIC Operation START (trusting on parking lot's RWLock )
                     opposite_order.filled_quantity += match_qty;
 
                     order.filled_quantity += match_qty;
@@ -217,8 +209,9 @@ impl OutcomeBook {
                         opposite_order_filled_quantity: opposite_order.filled_quantity,
                     });
 
-                    if opposite_order.filled_quantity < opposite_order.total_quantity {
-                        new_orders.push(opposite_order);
+                    // pushing the index or order to remove (if filled quantity is equals to total quantity, it's because we can't borrow price_level as mutable in the current scope)
+                    if opposite_order.filled_quantity == opposite_order.total_quantity {
+                        orders_to_remove.push(idx);
                     }
                     if remaining == Decimal::ZERO {
                         break;
@@ -226,7 +219,11 @@ impl OutcomeBook {
                     ///// ATOMIC Operation END
                 }
 
-                price_level.orders = new_orders;
+                // removing orders
+                for i in orders_to_remove {
+                    price_level.orders.remove(i);
+                }
+
                 price_level.total_quantity = price_level
                     .orders
                     .iter()
@@ -736,5 +733,73 @@ mod test {
         assert_eq!(sell_order.status, OrderStatus::OPEN);
         assert_eq!(sell_order.filled_quantity, Decimal::ZERO);
         assert_eq!(resp.len(), 0);
+    }
+
+    #[test]
+    fn test_db_matching_order_issue() {
+        let mut outcome_book = OutcomeBook::default();
+        let market_id = Uuid::new_v4();
+
+        let buy_order_one = Order {
+            created_at: get_created_at(),
+            filled_quantity: dec!(0),
+            id: get_random_uuid(),
+            market_id,
+            outcome: Outcome::YES,
+            price: dec!(0.61),
+            quantity: dec!(3),
+            side: OrderSide::BUY,
+            status: OrderStatus::OPEN,
+            updated_at: get_created_at(),
+            user_id: get_random_uuid(),
+        };
+        let buy_order_one_1 = Order {
+            created_at: get_created_at(),
+            filled_quantity: dec!(0),
+            id: get_random_uuid(),
+            market_id,
+            outcome: Outcome::YES,
+            price: dec!(0.61),
+            quantity: dec!(3),
+            side: OrderSide::BUY,
+            status: OrderStatus::OPEN,
+            updated_at: get_created_at(),
+            user_id: get_random_uuid(),
+        };
+        let buy_order_one_2 = Order {
+            created_at: get_created_at(),
+            filled_quantity: dec!(0),
+            id: get_random_uuid(),
+            market_id,
+            outcome: Outcome::YES,
+            price: dec!(0.61),
+            quantity: dec!(3),
+            side: OrderSide::BUY,
+            status: OrderStatus::OPEN,
+            updated_at: get_created_at(),
+            user_id: get_random_uuid(),
+        };
+
+        outcome_book.add_order(&buy_order_one);
+        outcome_book.add_order(&buy_order_one_1);
+        outcome_book.add_order(&buy_order_one_2);
+
+        let mut matching_sell_order = Order {
+            created_at: get_created_at(),
+            filled_quantity: dec!(0),
+            id: get_random_uuid(),
+            market_id,
+            outcome: Outcome::YES,
+            price: dec!(0.61),
+            quantity: dec!(3),
+            side: OrderSide::SELL,
+            status: OrderStatus::OPEN,
+            updated_at: get_created_at(),
+            user_id: get_random_uuid(),
+        };
+        let matches = outcome_book.match_order(&mut matching_sell_order);
+        assert_eq!(matches.len(), 1);
+        let price_level = outcome_book.bids.get(&dec!(0.61)).unwrap();
+        assert_eq!(price_level.orders.len(), 2); // matched 1 order so 3 - 1 = 2
     }
 }
