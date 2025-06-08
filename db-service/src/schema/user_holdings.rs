@@ -71,4 +71,25 @@ impl UserHoldings {
 
         Ok(holding.unwrap())
     }
+
+    pub async fn get_user_holdings(
+        db_pool: &sqlx::PgPool,
+        user_id: Uuid,
+        market_id: Uuid,
+    ) -> Result<Vec<UserHoldings>, sqlx::error::Error> {
+        let holdings = sqlx::query_as!(
+            UserHoldings,
+            r#"
+            SELECT id, user_id, market_id, outcome as "outcome: Outcome", shares, created_at, updated_at
+            FROM polymarket.user_holdings
+            WHERE user_id = $1 AND market_id = $2
+            "#,
+            user_id,
+            market_id
+        )
+        .fetch_all(db_pool)
+        .await?;
+
+        Ok(holdings)
+    }
 }

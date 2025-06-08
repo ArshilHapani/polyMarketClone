@@ -134,6 +134,11 @@ pub async fn create_order(
         })?;
 
     // TODO: Verify the user holdings before processing further.... (Till here, 7-jun 2:01 AM)
+    ///////////////// Verifying user holdings ///////////////////////
+    
+
+
+    ///////////////////////////////////////////////////////////////
 
     let order = Order::create_order(
         user_id,
