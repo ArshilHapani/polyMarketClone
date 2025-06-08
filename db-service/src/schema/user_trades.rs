@@ -49,7 +49,6 @@ impl UserTrades {
             price,
             quantity
         ).fetch_one(pg_pool).await?;
-
         Ok(trade)
     }
 }

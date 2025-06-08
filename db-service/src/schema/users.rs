@@ -114,9 +114,7 @@ impl User {
         }
     }
 
-    pub async fn get_user_by_id(pool: &PgPool, user_id: String) -> Result<Self, sqlx::Error> {
-        let user_id = Uuid::parse_str(&user_id)
-            .map_err(|_| sqlx::Error::Decode("Invalid UUID format".into()))?;
+    pub async fn get_user_by_id(pool: &PgPool, user_id: Uuid) -> Result<Self, sqlx::Error> {
         let user = sqlx::query_as!(
             User,
             r#"

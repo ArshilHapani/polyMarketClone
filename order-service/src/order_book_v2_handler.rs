@@ -113,20 +113,35 @@ pub async fn order_book_v2_handler(
             quantity,
         );
 
+        let user_a_quantity = if order.side == OrderSide::BUY {
+            quantity
+        } else {
+            -quantity
+        };
+        let user_b_quantity = if order.side == OrderSide::SELL {
+            quantity
+        } else {
+            -quantity
+        };
+
+        // there is a bug while updating holdings... fix this shit
+        println!(
+            "User A Quantity: {}, User B Quantity: {}",
+            user_a_quantity, user_b_quantity
+        );
+
         let update_user_holding_future = UserHoldings::update_user_holdings(
             &app_state.db_pool,
             order.user_id,
             order.market_id,
-            order.outcome,
-            quantity,
+            user_a_quantity,
         );
 
         let seller_update_holding_future = UserHoldings::update_user_holdings(
             &app_state.db_pool,
             seller_id,
             order.market_id,
-            order.outcome,
-            quantity,
+            user_b_quantity,
         );
 
         let (

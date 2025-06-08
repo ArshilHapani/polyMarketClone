@@ -1,3 +1,5 @@
+use std::str::FromStr;
+
 use auth_service::types::SessionTokenClaims;
 use axum::{
     Extension, Json,
@@ -7,6 +9,7 @@ use axum::{
 };
 use db_service::schema::users::User;
 use serde_json::json;
+use sqlx::types::Uuid;
 use utility_helpers::log_error;
 
 use crate::state::AppState;
@@ -15,7 +18,17 @@ pub async fn get_profile(
     State(app_state): State<AppState>,
     Extension(claims): Extension<SessionTokenClaims>,
 ) -> Result<impl IntoResponse, (StatusCode, Response)> {
-    let user = User::get_user_by_id(&app_state.pg_pool, claims.user_id)
+    let user_id = Uuid::from_str(&claims.user_id).map_err(|_| {
+        log_error!("Invalid user ID format: {}", claims.user_id);
+        (
+            StatusCode::BAD_REQUEST,
+            Json(json!({
+                "error": "Invalid user ID format"
+            }))
+            .into_response(),
+        )
+    })?;
+    let user = User::get_user_by_id(&app_state.pg_pool, user_id)
         .await
         .map_err(|e| {
             log_error!("Failed to get user by ID: {}", e);

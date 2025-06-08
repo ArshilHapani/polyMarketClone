@@ -1,6 +1,6 @@
 {
   "db_name": "PostgreSQL",
-  "query": "\n            UPDATE \"polymarket\".\"orders\"\n            SET status = $1\n            WHERE id = $2\n            RETURNING \n            id, user_id, market_id,\n            outcome as \"outcome: Outcome\",\n            price, quantity, filled_quantity,\n            status as \"status: OrderStatus\",\n            side as \"side: OrderSide\",\n            created_at, updated_at\n            ",
+  "query": "\n            UPDATE polymarket.orders\n            SET status = $1, filled_quantity = $2\n            WHERE id = $3\n            RETURNING \n            id, user_id, market_id,\n            outcome as \"outcome: Outcome\",\n            price, quantity, filled_quantity,\n            status as \"status: OrderStatus\",\n            side as \"side: OrderSide\",\n            created_at, updated_at\n            ",
   "describe": {
     "columns": [
       {
@@ -109,6 +109,7 @@
             }
           }
         },
+        "Numeric",
         "Uuid"
       ]
     },
@@ -126,5 +127,5 @@
       false
     ]
   },
-  "hash": "82909d067c805d14921bb0f684c356ba87630172d7dd9696f36b4702a88500ad"
+  "hash": "0048c749d0f676be54a253b5f5328c973b0d99f409a4b1f44a1b8a5f7b3d7296"
 }

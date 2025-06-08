@@ -1,6 +1,6 @@
 {
   "db_name": "PostgreSQL",
-  "query": "\n            DELETE FROM \"polymarket\".\"orders\"\n            WHERE id = $1\n            RETURNING \n            id, user_id, market_id,\n            outcome as \"outcome: Outcome\",\n            price, quantity, filled_quantity,\n            status as \"status: OrderStatus\",\n            side as \"side: OrderSide\",\n            created_at, updated_at\n            ",
+  "query": "\n            SELECT \n            id, user_id, market_id,\n            outcome as \"outcome: Outcome\",\n            price, quantity, filled_quantity,\n            status as \"status: OrderStatus\",\n            side as \"side: OrderSide\",\n            created_at, updated_at            \n            FROM polymarket.orders\n            WHERE id = $1\n            ",
   "describe": {
     "columns": [
       {
@@ -112,5 +112,5 @@
       false
     ]
   },
-  "hash": "b9df98b7c9a249daab03bbeda48f84fa934942e3e94256502b7bb26f31366f2c"
+  "hash": "3e9155e2e77a97afdc3223b1097eacaf47a7f66ceb3f0c208ebad5498e0ca161"
 }

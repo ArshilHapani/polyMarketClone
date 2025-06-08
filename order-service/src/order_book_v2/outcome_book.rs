@@ -185,6 +185,12 @@ impl OutcomeBook {
             if let Some(price_level) = book.get_mut(&price) {
                 let mut orders_to_remove = Vec::new();
                 for (idx, opposite_order) in price_level.orders.iter_mut().enumerate() {
+                    if order.id == opposite_order.order_id
+                        || order.user_id == opposite_order.user_id
+                    {
+                        // skip matching with itself
+                        continue;
+                    }
                     let opp_remaining =
                         opposite_order.total_quantity - opposite_order.filled_quantity;
                     if opp_remaining <= Decimal::ZERO {
@@ -221,7 +227,9 @@ impl OutcomeBook {
 
                 // removing orders
                 for i in orders_to_remove {
-                    price_level.orders.remove(i);
+                    if i < price_level.orders.len() {
+                        price_level.orders.remove(i);
+                    }
                 }
 
                 price_level.total_quantity = price_level

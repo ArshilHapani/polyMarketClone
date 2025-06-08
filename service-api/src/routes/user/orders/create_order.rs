@@ -11,6 +11,8 @@ use axum::{
 use db_service::schema::{
     enums::{OrderSide, OrderStatus, Outcome},
     orders::Order,
+    user_holdings::UserHoldings,
+    users::User,
 };
 use rust_decimal::{Decimal, prelude::FromPrimitive};
 use serde::{Deserialize, Serialize};
@@ -133,10 +135,56 @@ pub async fn create_order(
             )
         })?;
 
-    // TODO: Verify the user holdings before processing further.... (Till here, 7-jun 2:01 AM)
     ///////////////// Verifying user holdings ///////////////////////
-    
+    // if trade type is sell then check holdings, else check the user's balance
 
+    if side == OrderSide::SELL {
+        let holdings = UserHoldings::get_user_holdings(&app_state.pg_pool, user_id, market_id)
+            .await
+            .map_err(|e| {
+                log_error!("Failed to get user holdings - {:?}", e);
+                (
+                    StatusCode::INTERNAL_SERVER_ERROR,
+                    Json(json!({
+                        "error": "Failed to get user holdings"
+                    }))
+                    .into_response(),
+                )
+            })?;
+
+        if holdings.shares <= Decimal::ZERO || holdings.shares < from_f64(payload.quantity) {
+            return Err((
+                StatusCode::BAD_REQUEST,
+                Json(json!({
+                    "error": "You do not have enough shares to sell"
+                }))
+                .into_response(),
+            ));
+        }
+    } else {
+        let user = User::get_user_by_id(&app_state.pg_pool, user_id)
+            .await
+            .map_err(|e| {
+                log_error!("Failed to get user - {:?}", e);
+                (
+                    StatusCode::INTERNAL_SERVER_ERROR,
+                    Json(json!({
+                        "error": "Failed to get user"
+                    }))
+                    .into_response(),
+                )
+            })?;
+        let required_price = from_f64(payload.price) * from_f64(payload.quantity);
+        if user.balance <= required_price {
+            return Err((
+                StatusCode::BAD_REQUEST,
+                Json(json!({
+                    "error": "You do not have enough balance to buy"
+                }))
+                .into_response(),
+            ));
+        }
+    }
 
     ///////////////////////////////////////////////////////////////
 
