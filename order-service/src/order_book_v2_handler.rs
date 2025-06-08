@@ -59,7 +59,6 @@ pub async fn order_book_v2_handler(
         // update the opposite order's filled quantity
         let buy_order_id = match_item.order_id;
         let sell_order_id = match_item.opposite_order_id;
-        let price = match_item.price;
         let quantity = match_item.matched_quantity;
         let opposite_order_new_status = if match_item.opposite_order_filled_quantity
             == match_item.opposite_order_total_quantity
@@ -100,7 +99,7 @@ pub async fn order_book_v2_handler(
             order.user_id,
             order.market_id,
             order.outcome,
-            price,
+            match_item.price,
             quantity,
         );
         let create_seller_trade_future = UserTrades::create_user_trade(
@@ -110,7 +109,7 @@ pub async fn order_book_v2_handler(
             buyer_id,
             order.market_id,
             order.outcome,
-            price,
+            match_item.price,
             quantity,
         );
 

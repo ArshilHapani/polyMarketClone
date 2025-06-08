@@ -146,3 +146,16 @@ run-test-with-output:
 
 run-particular-test:
 	@cargo test --package order-service --bin order-service -- order_book_v2::outcome_book::test
+
+run-stress-test:
+	@hey -n 1000 -c 50 -m POST \
+		-H 'Content-Type: application/json' \
+		-H  'Authorization: Bearer eyJ0eXAiOiJKV1QiLCJhbGciOiJIUzI1NiJ9.eyJ1c2VyX2lkIjoiNTkzYzA4ZjAtNjY5NS00YjQyLTg2ZjEtNTQ2ZTU1NTMwMTFjIiwiZ29vZ2xlX3N1YiI6IjEwNjM4NzY5OTc0NDM1NTA5NTc1NiIsImVtYWlsIjoiYXJzaGlsaGFwYW5pOTk4QGdtYWlsLmNvbSIsImV4cCI6MTc1MTcwNTY4NX0.Z_7u1tKQ2GhvXR2IPxgE-yYTloJ7BkrP1gjZNJCRSx4' \
+		-d  '{
+			"market_id":"898a074c-48da-49e7-90f4-417e6e5e5886",
+			"price":0.4,
+			"quantity":12,
+			"side":"BUY",
+			"outcome_side":"YES"
+		}' \
+		http://localhost:8080/user/orders/create

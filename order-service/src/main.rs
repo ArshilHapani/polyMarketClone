@@ -35,7 +35,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         })
         .await?;
 
-    let mut messages = consumer.messages().await?.take(50);
+    let mut messages = consumer.messages().await?;
 
     while let Some(message) = messages.next().await {
         let message = message?;
@@ -60,7 +60,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 async fn initialize_app() -> Result<Arc<AppState>, Box<dyn std::error::Error>> {
     let app_state = Arc::new(AppState::new().await?);
 
-    let open_orders = Order::get_all_open_orders(&app_state.db_pool).await?;
+    let open_orders = Order::get_all_open_or_unspecified_orders(&app_state.db_pool).await?;
     {
         let mut global_book = app_state.order_book.write();
 

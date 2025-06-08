@@ -187,7 +187,7 @@ impl MarketBook {
     }
 
     fn calculate_midpoint_price(&self, order_book: &OutcomeBook) -> Option<Decimal> {
-        match (order_book.best_ask(), order_book.best_ask()) {
+        match (order_book.best_bid(), order_book.best_ask()) {
             (Some(bid), Some(ask)) => Some((bid + ask) / dec!(2)),
             (Some(bid), None) => Some(bid),
             (None, Some(ask)) => Some(ask),

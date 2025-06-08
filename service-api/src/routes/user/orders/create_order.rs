@@ -101,6 +101,17 @@ pub async fn create_order(
             .into_response(),
         ));
     }
+    // payload.quantity must be up to 2 decimal places
+    let quantity_valid_flg = has_max_two_decimal_places(payload.quantity.unwrap());
+    if !quantity_valid_flg {
+        return Err((
+            StatusCode::BAD_REQUEST,
+            Json(json!({
+                "error": "Quantity must be up to 2 decimal places"
+            }))
+            .into_response(),
+        ));
+    }
 
     // asserting the channel exists
     app_state
@@ -207,4 +218,9 @@ fn from_f64(value: Option<f64>) -> Decimal {
     let value = value.unwrap();
     Decimal::from_f64(value)
         .unwrap_or_else(|| panic!("Failed to convert f64 to Decimal: {}", value))
+}
+
+fn has_max_two_decimal_places(value: f64) -> bool {
+    let scaled = (value * 100.0).round();
+    (value * 100.0 - scaled).abs() < f64::EPSILON
 }

@@ -219,6 +219,30 @@ impl Order {
         Ok(orders)
     }
 
+    pub async fn get_all_open_or_unspecified_orders(
+        pool: &PgPool,
+    ) -> Result<Vec<OrderWithMarket>, sqlx::Error> {
+        let orders = sqlx::query_as!(
+            OrderWithMarket,
+            r#"
+            SELECT 
+            o.id, o.user_id, o.market_id,
+            o.outcome as "outcome: Outcome",
+            o.price, o.quantity, o.filled_quantity,
+            o.status as "status: OrderStatus",
+            o.side as "side: OrderSide",
+            o.created_at, o.updated_at, m.liquidity_b
+            FROM polymarket.orders o
+            JOIN polymarket.markets m ON o.market_id = m.id
+            WHERE o.status IN ('open'::polymarket.order_status, 'unspecified'::polymarket.order_status)
+            "#,
+        )
+        .fetch_all(pool)
+        .await?;
+
+        Ok(orders)
+    }
+
     pub async fn update(&self, pool: &PgPool) -> Result<Order, sqlx::Error> {
         let order = sqlx::query_as!(
             Order,
