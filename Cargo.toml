@@ -7,6 +7,7 @@ workspace.members = [
     "order-service",
     "service-api",
     "utility-helpers",
+    "websocket-service",
 ]
 
 [workspace.dependencies]
@@ -46,3 +47,4 @@ prost = "0.13.5"
 prost-types = "0.13.5"
 async-nats = { version = "0.40.0" }
 futures-util = "0.3.31"
+futures = "0.3.31"

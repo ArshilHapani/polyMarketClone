@@ -3,10 +3,12 @@ use chrono::NaiveDateTime;
 use rust_decimal::Decimal;
 use serde::{Deserialize, Serialize};
 use solana_sdk::{signature::Keypair, signer::Signer};
-use sqlx::PgPool;
+use sqlx::{Executor, PgPool, Postgres};
 use uuid::Uuid;
 
 use utility_helpers::{log_info, symmetric::encrypt, types::GoogleClaims};
+
+use crate::schema::enums::OrderSide;
 
 #[derive(Debug, Serialize, Deserialize, Default)]
 pub struct User {
@@ -24,6 +26,11 @@ pub struct User {
     pub private_key: String,
     pub created_at: NaiveDateTime,
     pub updated_at: NaiveDateTime,
+    pub balance: Decimal,
+}
+
+#[derive(Debug, Serialize, Deserialize, Default)]
+pub struct UserBalance {
     pub balance: Decimal,
 }
 
@@ -114,7 +121,10 @@ impl User {
         }
     }
 
-    pub async fn get_user_by_id(pool: &PgPool, user_id: Uuid) -> Result<Self, sqlx::Error> {
+    pub async fn get_user_by_id<'a>(
+        executor: impl Executor<'a, Database = Postgres>,
+        user_id: Uuid,
+    ) -> Result<Self, sqlx::Error> {
         let user = sqlx::query_as!(
             User,
             r#"
@@ -122,34 +132,88 @@ impl User {
             "#,
             user_id
         )
-        .fetch_one(pool)
+        .fetch_one(executor)
         .await?;
 
         Ok(user)
+    }
+
+    pub async fn get_two_users_balance<'a>(
+        executor: impl Executor<'a, Database = Postgres>,
+        user_1_id: Uuid,
+        user_2_id: Uuid,
+    ) -> Result<(Decimal, Decimal), sqlx::Error> {
+        let balances = sqlx::query_as!(
+            UserBalance,
+            r#"
+            SELECT balance from polymarket.users where id in (
+                $1, $2
+            );
+            "#,
+            user_1_id,
+            user_2_id
+        )
+        .fetch_all(executor)
+        .await?;
+
+        if balances.len() != 2 {
+            return Err(sqlx::Error::RowNotFound);
+        }
+
+        let user_1_balance = balances[0].balance;
+        let user_2_balance = balances[1].balance;
+        Ok((user_1_balance, user_2_balance))
+    }
+
+    pub async fn update_two_users_balance<'a>(
+        executor: impl Executor<'a, Database = Postgres>,
+        user_1_id: Uuid,
+        user_2_id: Uuid,
+        balance_to_update: Decimal,
+        user_1_side: OrderSide,
+    ) -> Result<(), sqlx::Error> {
+        // user_1_side buy then current balance + user_1_new_balance else current balance - user_1_new_balance
+        // user_2_side buy then current balance + user_2_new_balance else current balance - user_2_new_balance
+        sqlx::query!(
+            r#"
+            UPDATE polymarket.users
+            SET balance = CASE
+                WHEN id = $1 THEN balance + ($2::numeric * (CASE WHEN $3 = 'sell'::polymarket.order_side THEN 1 ELSE -1 END))
+                WHEN id = $4 THEN balance + ($2::numeric * (CASE WHEN $3 = 'buy'::polymarket.order_side THEN 1 ELSE -1 END))
+            END
+            WHERE id IN ($1, $4);
+            "#,
+            user_1_id,
+            balance_to_update,
+            user_1_side as _,
+            user_2_id,
+        )
+        .execute(executor)
+        .await?;
+
+        Ok(())
     }
 }
 
 #[cfg(test)]
 mod tests {
-    use super::*;
-    use sqlx::PgPool;
     use std::env;
-    use tracing::Level;
-    use tracing_subscriber::FmtSubscriber;
+
+    use rust_decimal_macros::dec;
     use utility_helpers::symmetric::decrypt;
 
-    fn setup_tracing() {
-        let subscriber = FmtSubscriber::builder()
-            .with_max_level(Level::INFO)
-            .finish();
+    use super::*;
 
-        tracing::subscriber::set_global_default(subscriber)
-            .expect("Failed to set global default subscriber");
+    async fn cleanup_test_user(pool: &PgPool, user_id: Uuid) {
+        sqlx::query(r#"DELETE FROM "polymarket"."users" WHERE id = $1"#)
+            .bind(user_id)
+            .execute(pool)
+            .await
+            .unwrap();
     }
 
     #[tokio::test]
     async fn test_create_new_user() {
-        setup_tracing();
         dotenv::dotenv().ok();
 
         let database_url = env::var("DATABASE_URL").expect("DATABASE_URL must be set");
@@ -181,11 +245,379 @@ mod tests {
         assert_eq!(user.created_at, user.updated_at);
 
         // Clean up
-        sqlx::query(r#"DELETE FROM "polymarket"."users" WHERE id = $1"#)
-            .bind(user.id)
-            .execute(&pool)
+        cleanup_test_user(&pool, user.id).await;
+        pool.close().await;
+    }
+
+    #[tokio::test]
+    async fn test_create_or_update_existing_user_new_user() {
+        dotenv::dotenv().ok();
+
+        let database_url = env::var("DATABASE_URL").expect("DATABASE_URL must be set");
+        let pool = PgPool::connect(&database_url).await.unwrap();
+
+        let unique_id = Uuid::new_v4();
+        let unique_email = format!("test_{}@gmail.com", unique_id);
+        let unique_sub = format!("test_google_id_{}", unique_id);
+
+        let google_claims = GoogleClaims {
+            sub: unique_sub,
+            email: unique_email,
+            exp: 60 * 60 * 24 * 3,
+            name: "Test User New".to_string(),
+            picture: "https://example.com/avatar_new.png".to_string(),
+        };
+
+        let (user, is_new) = User::create_or_update_existing_user(&pool, &google_claims)
             .await
             .unwrap();
+
+        // Verify it's a new user
+        assert!(is_new);
+        assert_eq!(user.name, "Test User New");
+        assert_eq!(user.avatar, "https://example.com/avatar_new.png");
+        assert_eq!(user.google_id, google_claims.sub);
+        assert_eq!(user.email, google_claims.email);
+
+        // Clean up
+        cleanup_test_user(&pool, user.id).await;
+        pool.close().await;
+    }
+
+    #[tokio::test]
+    async fn test_create_or_update_existing_user_existing_user() {
+        dotenv::dotenv().ok();
+
+        let database_url = env::var("DATABASE_URL").expect("DATABASE_URL must be set");
+        let pool = PgPool::connect(&database_url).await.unwrap();
+
+        let unique_id = Uuid::new_v4();
+        let unique_email = format!("test_{}@gmail.com", unique_id);
+        let unique_sub = format!("test_google_id_{}", unique_id);
+
+        // First create a user
+        let google_claims_initial = GoogleClaims {
+            sub: unique_sub.clone(),
+            email: unique_email.clone(),
+            exp: 60 * 60 * 24 * 3,
+            name: "Test User Initial".to_string(),
+            picture: "https://example.com/avatar_initial.png".to_string(),
+        };
+
+        let (initial_user, is_new_initial) =
+            User::create_or_update_existing_user(&pool, &google_claims_initial)
+                .await
+                .unwrap();
+        assert!(is_new_initial);
+
+        // Now update the user
+        let google_claims_updated = GoogleClaims {
+            sub: unique_sub,
+            email: unique_email,
+            exp: 60 * 60 * 24 * 3,
+            name: "Test User Updated".to_string(),
+            picture: "https://example.com/avatar_updated.png".to_string(),
+        };
+
+        let (updated_user, is_new_updated) =
+            User::create_or_update_existing_user(&pool, &google_claims_updated)
+                .await
+                .unwrap();
+
+        // Verify it's an updated user
+        assert!(!is_new_updated);
+        assert_eq!(updated_user.id, initial_user.id); // Same ID
+        assert_eq!(updated_user.name, "Test User Updated"); // Name updated
+        assert_eq!(
+            updated_user.avatar,
+            "https://example.com/avatar_updated.png"
+        ); // Avatar updated
+
+        // Keys should remain the same
+        assert_eq!(updated_user.public_key, initial_user.public_key);
+        assert_eq!(updated_user.private_key, initial_user.private_key);
+
+        // Clean up
+        cleanup_test_user(&pool, initial_user.id).await;
+        pool.close().await;
+    }
+
+    #[tokio::test]
+    async fn test_get_user_by_id() {
+        dotenv::dotenv().ok();
+
+        let database_url = env::var("DATABASE_URL").expect("DATABASE_URL must be set");
+        let pool = PgPool::connect(&database_url).await.unwrap();
+
+        let unique_id = Uuid::new_v4();
+        let unique_email = format!("test_{}@gmail.com", unique_id);
+        let unique_sub = format!("test_google_id_{}", unique_id);
+
+        let google_claims = GoogleClaims {
+            sub: unique_sub,
+            email: unique_email,
+            exp: 60 * 60 * 24 * 3,
+            name: "Test User Get".to_string(),
+            picture: "https://example.com/avatar_get.png".to_string(),
+        };
+
+        // Create user first
+        let created_user = User::create_new_user(&pool, &google_claims).await.unwrap();
+
+        // Get user by ID
+        let fetched_user = User::get_user_by_id(&pool, created_user.id).await.unwrap();
+
+        // Verify fetched user matches created user
+        assert_eq!(fetched_user.id, created_user.id);
+        assert_eq!(fetched_user.name, created_user.name);
+        assert_eq!(fetched_user.email, created_user.email);
+        assert_eq!(fetched_user.public_key, created_user.public_key);
+        assert_eq!(fetched_user.private_key, created_user.private_key);
+
+        // Clean up
+        cleanup_test_user(&pool, created_user.id).await;
+        pool.close().await;
+    }
+
+    #[tokio::test]
+    async fn test_get_user_by_id_nonexistent() {
+        dotenv::dotenv().ok();
+
+        let database_url = env::var("DATABASE_URL").expect("DATABASE_URL must be set");
+        let pool = PgPool::connect(&database_url).await.unwrap();
+
+        // Generate a random UUID that shouldn't exist in the database
+        let nonexistent_id = Uuid::new_v4();
+
+        // Attempt to get user by non-existent ID
+        let result = User::get_user_by_id(&pool, nonexistent_id).await;
+
+        // Verify the error is RowNotFound
+        assert!(result.is_err());
+        match result {
+            Err(sqlx::Error::RowNotFound) => (),
+            _ => panic!("Expected RowNotFound error"),
+        }
+
+        pool.close().await;
+    }
+
+    #[tokio::test]
+    async fn test_get_two_users_balance() {
+        dotenv::dotenv().ok();
+
+        let database_url = env::var("DATABASE_URL").expect("DATABASE_URL must be set");
+        let pool = PgPool::connect(&database_url).await.unwrap();
+
+        // Create two users
+        let user1_claims = GoogleClaims {
+            sub: format!("test_google_id_{}", Uuid::new_v4()),
+            email: format!("test_{}@gmail.com", Uuid::new_v4()),
+            exp: 60 * 60 * 24 * 3,
+            name: "Test User 1".to_string(),
+            picture: "https://example.com/avatar1.png".to_string(),
+        };
+
+        let user2_claims = GoogleClaims {
+            sub: format!("test_google_id_{}", Uuid::new_v4()),
+            email: format!("test_{}@gmail.com", Uuid::new_v4()),
+            exp: 60 * 60 * 24 * 3,
+            name: "Test User 2".to_string(),
+            picture: "https://example.com/avatar2.png".to_string(),
+        };
+
+        let user1 = User::create_new_user(&pool, &user1_claims).await.unwrap();
+        let user2 = User::create_new_user(&pool, &user2_claims).await.unwrap();
+
+        // Get balances
+        let (user1_balance, user2_balance) = User::get_two_users_balance(&pool, user1.id, user2.id)
+            .await
+            .unwrap();
+
+        // Verify initial balances are zero
+        assert_eq!(user1_balance, Decimal::ZERO);
+        assert_eq!(user2_balance, Decimal::ZERO);
+
+        // Clean up
+        cleanup_test_user(&pool, user1.id).await;
+        cleanup_test_user(&pool, user2.id).await;
+        pool.close().await;
+    }
+
+    #[tokio::test]
+    async fn test_update_two_users_balance() {
+        dotenv::dotenv().ok();
+
+        let database_url = env::var("DATABASE_URL").expect("DATABASE_URL must be set");
+        let pool = PgPool::connect(&database_url).await.unwrap();
+
+        // Create two users
+        let user1_claims = GoogleClaims {
+            sub: format!("test_google_id_{}", Uuid::new_v4()),
+            email: format!("test_{}@gmail.com", Uuid::new_v4()),
+            exp: 60 * 60 * 24 * 3,
+            name: "Test User 1 Balance".to_string(),
+            picture: "https://example.com/avatar1_balance.png".to_string(),
+        };
+
+        let user2_claims = GoogleClaims {
+            sub: format!("test_google_id_{}", Uuid::new_v4()),
+            email: format!("test_{}@gmail.com", Uuid::new_v4()),
+            exp: 60 * 60 * 24 * 3,
+            name: "Test User 2 Balance".to_string(),
+            picture: "https://example.com/avatar2_balance.png".to_string(),
+        };
+
+        let user1 = User::create_new_user(&pool, &user1_claims).await.unwrap();
+        let user2 = User::create_new_user(&pool, &user2_claims).await.unwrap();
+
+        // Test case 1: User 1 is buying (loses money), User 2 is selling (gains money)
+        let amount = dec!(10.5);
+        User::update_two_users_balance(&pool, user1.id, user2.id, amount, OrderSide::BUY)
+            .await
+            .unwrap();
+
+        // Get updated balances
+        let (user1_balance, user2_balance) = User::get_two_users_balance(&pool, user1.id, user2.id)
+            .await
+            .unwrap();
+
+        // User 1 (buyer) loses money, User 2 (seller) gains money
+        assert_eq!(user1_balance, dec!(-10.5));
+        assert_eq!(user2_balance, dec!(10.5));
+
+        // Test case 2: User 1 is selling (gains money), User 2 is buying (loses money)
+        let amount2 = dec!(5.25);
+        User::update_two_users_balance(&pool, user1.id, user2.id, amount2, OrderSide::SELL)
+            .await
+            .unwrap();
+
+        // Get updated balances
+        let (user1_balance2, user2_balance2) =
+            User::get_two_users_balance(&pool, user1.id, user2.id)
+                .await
+                .unwrap();
+
+        // User 1 now has -10.5 + 5.25 = -5.25
+        // User 2 now has 10.5 - 5.25 = 5.25
+        assert_eq!(user1_balance2, dec!(-5.25));
+        assert_eq!(user2_balance2, dec!(5.25));
+
+        // Clean up
+        cleanup_test_user(&pool, user1.id).await;
+        cleanup_test_user(&pool, user2.id).await;
+        pool.close().await;
+    }
+
+    #[tokio::test]
+    async fn test_get_two_users_balance_one_nonexistent() {
+        dotenv::dotenv().ok();
+
+        let database_url = env::var("DATABASE_URL").expect("DATABASE_URL must be set");
+        let pool = PgPool::connect(&database_url).await.unwrap();
+
+        // Create one user
+        let user1_claims = GoogleClaims {
+            sub: format!("test_google_id_{}", Uuid::new_v4()),
+            email: format!("test_{}@gmail.com", Uuid::new_v4()),
+            exp: 60 * 60 * 24 * 3,
+            name: "Test User 1".to_string(),
+            picture: "https://example.com/avatar1.png".to_string(),
+        };
+
+        let user1 = User::create_new_user(&pool, &user1_claims).await.unwrap();
+        let nonexistent_id = Uuid::new_v4();
+
+        // Get balances with one nonexistent user
+        let result = User::get_two_users_balance(&pool, user1.id, nonexistent_id).await;
+
+        // Should fail since one user doesn't exist
+        assert!(result.is_err());
+        match result {
+            Err(sqlx::Error::RowNotFound) => (),
+            _ => panic!("Expected RowNotFound error"),
+        }
+
+        // Clean up
+        cleanup_test_user(&pool, user1.id).await;
+        pool.close().await;
+    }
+
+    #[tokio::test]
+    async fn test_update_two_users_balance_large_amounts() {
+        dotenv::dotenv().ok();
+
+        let database_url = env::var("DATABASE_URL").expect("DATABASE_URL must be set");
+        let pool = PgPool::connect(&database_url).await.unwrap();
+
+        // Create two users
+        let user1_claims = GoogleClaims {
+            sub: format!("test_google_id_{}", Uuid::new_v4()),
+            email: format!("test_{}@gmail.com", Uuid::new_v4()),
+            exp: 60 * 60 * 24 * 3,
+            name: "Test User 1 Large".to_string(),
+            picture: "https://example.com/avatar1_large.png".to_string(),
+        };
+
+        let user2_claims = GoogleClaims {
+            sub: format!("test_google_id_{}", Uuid::new_v4()),
+            email: format!("test_{}@gmail.com", Uuid::new_v4()),
+            exp: 60 * 60 * 24 * 3,
+            name: "Test User 2 Large".to_string(),
+            picture: "https://example.com/avatar2_large.png".to_string(),
+        };
+
+        let user1 = User::create_new_user(&pool, &user1_claims).await.unwrap();
+        let user2 = User::create_new_user(&pool, &user2_claims).await.unwrap();
+
+        // Use a large decimal amount
+        let large_amount = dec!(1_000_000.00);
+        User::update_two_users_balance(&pool, user1.id, user2.id, large_amount, OrderSide::SELL)
+            .await
+            .unwrap();
+
+        // Get updated balances
+        let (user1_balance, user2_balance) = User::get_two_users_balance(&pool, user1.id, user2.id)
+            .await
+            .unwrap();
+
+        assert_eq!(user1_balance, dec!(1_000_000.00));
+        assert_eq!(user2_balance, dec!(-1_000_000.00));
+
+        // Clean up
+        cleanup_test_user(&pool, user1.id).await;
+        cleanup_test_user(&pool, user2.id).await;
+        pool.close().await;
+    }
+
+    #[tokio::test]
+    async fn test_create_new_user_with_empty_fields() {
+        dotenv::dotenv().ok();
+
+        let database_url = env::var("DATABASE_URL").expect("DATABASE_URL must be set");
+        let pool = PgPool::connect(&database_url).await.unwrap();
+
+        let unique_id = Uuid::new_v4();
+        let unique_sub = format!("test_google_id_{}", unique_id);
+
+        // Test with empty name and picture
+        let google_claims = GoogleClaims {
+            sub: unique_sub,
+            email: format!("test_{}@gmail.com", unique_id),
+            exp: 60 * 60 * 24 * 3,
+            name: "".to_string(),
+            picture: "".to_string(),
+        };
+
+        let user = User::create_new_user(&pool, &google_claims).await.unwrap();
+
+        assert_eq!(user.name, "");
+        assert_eq!(user.avatar, "");
+        assert!(!user.private_key.is_empty());
+        assert!(!user.public_key.is_empty());
+
+        // Clean up
+        cleanup_test_user(&pool, user.id).await;
         pool.close().await;
     }
 }

@@ -1,7 +1,7 @@
 use chrono::NaiveDateTime;
 use rust_decimal::Decimal;
 use serde::{Deserialize, Serialize};
-use sqlx::PgPool;
+use sqlx::{Executor, Postgres};
 use uuid::Uuid;
 
 use super::enums::Outcome;
@@ -9,6 +9,7 @@ use super::enums::Outcome;
 #[derive(Debug, Serialize, Deserialize, sqlx::FromRow, Default)]
 pub struct UserTrades {
     id: Uuid,
+    // TODO: in free time change the field names `buy_order_id` and `sell_order_id` to `current_order_id` and `opposite_order_id`
     buy_order_id: Uuid,
     sell_order_id: Uuid,
     user_id: Uuid,
@@ -22,10 +23,10 @@ pub struct UserTrades {
 }
 
 impl UserTrades {
-    pub async fn create_user_trade(
-        pg_pool: &PgPool,
-        buy_order_id: Uuid,
-        sell_order_id: Uuid,
+    pub async fn create_user_trade<'a>(
+        executor: impl Executor<'a, Database = Postgres>,
+        current_order_id: Uuid,
+        opposite_order_id: Uuid,
         user_id: Uuid,
         market_id: Uuid,
         outcome: Outcome,
@@ -41,14 +42,14 @@ impl UserTrades {
             outcome as "outcome: Outcome",
             price, quantity, timestamp, created_at, updated_at
             "#,
-            buy_order_id,
-            sell_order_id,
+            current_order_id,
+            opposite_order_id,
             user_id,
             market_id,
             outcome as Outcome,
             price,
             quantity
-        ).fetch_one(pg_pool).await?;
+        ).fetch_one(executor).await?;
         Ok(trade)
     }
 }

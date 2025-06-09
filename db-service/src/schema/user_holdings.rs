@@ -1,6 +1,7 @@
 use chrono::NaiveDateTime;
 use rust_decimal::Decimal;
 use serde::{Deserialize, Serialize};
+use sqlx::{Executor, Postgres};
 use uuid::Uuid;
 
 #[derive(Debug, Serialize, Deserialize, sqlx::FromRow, Default)]
@@ -14,8 +15,8 @@ pub struct UserHoldings {
 }
 
 impl UserHoldings {
-    pub async fn create_user_holding(
-        pg_pool: &sqlx::PgPool,
+    pub async fn create_user_holding<'a>(
+        executor: impl Executor<'a, Database = Postgres>,
         user_id: Uuid,
         market_id: Uuid,
         shares: Decimal,
@@ -31,14 +32,14 @@ impl UserHoldings {
             market_id,
             shares
         )
-        .fetch_one(pg_pool)
+        .fetch_one(executor)
         .await?;
 
         Ok(holding)
     }
 
-    pub async fn update_user_holdings(
-        db_pool: &sqlx::PgPool,
+    pub async fn update_user_holdings<'a>(
+        executor: impl Executor<'a, Database = Postgres>,
         user_id: Uuid,
         market_id: Uuid,
         quantity: Decimal,
@@ -57,15 +58,10 @@ impl UserHoldings {
             market_id,
             quantity
         )
-        .fetch_optional(db_pool)
+        .fetch_one(executor)
         .await?;
 
-        if holding.is_none() {
-            let holdings = Self::create_user_holding(db_pool, user_id, market_id, quantity).await?;
-            return Ok(holdings);
-        }
-
-        Ok(holding.unwrap())
+        Ok(holding)
     }
 
     pub async fn get_user_holdings(
