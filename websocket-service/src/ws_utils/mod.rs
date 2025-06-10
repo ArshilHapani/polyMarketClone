@@ -6,23 +6,31 @@ use serde::{Deserialize, Serialize};
 use tokio::sync::Mutex;
 use uuid::Uuid;
 
-pub(crate) mod client_manager;
 pub(crate) mod connection_handler;
+pub(crate) mod handle_messages;
 pub(crate) mod process_manager;
+pub(crate) mod process_manager_v2;
+pub(crate) mod tasks;
 
 pub type SafeSender = Arc<Mutex<SplitSink<WebSocket, Message>>>;
 
 #[derive(Debug, Hash, Eq, PartialEq, Clone)]
-pub enum SubscriptionChannels {
-    PriceUpdates(Uuid),
+pub enum SubscriptionChannel {
+    PriceUpdates(Uuid),    // market id
+    OrderBookUpdate(Uuid), // market id
 }
 
-impl SubscriptionChannels {
+impl SubscriptionChannel {
     pub fn from_str(channel: &str) -> Option<Self> {
         if channel.starts_with("price_updates:") {
             let id_str = channel.trim_start_matches("price_updates:");
             if let Ok(id) = Uuid::parse_str(id_str) {
-                return Some(SubscriptionChannels::PriceUpdates(id));
+                return Some(SubscriptionChannel::PriceUpdates(id));
+            }
+        } else if channel.starts_with("order_book_update:") {
+            let id_str = channel.trim_start_matches("order_book_update:");
+            if let Ok(id) = Uuid::parse_str(id_str) {
+                return Some(SubscriptionChannel::OrderBookUpdate(id));
             }
         }
         None
@@ -30,16 +38,20 @@ impl SubscriptionChannels {
 
     pub fn to_string(&self) -> String {
         match self {
-            SubscriptionChannels::PriceUpdates(id) => format!("price_updates:{}", id),
+            SubscriptionChannel::PriceUpdates(id) => format!("price_updates:{}", id),
+            SubscriptionChannel::OrderBookUpdate(id) => format!("order_book_update:{}", id),
         }
     }
 }
 
-impl Display for SubscriptionChannels {
+impl Display for SubscriptionChannel {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
-            SubscriptionChannels::PriceUpdates(id) => {
+            SubscriptionChannel::PriceUpdates(id) => {
                 let _ = f.write_str(format!("PriceUpdates({id})").as_str());
+            }
+            SubscriptionChannel::OrderBookUpdate(id) => {
+                let _ = f.write_str(format!("OrderBookUpdate({id})").as_str());
             }
         }
 

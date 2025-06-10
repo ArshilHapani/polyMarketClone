@@ -7,31 +7,30 @@ use tokio::{
 use utility_helpers::{log_info, log_warn};
 use uuid::Uuid;
 
-use crate::ws_utils::{BroadcastMessage, ClientMessage, MessagePayload, SubscriptionChannels};
+use crate::ws_utils::{BroadcastMessage, ClientMessage, MessagePayload, SubscriptionChannel};
 
+#[derive(Debug, Clone)]
 pub struct ProcessManager {
-    processes: Arc<RwLock<HashMap<SubscriptionChannels, ProcessHandle>>>,
+    processes: Arc<RwLock<HashMap<SubscriptionChannel, ProcessHandle>>>,
     subscribers: Arc<
-        RwLock<HashMap<SubscriptionChannels, HashMap<Uuid, broadcast::Sender<BroadcastMessage>>>>,
+        RwLock<HashMap<SubscriptionChannel, HashMap<Uuid, broadcast::Sender<BroadcastMessage>>>>, // one producer multiple consumers
     >,
 }
 
+#[derive(Debug)]
 pub struct ProcessHandle {
-    pub channel: SubscriptionChannels,
     pub task_handler: tokio::task::JoinHandle<()>,
-    pub broadcaster: broadcast::Sender<BroadcastMessage>,
-    pub control_tx: mpsc::Sender<ProcessControl>,
+    control_tx: mpsc::Sender<ProcessControl>,
     pub subscriber_count: Arc<RwLock<usize>>,
 }
 
 #[derive(Debug)]
-pub enum ProcessControl {
+enum ProcessControl {
     Stop,
-    UpdateConfig(serde_json::Value),
     AddSubscriber(Uuid),
     RemoveSubscriber(Uuid),
 }
-// PROCESS manager completed, store it in app state and use in connection handler
+
 impl ProcessManager {
     pub fn new() -> Self {
         Self {
@@ -52,7 +51,6 @@ impl ProcessManager {
             MessagePayload::Unsubscribe { channel } => {
                 self.unsubscribe_client(client_id, &channel).await
             }
-            _ => Ok(Some("Message proceed".to_string())),
         }
     }
 
@@ -62,10 +60,11 @@ impl ProcessManager {
         channel: &str,
         params: serde_json::Value,
     ) -> Result<Option<String>, String> {
-        if let Some(channel_type) = SubscriptionChannels::from_str(channel) {
+        if let Some(channel_type) = SubscriptionChannel::from_str(channel) {
             self.ensure_process_exists(&channel_type, params).await?;
 
             let mut subscribers = self.subscribers.write().await;
+
             let channel_subscribers = subscribers
                 .entry(channel_type.clone())
                 .or_insert_with(HashMap::new);
@@ -91,7 +90,7 @@ impl ProcessManager {
         client_id: Uuid,
         channel: &str,
     ) -> Result<Option<String>, String> {
-        let channel_type = SubscriptionChannels::from_str(channel)
+        let channel_type = SubscriptionChannel::from_str(channel)
             .ok_or_else(|| format!("Invalid channel: {channel}"))?;
 
         let mut subscribers = self.subscribers.write().await;
@@ -121,7 +120,7 @@ impl ProcessManager {
 
     async fn ensure_process_exists(
         &self,
-        channel: &SubscriptionChannels,
+        channel: &SubscriptionChannel,
         params: serde_json::Value,
     ) -> Result<(), String> {
         let mut processes = self.processes.write().await;
@@ -138,9 +137,7 @@ impl ProcessManager {
                 .await;
 
             let process_handler = ProcessHandle {
-                channel: channel.clone(),
                 task_handler,
-                broadcaster,
                 control_tx,
                 subscriber_count,
             };
@@ -153,7 +150,7 @@ impl ProcessManager {
 
     async fn start_channel_process(
         &self,
-        channel_type: SubscriptionChannels,
+        channel_type: SubscriptionChannel,
         broadcaster: broadcast::Sender<BroadcastMessage>,
         control_rx: mpsc::Receiver<ProcessControl>,
         params: serde_json::Value,
@@ -161,8 +158,16 @@ impl ProcessManager {
         // let subscribers = self.subscribers.clone();
         tokio::spawn(async move {
             match channel_type {
-                SubscriptionChannels::PriceUpdates(market_id) => {
+                SubscriptionChannel::PriceUpdates(market_id) => {
                     Self::price_update_process(market_id, broadcaster, control_rx, params).await;
+                }
+                SubscriptionChannel::OrderBookUpdate(market_id) => {
+                    // Placeholder for order book update process
+                    log_info!(
+                        "Starting order book update process for market: {}",
+                        market_id
+                    );
+                    // Implement the order book update logic here
                 }
             }
 
@@ -179,6 +184,8 @@ impl ProcessManager {
     ) {
         let mut interval = interval(Duration::from_secs(1));
         let mut price = (0.4, 0.6);
+
+        log_info!("Starting price update process for market: {}", market_id);
 
         loop {
             tokio::select! {
@@ -208,10 +215,6 @@ impl ProcessManager {
                         Some(ProcessControl::Stop) => {
                             log_info!("Stopping price update process for {}", market_id);
                             break;
-                        }
-                        Some(ProcessControl::UpdateConfig(config)) => {
-                            log_info!("Updating config for price process: {:?}", config);
-                            // Handle config updates
                         }
                         Some(ProcessControl::AddSubscriber(client_id)) => {
                             log_info!("New subscriber {} for price updates: {}", client_id, market_id);
@@ -254,7 +257,7 @@ impl ProcessManager {
         }
     }
 
-    pub async fn stop_channel(&self, channel: &SubscriptionChannels) -> Result<(), String> {
+    pub async fn stop_channel(&self, channel: &SubscriptionChannel) -> Result<(), String> {
         let mut processes = self.processes.write().await;
 
         if let Some(process) = processes.remove(channel) {
@@ -289,7 +292,7 @@ impl ProcessManager {
             .collect()
     }
 
-    pub async fn get_subscriber_count(&self, channel: &SubscriptionChannels) -> usize {
+    pub async fn get_subscriber_count(&self, channel: &SubscriptionChannel) -> usize {
         if let Some(process) = self.processes.read().await.get(channel) {
             *process.subscriber_count.read().await
         } else {

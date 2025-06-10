@@ -21,6 +21,7 @@ async fn main() {
     let app_state = Arc::new(RwLock::new(WebSocketAppState::new()));
 
     let app = Router::new()
+        .route("/", any(|| async { "Hello from WebSocket server!" }))
         .route("/ws", any(socket_handler))
         .with_state(app_state.clone());
 
@@ -28,7 +29,7 @@ async fn main() {
         .await
         .expect("Failed to bind TCP listener");
 
-    log_info!("Starting WebSocket server on port 4040");
+    log_info!("Starting WebSocket server on port 4010");
 
     axum::serve(listener, app)
         .await

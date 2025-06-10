@@ -5,10 +5,10 @@ use state::AppState;
 use std::sync::Arc;
 use utility_helpers::{log_error, log_info};
 
-use crate::order_book_v2_handler::order_book_v2_handler;
+use crate::order_book_handler::order_book_handler;
 
-mod order_book_v2;
-mod order_book_v2_handler;
+mod order_book;
+mod order_book_handler;
 mod state;
 
 #[tokio::main]
@@ -42,7 +42,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         let order_id = String::from_utf8(message.payload.to_vec())
             .map_err(|_| "Failed to convert payload to string".to_string())?;
         log_info!("Received order ID: {}", order_id);
-        let _ = order_book_v2_handler(Arc::clone(&app_state), order_id)
+        let _ = order_book_handler(Arc::clone(&app_state), order_id)
             .await
             .map_err(|e| {
                 log_error!("Error occur while {e}");

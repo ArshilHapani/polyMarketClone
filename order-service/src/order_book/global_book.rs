@@ -3,7 +3,7 @@ use rust_decimal::Decimal;
 use std::collections::HashMap;
 use uuid::Uuid;
 
-use crate::order_book_v2::outcome_book::OrderBookMatchedOutput;
+use crate::order_book::outcome_book::OrderBookMatchedOutput;
 
 use super::market_book::MarketBook;
 

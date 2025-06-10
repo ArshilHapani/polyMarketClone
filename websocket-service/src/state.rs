@@ -1,14 +1,18 @@
-use crate::ws_utils::client_manager::ClientManager;
+use crate::ws_utils::{SubscriptionChannel, process_manager_v2::ProcessManagerV2};
 
 #[derive(Debug)]
 pub struct WebSocketAppState {
-    pub client_manager: ClientManager,
+    pub process_manager: ProcessManagerV2,
 }
 
 impl WebSocketAppState {
     pub fn new() -> Self {
         WebSocketAppState {
-            client_manager: ClientManager::new(),
+            process_manager: ProcessManagerV2::new(),
         }
+    }
+
+    pub fn cleanup_processes(&mut self, channel: &SubscriptionChannel) {
+        self.process_manager.delete_process(channel);
     }
 }

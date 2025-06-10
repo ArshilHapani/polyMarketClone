@@ -6,7 +6,7 @@ use rust_decimal::Decimal;
 use rust_decimal_macros::dec;
 use uuid::Uuid;
 
-use crate::order_book_v2::outcome_book::OrderBookMatchedOutput;
+use crate::order_book::outcome_book::OrderBookMatchedOutput;
 
 use super::outcome_book::OutcomeBook;
 

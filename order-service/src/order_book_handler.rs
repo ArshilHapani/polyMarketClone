@@ -1,32 +1,35 @@
-use rust_decimal::Decimal;
-use std::{str::FromStr, sync::Arc};
-use uuid::Uuid;
+use std::{error::Error, str::FromStr, sync::Arc};
 
-use crate::state::AppState;
 use db_service::schema::{
     enums::{OrderSide, OrderStatus, Outcome},
     orders::Order,
     user_holdings::UserHoldings,
     user_trades::UserTrades,
+    users::User,
 };
+use rust_decimal::Decimal;
 use utility_helpers::log_info;
+use uuid::Uuid;
 
-pub async fn handle_orders(
+use crate::state::AppState;
+
+pub async fn order_book_handler(
     app_state: Arc<AppState>,
     order_id: String,
-) -> Result<(), Box<dyn std::error::Error>> {
+) -> Result<(), Box<dyn Error>> {
     let order_id = Uuid::from_str(&order_id).map_err(|_| "Invalid order ID format".to_string())?;
     let order = Order::find_order_by_id_with_market(order_id, &app_state.db_pool)
         .await
-        .map_err(|_| "Failed to find order".to_string())?;
+        .map_err(|e| format!("Failed to find order {:#?}", e))?;
 
-    // default is UNSPECIFIED (checked before two time, still for security reason)
+    // open orders are already added to order book during initialization
     if order.status == OrderStatus::OPEN {
-        log_info!("Order already open - {:?}", order.id);
+        log_info!("Order already open");
         return Ok(());
     }
 
-    let matched_orders = {
+    // working on unspecified status order
+    let matched_order = {
         let mut order_book = app_state.order_book.write();
         let mut order_raw = Order {
             id: order.id,
@@ -41,72 +44,127 @@ pub async fn handle_orders(
             updated_at: order.updated_at,
             user_id: order.user_id,
         };
+
         let matches = order_book.process_order(&mut order_raw, order.liquidity_b);
+
+        // updating current order filled quantity and status
         order_raw
             .update(&app_state.db_pool)
             .await
-            .map_err(|_| "Failed to update order".to_string())?;
+            .map_err(|e| format!("Failed to update order: {:#?}", e))?;
+
         matches
     };
 
-    // heavy db operations... (optimization needed)
-    for (buy_order_id, sell_order_id, quantity, price) in matched_orders {
-        let (buyer_id, seller_id) = if order.side == OrderSide::BUY {
-            Order::get_buyer_and_seller_user_id(&app_state.db_pool, buy_order_id, sell_order_id)
-                .await
-                .map_err(|_| "Failed to get buyer and seller user ID".to_string())?
+    for match_item in matched_order {
+        // update the opposite order's filled quantity
+        let current_order_id = match_item.order_id;
+        let opposite_order_id = match_item.opposite_order_id;
+        let quantity = match_item.matched_quantity;
+        let opposite_order_new_status = if match_item.opposite_order_filled_quantity
+            == match_item.opposite_order_total_quantity
+        {
+            OrderStatus::FILLED
         } else {
-            Order::get_buyer_and_seller_user_id(&app_state.db_pool, sell_order_id, buy_order_id)
-                .await
-                .map_err(|_| "Failed to get buyer and seller user ID".to_string())?
+            OrderStatus::OPEN
         };
 
+        Order::update_order_status_and_filled_quantity(
+            &app_state.db_pool,
+            opposite_order_id,
+            opposite_order_new_status,
+            match_item.opposite_order_filled_quantity,
+        )
+        .await
+        .map_err(|e| format!("Failed to update opposite order: {:#?}", e))?;
+
+        let (current_order_user_id, opposite_order_user_id) = match order.side {
+            OrderSide::BUY => Order::get_buyer_and_seller_user_id(
+                &app_state.db_pool,
+                current_order_id,
+                opposite_order_id,
+            )
+            .await
+            .map_err(|e| format!("Failed to get buyer and seller id: {:#?}", e))?,
+            OrderSide::SELL => Order::get_buyer_and_seller_user_id(
+                &app_state.db_pool,
+                opposite_order_id,
+                current_order_id,
+            )
+            .await
+            .map_err(|e| format!("Failed to get buyer and seller id for SELL side: {:#?}", e))?,
+        };
+
+        /////// Database Transaction start ////////
+
+        // here we are preferring to use db transaction instead of rust's parallel operation processing (it compromises performance and perform sequential processing)
+        let mut tx = app_state.db_pool.begin().await?;
+
         UserTrades::create_user_trade(
-            &app_state.db_pool,
-            buy_order_id,
-            sell_order_id,
+            &mut *tx,
+            current_order_id,
+            opposite_order_id,
             order.user_id,
             order.market_id,
             order.outcome,
-            price,
+            match_item.price,
             quantity,
         )
-        .await
-        .map_err(|_| "Failed to create user trade".to_string())?;
-
-        UserHoldings::update_user_holdings(
-            &app_state.db_pool,
-            order.user_id,
+        .await?;
+        UserTrades::create_user_trade(
+            &mut *tx,
+            current_order_id,
+            opposite_order_id,
+            current_order_user_id,
             order.market_id,
             order.outcome,
+            match_item.price,
             quantity,
         )
-        .await
-        .map_err(|_| "Failed to update user holdings".to_string())?;
+        .await?;
+
+        let (current_order_user_updated_holding, opposite_order_user_updated_holdings) =
+            match order.side {
+                OrderSide::BUY => (quantity, -quantity),
+                OrderSide::SELL => (-quantity, quantity),
+            };
 
         UserHoldings::update_user_holdings(
-            &app_state.db_pool,
-            buyer_id,
+            &mut *tx,
+            current_order_user_id,
             order.market_id,
-            order.outcome,
-            quantity,
+            current_order_user_updated_holding,
         )
-        .await
-        .map_err(|_| "Failed to update buyer user holdings".to_string())?;
+        .await?;
 
         UserHoldings::update_user_holdings(
-            &app_state.db_pool,
-            seller_id,
+            &mut *tx,
+            opposite_order_user_id,
             order.market_id,
-            order.outcome,
-            -quantity,
+            opposite_order_user_updated_holdings,
         )
-        .await
-        .map_err(|_| "Failed to update seller user holdings".to_string())?;
+        .await?;
+
+        // updating user balances
+        User::update_two_users_balance(
+            &mut *tx,
+            current_order_user_id,
+            opposite_order_user_id,
+            match_item.matched_quantity * match_item.price,
+            order.side,
+        )
+        .await?;
+
+        tx.commit()
+            .await
+            .map_err(|e| format!("Failed to commit transaction: {:#?}", e))?;
+
+        /////// Database Transaction end ////////
     }
 
     let (yes_price, no_price) = {
         let order_book = app_state.order_book.read();
+
         let yes_price = order_book
             .get_market_price(&order.market_id, Outcome::YES)
             .unwrap_or_else(|| Decimal::new(5, 1));
@@ -117,8 +175,13 @@ pub async fn handle_orders(
         (yes_price, no_price)
     };
 
-    // store yes_price and no_price in some time series db
-    log_info!("yes_price: {:?}, no_price: {:?}", yes_price, no_price);
+    log_info!(
+        "Order processed.. YES Price: {}, NO Price: {}",
+        yes_price,
+        no_price
+    );
+
+    // send price in queue
 
     Ok(())
 }
