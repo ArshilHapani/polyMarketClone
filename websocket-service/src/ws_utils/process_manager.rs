@@ -11,8 +11,8 @@ use crate::ws_utils::{BroadcastMessage, ClientMessage, MessagePayload, Subscript
 
 #[derive(Debug, Clone)]
 pub struct ProcessManager {
-    processes: Arc<RwLock<HashMap<SubscriptionChannel, ProcessHandle>>>,
-    subscribers: Arc<
+    pub(super) processes: Arc<RwLock<HashMap<SubscriptionChannel, ProcessHandle>>>,
+    pub(super) subscribers: Arc<
         RwLock<HashMap<SubscriptionChannel, HashMap<Uuid, broadcast::Sender<BroadcastMessage>>>>, // one producer multiple consumers
     >,
 }
@@ -155,7 +155,6 @@ impl ProcessManager {
         control_rx: mpsc::Receiver<ProcessControl>,
         params: serde_json::Value,
     ) -> tokio::task::JoinHandle<()> {
-        // let subscribers = self.subscribers.clone();
         tokio::spawn(async move {
             match channel_type {
                 SubscriptionChannel::PriceUpdates(market_id) => {
@@ -182,7 +181,7 @@ impl ProcessManager {
         mut control_rx: mpsc::Receiver<ProcessControl>,
         _params: serde_json::Value,
     ) {
-        let mut interval = interval(Duration::from_secs(1));
+        let mut interval = interval(Duration::from_secs(4));
         let mut price = (0.4, 0.6);
 
         log_info!("Starting price update process for market: {}", market_id);
@@ -205,8 +204,8 @@ impl ProcessManager {
                         timestamp: chrono::Utc::now(),
                     };
 
-                    if broadcaster.send(message).is_err() {
-                        log_warn!("No subscribers for channel: price_updates:{market_id}");
+                    if let Err(e) = broadcaster.send(message) {
+                        log_warn!("No subscribers for channel: price_updates:{market_id}, error: {}", e);
                     }
                 }
 
@@ -298,5 +297,71 @@ impl ProcessManager {
         } else {
             0
         }
+    }
+
+    pub async fn subscribe_client_with_receiver(
+        &self,
+        client_id: Uuid,
+        channel: &str,
+        params: serde_json::Value,
+    ) -> Result<Option<(String, broadcast::Receiver<BroadcastMessage>)>, String> {
+        if let Some(channel_type) = SubscriptionChannel::from_str(channel) {
+            self.ensure_process_exists(&channel_type, params).await?;
+
+            let mut subscribers = self.subscribers.write().await;
+
+            let channel_subscribers = subscribers
+                .entry(channel_type.clone())
+                .or_insert_with(HashMap::new);
+
+            let (tx, rx) = broadcast::channel(1000);
+
+            channel_subscribers.insert(client_id, tx.clone());
+
+            if let Some(process) = self.processes.read().await.get(&channel_type) {
+                let _ = process
+                    .control_tx
+                    .send(ProcessControl::AddSubscriber(client_id))
+                    .await;
+                *process.subscriber_count.write().await += 1;
+            }
+
+            log_info!("Subscribed client {} to channel {}", client_id, channel);
+
+            return Ok(Some((format!("Subscribed to channel: {}", channel), rx)));
+        }
+
+        Err(format!("Invalid channel: {}", channel))
+    }
+
+    pub async fn get_broadcast_receiver(
+        &self,
+        client_id: Uuid,
+        channel: &SubscriptionChannel,
+    ) -> Option<broadcast::Receiver<BroadcastMessage>> {
+        let subscribers = self.subscribers.read().await;
+
+        if let Some(channel_subscribers) = subscribers.get(channel) {
+            if let Some(sender) = channel_subscribers.get(&client_id) {
+                return Some(sender.subscribe());
+            }
+        }
+        None
+    }
+
+    pub async fn get_all_client_receivers(
+        &self,
+        client_id: Uuid,
+    ) -> Vec<(SubscriptionChannel, broadcast::Receiver<BroadcastMessage>)> {
+        let subscribers = self.subscribers.read().await;
+        let mut receivers = Vec::new();
+
+        for (channel, channel_subscribers) in subscribers.iter() {
+            if let Some(sender) = channel_subscribers.get(&client_id) {
+                receivers.push((channel.clone(), sender.subscribe()));
+            }
+        }
+
+        receivers
     }
 }

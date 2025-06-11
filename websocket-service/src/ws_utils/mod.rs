@@ -7,6 +7,7 @@ use tokio::sync::Mutex;
 use uuid::Uuid;
 
 pub(crate) mod connection_handler;
+pub(crate) mod handle_broadcast;
 pub(crate) mod handle_messages;
 pub(crate) mod process_manager;
 pub(crate) mod process_manager_v2;

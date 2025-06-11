@@ -1,5 +1,6 @@
 use axum::extract::ws::{Message, WebSocket};
 use futures::{StreamExt, stream::SplitStream};
+use tokio::sync::broadcast;
 use utility_helpers::{log_error, log_info, log_warn};
 use uuid::Uuid;
 
@@ -7,7 +8,7 @@ use super::SafeSender;
 use crate::{
     AppState,
     ws_utils::{
-        ClientMessage, DisconnectReason, MessagePayload, SubscriptionChannel,
+        BroadcastMessage, ClientMessage, DisconnectReason, MessagePayload, SubscriptionChannel,
         connection_handler::send_message,
     },
 };
@@ -26,31 +27,102 @@ pub(super) async fn handle_messages(
                         Ok(client_message) => {
                             println!("Received message {:?}", client_message);
                             // process the received message...
-                            match client_message.payload {
+                            let process_manager = &state.read().await.process_manager;
+
+                            match &client_message.payload {
                                 MessagePayload::Subscribe { channel, params } => {
-                                    let channel_enum = SubscriptionChannel::from_str(&channel);
-                                    if let Some(channel) = channel_enum {
-                                        log_info!(
-                                            "Client {client_id} subscribed to channel: {channel}, params: {params:?}"
-                                        );
-                                    } else {
-                                        log_warn!(
-                                            "Client {client_id} tried to subscribe to an invalid channel: {channel}"
-                                        );
-                                        let error_msg = format!(
-                                            "Invalid channel subscription attempt: {}",
-                                            channel
-                                        );
-                                        if let Err(e) = send_message(tx, error_msg.into()).await {
-                                            log_error!("Failed to send error message: {e}");
-                                            return DisconnectReason::SendError(e.to_string());
+                                    match process_manager
+                                        .subscribe_client_with_receiver(
+                                            client_id,
+                                            channel,
+                                            params.clone(),
+                                        )
+                                        .await
+                                    {
+                                        Ok(Some((response, receiver))) => {
+                                            let success_message = serde_json::json!({
+                                                "status":"success",
+                                                "message": response
+                                            });
+                                            if let Err(e) =
+                                                send_message(tx, success_message.to_string().into())
+                                                    .await
+                                            {
+                                                log_error!("Failed to send success message: {e}");
+                                                return DisconnectReason::SendError(e.to_string());
+                                            }
+
+                                            let channel_type =
+                                                SubscriptionChannel::from_str(channel).unwrap();
+                                            let tx_clone = tx.clone();
+                                            tokio::spawn(async move {
+                                                handle_single_channel_broadcast(
+                                                    &tx_clone,
+                                                    client_id,
+                                                    channel_type,
+                                                    receiver,
+                                                )
+                                                .await;
+                                            });
+                                        }
+                                        Ok(None) => {
+                                            log_info!(
+                                                "Subscription processed but no receiver returned"
+                                            );
+                                        }
+                                        Err(e) => {
+                                            log_error!("Failed to subscribe client: {e}");
+                                            let error_message = serde_json::json!({
+                                                "status": "error",
+                                                "message": e.to_string()
+                                            });
+                                            if let Err(e) =
+                                                send_message(tx, error_message.to_string().into())
+                                                    .await
+                                            {
+                                                log_error!("Failed to send error message: {e}");
+                                                return DisconnectReason::SendError(e.to_string());
+                                            }
                                         }
                                     }
                                 }
                                 MessagePayload::Unsubscribe { channel } => {
-                                    log_info!(
-                                        "Client {client_id} unsubscribed from channel: {channel}"
-                                    );
+                                    match process_manager
+                                        .unsubscribe_client(client_id, channel)
+                                        .await
+                                    {
+                                        Ok(Some(response)) => {
+                                            let success_msg = serde_json::json!({
+                                                "status": "success",
+                                                "message": response
+                                            });
+                                            if let Err(e) =
+                                                send_message(tx, success_msg.to_string().into())
+                                                    .await
+                                            {
+                                                log_error!("Failed to send success message: {e}");
+                                                return DisconnectReason::SendError(e.to_string());
+                                            }
+                                        }
+                                        Ok(None) => {
+                                            log_info!(
+                                                "Unsubscription processed but no response returned"
+                                            );
+                                        }
+                                        Err(e) => {
+                                            log_error!("Failed to unsubscribe client: {e}");
+                                            let error_msg = serde_json::json!({
+                                                "status": "error",
+                                                "message": e.to_string()
+                                            });
+                                            if let Err(e) =
+                                                send_message(tx, error_msg.to_string().into()).await
+                                            {
+                                                log_error!("Failed to send error message: {e}");
+                                                return DisconnectReason::SendError(e.to_string());
+                                            }
+                                        }
+                                    }
                                 }
                             }
                         }
@@ -66,12 +138,13 @@ pub(super) async fn handle_messages(
                 }
                 Message::Close(frame) => {
                     log_info!("Client sent close frame {client_id}");
-
                     state
-                        .write()
+                        .read()
                         .await
                         .process_manager
-                        .remove_subscriber_without_channel(client_id);
+                        .cleanup_client(client_id)
+                        .await;
+
                     return DisconnectReason::ClientClose(frame);
                 }
                 Message::Binary(_) => {
@@ -98,7 +171,45 @@ pub(super) async fn handle_messages(
         }
     }
 
+    state
+        .read()
+        .await
+        .process_manager
+        .cleanup_client(client_id)
+        .await;
+
     DisconnectReason::StreamEnded
 }
 
-// Fix this and process_manager_v2 vs process_manager.rs
+async fn handle_single_channel_broadcast(
+    tx: &SafeSender,
+    client_id: Uuid,
+    channel: SubscriptionChannel,
+    mut receiver: broadcast::Receiver<BroadcastMessage>,
+) {
+    log_info!("Starting broadcast handler for client: {}", client_id);
+
+    while let Ok(msg) = receiver.recv().await {
+        let message = serde_json::json!({
+            "type": "broadcast",
+            "channel": msg.channel,
+            "data": msg.data,
+            "timestamp": msg.timestamp
+        });
+
+        if let Err(e) = send_message(tx, message.to_string().into()).await {
+            log_error!(
+                "Failed to send broadcast message to client {client_id} on channel {}: {}",
+                channel,
+                e
+            );
+            break;
+        }
+    }
+
+    log_info!(
+        "Broadcast handler for client {} on channel {} has ended",
+        client_id,
+        channel
+    );
+}
