@@ -18,6 +18,21 @@ NATS_CONTAINER_NAME := polyMarket_nats
 NATS_IMAGE := nats:2.11.3-alpine3.21
 NATS_PORT := 4222
 
+
+CLICKHOUSE_CONTAINER_NAME := polyMarket_clickhouse
+CLICKHOUSE_IMAGE := clickhouse:24.8.14
+CLICKHOUSE_PORT_1 := 8123
+CLICKHOUSE_PORT_2 := 9000
+CLICKHOUSE_USER := polyMarket
+CLICKHOUSE_PASSWORD := polyMarket
+CLICKHOUSE_DB := polyMarket
+
+KAFKA_CONTAINER_NAME := polyMarket_kafka
+KAFKA_IMAGE := bitnami/kafka:4.0-debian-12
+KAFKA_PORT := 9092
+
+
+
 SERVICE_API_PORT := 8080
 
 DEFAULT_TARGET := help
@@ -98,7 +113,46 @@ start-nats-container:
 		docker run --name $(NATS_CONTAINER_NAME) -d -p $(NATS_PORT):4222 -p 8222:8222 $(NATS_IMAGE) -js; \
 	fi
 
-start-required-containers: start-pg-container start-redis-container start-nats-container
+start-clickhouse-container:
+	@echo "Checking if ClickHouse container is already running..."
+	@if [ $$(docker ps -q -f name=$(CLICKHOUSE_CONTAINER_NAME)) ]; then \
+		echo "ClickHouse container is already running."; \
+	elif [ $$(docker ps -aq -f status=exited -f name=$(CLICKHOUSE_CONTAINER_NAME)) ]; then \
+		echo "ClickHouse container is stopped. Starting it..."; \
+		docker start $(CLICKHOUSE_CONTAINER_NAME); \
+	else \
+		echo "Starting ClickHouse container..."; \
+		docker run --name $(CLICKHOUSE_CONTAINER_NAME) -d -p $(CLICKHOUSE_PORT_1):8123 -p $(CLICKHOUSE_PORT_2):9000 \
+			-e CLICKHOUSE_USER=$(CLICKHOUSE_USER) \
+			-e CLICKHOUSE_PASSWORD=$(CLICKHOUSE_PASSWORD) \
+			-e CLICKHOUSE_DB=$(CLICKHOUSE_DB) \
+			$(CLICKHOUSE_IMAGE); \
+	fi
+
+start-kafka-container:
+	@echo "Checking if Kafka container is already running..."
+	@if [ $$(docker ps -q -f name=$(KAFKA_CONTAINER_NAME)) ]; then \
+		echo "Kafka container is already running."; \
+	elif [ $$(docker ps -aq -f status=exited -f name=$(KAFKA_CONTAINER_NAME)) ]; then \
+		echo "Kafka container is stopped. Starting it..."; \
+		docker start $(KAFKA_CONTAINER_NAME); \
+	else \
+		echo "Starting Kafka container..."; \
+		docker run --name $(KAFKA_CONTAINER_NAME) -d -p $(KAFKA_PORT):9092 \
+			-e KAFKA_CFG_NODE_ID=1 \
+			-e KAFKA_KRAFT_CLUSTER_ID=kraft-cluster \
+			-e KAFKA_CFG_PROCESS_ROLES=broker,controller \
+			-e KAFKA_CFG_CONTROLLER_QUORUM_VOTERS=1@localhost:9093 \
+			-e KAFKA_CFG_LISTENER_SECURITY_PROTOCOL_MAP=PLAINTEXT:PLAINTEXT,CONTROLLER:PLAINTEXT \
+			-e KAFKA_CFG_LISTENERS=PLAINTEXT://:9092,CONTROLLER://:9093 \
+			-e KAFKA_CFG_CONTROLLER_LISTENER_NAMES=CONTROLLER \
+			-e ALLOW_PLAINTEXT_LISTENER=yes \
+			-e KAFKA_AUTO_CREATE_TOPICS_ENABLE=true \
+			-e KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR=1 \
+			$(KAFKA_IMAGE); \
+	fi
+
+start-required-containers: start-pg-container start-redis-container start-nats-container start-kafka-container
 
 
 # Utility targets

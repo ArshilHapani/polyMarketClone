@@ -4,21 +4,20 @@ use axum::{
     routing::any,
 };
 use std::sync::Arc;
-use tokio::sync::RwLock;
 use tracing_subscriber;
 use utility_helpers::log_info;
 
-use crate::{state::WebSocketAppState, ws_utils::connection_handler::handle_connection};
+use crate::{state::WebSocketAppState, utils::handle_connection::handle_connection};
 
 mod state;
-mod ws_utils;
+mod utils;
 
-pub type AppState = Arc<RwLock<WebSocketAppState>>;
+pub type SafeAppState = Arc<WebSocketAppState>;
 
 #[tokio::main]
 async fn main() {
     tracing_subscriber::fmt::init();
-    let app_state = Arc::new(RwLock::new(WebSocketAppState::new()));
+    let app_state = Arc::new(WebSocketAppState::new());
 
     let app = Router::new()
         .route("/", any(|| async { "Hello from WebSocket server!" }))
@@ -38,7 +37,7 @@ async fn main() {
 
 async fn socket_handler(
     ws: WebSocketUpgrade,
-    State(state): State<AppState>,
+    State(state): State<SafeAppState>,
 ) -> impl axum::response::IntoResponse {
     ws.on_upgrade(move |socket| handle_connection(socket, state))
 }

@@ -185,3 +185,33 @@ pub async fn order_book_handler(
 
     Ok(())
 }
+
+#[cfg(test)]
+mod test {
+    use std::time::Duration;
+
+    use rdkafka::{
+        ClientConfig,
+        producer::{FutureProducer, FutureRecord},
+    };
+
+    #[tokio::test]
+    async fn test_kafka_publishing() {
+        let rd_kafka: FutureProducer = ClientConfig::new()
+            .set("bootstrap.servers", "localhost:9092")
+            .set("message.timeout.ms", "30000")
+            .create()
+            .expect("Failed to create Kafka client");
+
+        let record = FutureRecord::to("price-updates")
+            .payload("test message")
+            .key("test_key");
+
+        let res = rd_kafka.send(record, Duration::from_secs(0)).await;
+        assert!(
+            res.is_ok(),
+            "Failed to send record to Kafka: {:?}",
+            res.err()
+        );
+    }
+}

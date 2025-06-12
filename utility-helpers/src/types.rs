@@ -18,6 +18,8 @@ pub struct EnvVarConfig {
     pub database_url: String,
     pub google_client_id: String,
     pub nc_url: String,
+    pub influxdb_url: String,
+    pub kafka_url: String,
 }
 
 impl EnvVarConfig {
@@ -38,6 +40,12 @@ impl EnvVarConfig {
         let nc_url =
             var("NC_URL").map_err(|_| "NC_URL environment variable not set".to_string())?;
 
+        let influxdb_url = var("INFLUXDB_URL")
+            .map_err(|_| "INFLUXDB_URL environment variable not set".to_string())?;
+
+        let kafka_url =
+            var("KAFKA_URL").map_err(|_| "KAFKA_URL environment variable not set".to_string())?;
+
         Ok(EnvVarConfig {
             jwt_secret,
             secret_key,
@@ -45,6 +53,8 @@ impl EnvVarConfig {
             database_url,
             google_client_id,
             nc_url,
+            influxdb_url,
+            kafka_url,
         })
     }
 }
