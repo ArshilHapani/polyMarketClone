@@ -8,6 +8,7 @@ POSTGRES_PUBLIC_SCHEMA := public
 
 DATABASE_URL := postgres://$(POSTGRES_USER):$(POSTGRES_PASSWORD)@localhost:$(POSTGRES_PORT)/$(POSTGRES_DB)
 
+GLOBAL_NETWORK_NAME := polyMarket-network
 
 REDIS_CONTAINER_NAME := polyMarket_redis
 REDIS_PORT := 6379
@@ -31,7 +32,11 @@ KAFKA_CONTAINER_NAME := polyMarket_kafka
 KAFKA_IMAGE := bitnami/kafka:4.0-debian-12
 KAFKA_PORT := 9092
 
-
+REDPANDA_CONTAINER_NAME := polyMarket_redpanda
+REDPANDA_IMAGE := redpandadata/redpanda:v24.3.14
+REDPANDA_USERNAME := polyMarket
+REDPANDA_PASSWORD := polyMarket
+# for ports configuration check make file declaration for `start-redpanda-container`
 
 SERVICE_API_PORT := 8080
 
@@ -123,6 +128,7 @@ start-clickhouse-container:
 	else \
 		echo "Starting ClickHouse container..."; \
 		docker run --name $(CLICKHOUSE_CONTAINER_NAME) -d -p $(CLICKHOUSE_PORT_1):8123 -p $(CLICKHOUSE_PORT_2):9000 \
+			--network $(GLOBAL_NETWORK_NAME) \
 			-e CLICKHOUSE_USER=$(CLICKHOUSE_USER) \
 			-e CLICKHOUSE_PASSWORD=$(CLICKHOUSE_PASSWORD) \
 			-e CLICKHOUSE_DB=$(CLICKHOUSE_DB) \
@@ -138,21 +144,53 @@ start-kafka-container:
 		docker start $(KAFKA_CONTAINER_NAME); \
 	else \
 		echo "Starting Kafka container..."; \
-		docker run --name $(KAFKA_CONTAINER_NAME) -d -p $(KAFKA_PORT):9092 \
+		docker run --name $(KAFKA_CONTAINER_NAME) -d -p $(KAFKA_PORT):9092 -p 19092:19092 \
 			-e KAFKA_CFG_NODE_ID=1 \
-			-e KAFKA_KRAFT_CLUSTER_ID=kraft-cluster \
 			-e KAFKA_CFG_PROCESS_ROLES=broker,controller \
 			-e KAFKA_CFG_CONTROLLER_QUORUM_VOTERS=1@localhost:9093 \
-			-e KAFKA_CFG_LISTENER_SECURITY_PROTOCOL_MAP=PLAINTEXT:PLAINTEXT,CONTROLLER:PLAINTEXT \
-			-e KAFKA_CFG_LISTENERS=PLAINTEXT://:9092,CONTROLLER://:9093 \
+			-e KAFKA_CFG_LISTENER_SECURITY_PROTOCOL_MAP=PLAINTEXT:PLAINTEXT,CONTROLLER:PLAINTEXT,CONNECTIONS_FROM_HOST:PLAINTEXT \
+			-e KAFKA_CFG_LISTENERS=PLAINTEXT://localhost:9092,CONTROLLER://localhost:9093,CONNECTIONS_FROM_HOST://localhost:19092 \
+			-e KAFKA_ADVERTISED_LISTENERS=PLAINTEXT://localhost:9092,CONTROLLER://localhost:9093,CONNECTIONS_FROM_HOST://localhost:19092 \
 			-e KAFKA_CFG_CONTROLLER_LISTENER_NAMES=CONTROLLER \
 			-e ALLOW_PLAINTEXT_LISTENER=yes \
 			-e KAFKA_AUTO_CREATE_TOPICS_ENABLE=true \
 			-e KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR=1 \
+			-e ALLOW_ANONYMOUS_LOGIN=yes \
 			$(KAFKA_IMAGE); \
 	fi
 
-start-required-containers: start-pg-container start-redis-container start-nats-container start-kafka-container
+# for configuration prefer:= https://docs.redpanda.com/current/get-started/quick-start/#deploy-redpanda-self-managed
+start-redpanda-container:
+	@echo "Checking if Redpanda container is already running..."
+	@if [ $$(docker ps -q -f name=$(REDPANDA_CONTAINER_NAME)) ]; then \
+		echo "Redpanda container is already running."; \
+	elif [ $$(docker ps -aq -f status=exited -f name=$(REDPANDA_CONTAINER_NAME)) ]; then \
+		echo "Redpanda container is stopped. Starting it..."; \
+		docker start $(REDPANDA_CONTAINER_NAME); \
+	else \
+		echo "Starting Redpanda container..."; \
+		docker run --name $(REDPANDA_CONTAINER_NAME) -d \
+			-p 9092:9092  \
+			-p 18082:8082 \
+			-p 18081:8081 \
+			-e RP_BOOTSTRAP_USER=$(REDPANDA_USERNAME):$(REDPANDA_PASSWORD) \
+			--network $(GLOBAL_NETWORK_NAME) \
+			$(REDPANDA_IMAGE) redpanda \
+							start \
+							--overprovisioned \
+							--reserve-memory 0M \
+							--kafka-addr internal://0.0.0.0:9092,external://0.0.0.0:19092 \
+							--advertise-kafka-addr internal://localhost:9092,external://localhost:19092 \
+							--pandaproxy-addr internal://0.0.0.0:8082,external://0.0.0.0:18082 \
+							--advertise-pandaproxy-addr internal://localhost:8082,external://localhost:18082 \
+							--schema-registry-addr internal://0.0.0.0:8081,external://0.0.0.0:18081 \
+							--advertise-rpc-addr localhost:33145 \
+							--mode dev-container \
+							--default-log-level=info; \
+	fi
+
+
+start-required-containers: start-pg-container start-nats-container start-redpanda-container start-clickhouse-container
 
 
 # Utility targets

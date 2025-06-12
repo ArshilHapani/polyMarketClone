@@ -181,7 +181,10 @@ pub async fn order_book_handler(
         no_price
     );
 
-    // send price in queue
+    // send price in kafka
+    // let producer = app_state.producer.clone();
+
+    // let record = FutureRecord::to("")
 
     Ok(())
 }
@@ -194,18 +197,24 @@ mod test {
         ClientConfig,
         producer::{FutureProducer, FutureRecord},
     };
+    use rust_decimal::Decimal;
+    use serde_json::json;
+    use uuid::Uuid;
 
     #[tokio::test]
+    #[ignore = "just ignore"]
     async fn test_kafka_publishing() {
         let rd_kafka: FutureProducer = ClientConfig::new()
             .set("bootstrap.servers", "localhost:9092")
-            .set("message.timeout.ms", "30000")
+            .set("message.timeout.ms", "10000")
             .create()
             .expect("Failed to create Kafka client");
 
         let record = FutureRecord::to("price-updates")
-            .payload("test message")
-            .key("test_key");
+            .payload("test message 1")
+            .key("test_key_1");
+
+        println!("Record {record:?}");
 
         let res = rd_kafka.send(record, Duration::from_secs(0)).await;
         assert!(
@@ -213,5 +222,36 @@ mod test {
             "Failed to send record to Kafka: {:?}",
             res.err()
         );
+    }
+
+    #[tokio::test]
+    async fn test_publish_data_to_clickhouse_client() {
+        let producer: FutureProducer = ClientConfig::new()
+            .set("bootstrap.servers", "localhost:9092")
+            .set("message.timeout.ms", "10000")
+            .create()
+            .expect("Failed to create Kafka client");
+
+        let market_id = Uuid::new_v4().to_string();
+        let ts = chrono::Utc::now().to_rfc3339();
+
+        let msg = json!({
+            "market_id": market_id,
+            "yes_price": 0.5,
+            "no_price": 0.5,
+            "ts": ts,
+        })
+        .to_string();
+
+        for _i in 0..20 {
+            let record: FutureRecord<'_, String, String> =
+                FutureRecord::to("price-updates").payload(&msg);
+            let res = producer.send(record, Duration::from_secs(0)).await;
+            assert!(
+                res.is_ok(),
+                "Failed to send record to Kafka: {:?}",
+                res.err()
+            );
+        }
     }
 }

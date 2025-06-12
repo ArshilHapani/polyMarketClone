@@ -21,3 +21,4 @@ sqlx = { workspace = true }
 futures-util = { workspace = true }
 parking_lot = { version = "0.12.3" }
 rdkafka = { version = "0.25", features = ["cmake-build"] }
+# kafka = "0.9"
