@@ -86,10 +86,10 @@ start-pg-container:
 	else \
 		echo "Starting PostgreSQL container..."; \
 		docker run --name $(POSTGRES_CONTAINER_NAME) -d -p $(POSTGRES_PORT):5432 \
+			--network $(GLOBAL_NETWORK_NAME) \
 			-e POSTGRES_USER=$(POSTGRES_USER) \
 			-e POSTGRES_PASSWORD=$(POSTGRES_PASSWORD) \
 			-e POSTGRES_DB=$(POSTGRES_DB) \
-			-v $(POSTGRES_VOLUME):$(POSTGRES_VOLUME_PATH) \
 			$(POSTGRES_IMAGE); \
 	fi
 
@@ -103,7 +103,10 @@ start-redis-container:
 		docker start $(REDIS_CONTAINER_NAME); \
 	else \
 		echo "Starting Redis container..."; \
-		docker run --name $(REDIS_CONTAINER_NAME) -d -p $(REDIS_PORT):6379 $(REDIS_IMAGE); \
+		docker run --name $(REDIS_CONTAINER_NAME) -d \
+					-p $(REDIS_PORT):6379 \
+					--network $(GLOBAL_NETWORK_NAME) \
+					$(REDIS_IMAGE); \
 	fi
 
 start-nats-container:
@@ -115,7 +118,10 @@ start-nats-container:
 		docker start $(NATS_CONTAINER_NAME); \
 	else \
 		echo "Starting NATS container..."; \
-		docker run --name $(NATS_CONTAINER_NAME) -d -p $(NATS_PORT):4222 -p 8222:8222 $(NATS_IMAGE) -js; \
+		docker run --name $(NATS_CONTAINER_NAME) -d \
+					--network $(GLOBAL_NETWORK_NAME) \
+					-p $(NATS_PORT):4222 -p 8222:8222 \
+					$(NATS_IMAGE) -js; \
 	fi
 
 start-clickhouse-container:
