@@ -3,15 +3,21 @@ use std::sync::Arc;
 use async_nats::connect;
 use parking_lot::RwLock;
 use rdkafka::{ClientConfig, producer::FutureProducer};
+use tokio::{net::TcpStream, sync::RwLock as AsyncRwLock};
+use tokio_tungstenite::{
+    MaybeTlsStream, WebSocketStream, connect_async, tungstenite::client::IntoClientRequest,
+};
 use utility_helpers::types::EnvVarConfig;
 
 use crate::order_book::global_book::GlobalMarketBook;
 
 pub struct AppState {
     pub db_pool: sqlx::PgPool,
+    // prefering RwLock rather than tokio's rwLock because the operations on orderbook are not async
     pub order_book: Arc<RwLock<GlobalMarketBook>>,
-    pub jetstream: async_nats::jetstream::Context,
-    pub producer: FutureProducer,
+    pub jetstream: AsyncRwLock<async_nats::jetstream::Context>,
+    pub producer: AsyncRwLock<FutureProducer>,
+    pub websocket_stream: AsyncRwLock<WebSocketStream<MaybeTlsStream<TcpStream>>>,
 }
 
 impl AppState {
@@ -33,11 +39,19 @@ impl AppState {
             .create::<FutureProducer>()
             .expect("Failed to create Kafka producer");
 
+        let websocket_req = format!("{}/ws", env_var_config.websocket_url)
+            .into_client_request()
+            .expect("Failed to create WebSocket request");
+        let (stream, _) = connect_async(websocket_req)
+            .await
+            .expect("Failed to connect to WebSocket server");
+
         Ok(AppState {
             db_pool,
             order_book,
-            jetstream,
-            producer,
+            jetstream: AsyncRwLock::new(jetstream),
+            producer: AsyncRwLock::new(producer),
+            websocket_stream: AsyncRwLock::new(stream),
         })
     }
 }

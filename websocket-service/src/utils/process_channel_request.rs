@@ -1,10 +1,7 @@
-use utility_helpers::log_error;
+use utility_helpers::{log_error, types::ChannelType};
 use uuid::Uuid;
 
-use crate::{
-    SafeAppState,
-    utils::{ChannelType, send_message},
-};
+use crate::{SafeAppState, utils::send_message};
 
 pub async fn process_channel_request(
     channel: &ChannelType,

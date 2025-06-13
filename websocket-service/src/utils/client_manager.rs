@@ -1,8 +1,9 @@
 use std::collections::HashMap;
 
+use utility_helpers::types::ChannelType;
 use uuid::Uuid;
 
-use crate::utils::{ChannelType, SafeSender};
+use crate::utils::SafeSender;
 
 type ClientData = (SafeSender, serde_json::Value);
 

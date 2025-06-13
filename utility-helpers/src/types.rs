@@ -20,6 +20,7 @@ pub struct EnvVarConfig {
     pub nc_url: String,
     pub influxdb_url: String,
     pub kafka_url: String,
+    pub websocket_url: String,
 }
 
 impl EnvVarConfig {
@@ -46,6 +47,9 @@ impl EnvVarConfig {
         let kafka_url =
             var("KAFKA_URL").map_err(|_| "KAFKA_URL environment variable not set".to_string())?;
 
+        let websocket_url = var("WS_SERVER_URL")
+            .map_err(|_| "WS_SERVER_URL environment variable not set".to_string())?;
+
         Ok(EnvVarConfig {
             jwt_secret,
             secret_key,
@@ -55,6 +59,24 @@ impl EnvVarConfig {
             nc_url,
             influxdb_url,
             kafka_url,
+            websocket_url,
         })
+    }
+}
+
+#[derive(Debug, Clone, Hash, Eq, PartialEq, Serialize, Deserialize)]
+pub enum ChannelType {
+    #[serde(rename = "price_update")]
+    PriceUpdate,
+    #[serde(rename = "price_poster")]
+    PricePoster,
+}
+
+impl ChannelType {
+    pub fn from_str_serde(s: &str) -> Result<Self, serde_json::Error> {
+        let json_str = format!("\"{}\"", s);
+
+        let deserialized_channel = serde_json::from_str::<ChannelType>(&json_str);
+        return deserialized_channel;
     }
 }

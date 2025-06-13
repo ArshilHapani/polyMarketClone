@@ -1,4 +1,4 @@
-use std::{error::Error, str::FromStr, sync::Arc};
+use std::{error::Error, str::FromStr, sync::Arc, time::Duration};
 
 use db_service::schema::{
     enums::{OrderSide, OrderStatus, Outcome},
@@ -7,6 +7,7 @@ use db_service::schema::{
     user_trades::UserTrades,
     users::User,
 };
+use rdkafka::producer::FutureRecord;
 use rust_decimal::Decimal;
 use utility_helpers::log_info;
 use uuid::Uuid;
@@ -97,7 +98,7 @@ pub async fn order_book_handler(
 
         /////// Database Transaction start ////////
 
-        // here we are preferring to use db transaction instead of rust's parallel operation processing (it compromises performance and perform sequential processing)
+        // here we are preferring to use db transaction instead of rust's parallel (tokio::join) operation processing (it compromises performance and perform sequential processing), +we can't share `tx` across async tasks parallelly
         let mut tx = app_state.db_pool.begin().await?;
 
         UserTrades::create_user_trade(
@@ -111,6 +112,7 @@ pub async fn order_book_handler(
             quantity,
         )
         .await?;
+
         UserTrades::create_user_trade(
             &mut *tx,
             current_order_id,
@@ -182,9 +184,27 @@ pub async fn order_book_handler(
     );
 
     // send price in kafka
-    // let producer = app_state.producer.clone();
+    let producer = app_state.producer.read().await;
 
-    // let record = FutureRecord::to("")
+    let data_to_publish = serde_json::json!({
+        "market_id": order.market_id.to_string(),
+        "yes_price":yes_price.to_string(),
+        "no_price": no_price.to_string(),
+        "ts": chrono::Utc::now().to_rfc3339().to_string(),
+    })
+    .to_string();
+
+    let market_id = order.market_id.to_string();
+
+    let record = FutureRecord::to("price-updates")
+        .payload(&data_to_publish)
+        .key(&market_id);
+
+    let send_producer_future = producer.send(record, Duration::from_secs(0));
+    let another_future = async { 10 };
+
+    let (send_producer_future_resp, _) = tokio::join!(send_producer_future, another_future);
+    send_producer_future_resp.map_err(|e| format!("Failed to send record to Kafka: {:#?}", e))?;
 
     Ok(())
 }

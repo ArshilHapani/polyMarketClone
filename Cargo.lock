@@ -2325,6 +2325,7 @@ dependencies = [
  "serde_json",
  "sqlx",
  "tokio",
+ "tokio-tungstenite",
  "tracing",
  "tracing-subscriber",
  "utility-helpers",
@@ -5669,8 +5670,10 @@ dependencies = [
  "base64 0.22.1",
  "dotenv",
  "jsonwebtoken",
+ "rust_decimal",
  "serde",
  "serde_json",
+ "uuid",
 ]
 
 [[package]]

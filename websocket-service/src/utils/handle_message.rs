@@ -1,13 +1,13 @@
 use axum::extract::ws::{Message, WebSocket};
 use futures::{StreamExt, stream::SplitStream};
 use serde_json::json;
-use utility_helpers::{log_error, log_info};
+use utility_helpers::{log_error, log_info, types::ChannelType};
 use uuid::Uuid;
 
 use crate::{
     SafeAppState,
     utils::{
-        ChannelType, ClientMessage, MessagePayload, SafeSender,
+        ClientMessage, MessagePayload, SafeSender,
         process_channel_request::process_channel_request, send_message,
     },
 };
@@ -29,9 +29,13 @@ pub async fn handle_message(
                                     log_info!(
                                         "Client {client_id} subscribed to channel: {channel}, params: {params:?}"
                                     );
-                                    let channel_type = match ChannelType::from_string(&channel) {
-                                        Some(channel_type) => channel_type,
-                                        None => {
+
+                                    let deserialized_channel =
+                                        ChannelType::from_str_serde(&channel);
+
+                                    let channel_type = match deserialized_channel {
+                                        Ok(channel_type) => channel_type,
+                                        Err(_) => {
                                             log_error!(
                                                 "Invalid channel type from client {client_id}: {channel}"
                                             );
@@ -76,10 +80,11 @@ pub async fn handle_message(
                                     log_info!(
                                         "Client {client_id} posted data to channel: {channel}, data: {data:?}"
                                     );
-
-                                    let channel_type = match ChannelType::from_string(&channel) {
-                                        Some(channel_type) => channel_type,
-                                        None => {
+                                    let deserialized_channel =
+                                        ChannelType::from_str_serde(&channel);
+                                    let channel_type = match deserialized_channel {
+                                        Ok(channel_type) => channel_type,
+                                        Err(_) => {
                                             log_error!(
                                                 "Invalid channel type from client {client_id}: {channel}"
                                             );
@@ -127,9 +132,13 @@ pub async fn handle_message(
                                     log_info!(
                                         "Client {client_id} unsubscribed from channel: {channel}"
                                     );
-                                    let channel_type = match ChannelType::from_string(&channel) {
-                                        Some(channel_type) => channel_type,
-                                        None => {
+
+                                    let deserialized_channel =
+                                        ChannelType::from_str_serde(&channel);
+
+                                    let channel_type = match deserialized_channel {
+                                        Ok(channel_type) => channel_type,
+                                        Err(_) => {
                                             log_error!(
                                                 "Invalid channel type from client {client_id}: {channel}"
                                             );

@@ -196,7 +196,10 @@ start-redpanda-container:
 	fi
 
 
-start-required-containers: start-pg-container start-nats-container start-redpanda-container start-clickhouse-container
+start-required-containers:
+	@docker compose up -d
+
+start-required-containers-d: start-pg-container start-nats-container start-redpanda-container start-clickhouse-container
 
 
 # Utility targets
