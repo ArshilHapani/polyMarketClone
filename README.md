@@ -1,14 +1,6 @@
 ![Architecture v1](./assets/architecture_1.png)
 
-# Websocket subscription management architecture
+## Important rpk commands
 
-Each channel -> separate process
-
-Task -
-channel wise tasks
-parameters: - data sended by subscribing channel (market id or other parameters) - event transmitter (tx) via which processed data will be sent
-
-subscription mechanism:
-Hashmap<Channel, Vec<UserTransmitter>>
-
-when we receive message from tasks's transmitter for particular channel, then we broadcast message to all UserTransmitter in particular subscriber's channel
+- `rpk topic consume price-updates -n 10` - Consume the last 10 messages from the `price-updates` topic.
+- `rpk group seek consumer-group-price-updates --topics price-updates --to=start --allow-new-topics` - Seek the consumer group `consumer-group-price-updates` to the start of the `price-updates` topic.

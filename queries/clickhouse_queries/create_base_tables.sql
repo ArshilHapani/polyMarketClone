@@ -7,7 +7,7 @@ CREATE TABLE market_price_data (
     market_id UUID,
     yes_price Decimal(20, 8),
     no_price Decimal(20, 8),
-    ts DateTime,
+    ts String,
 ) ENGINE = MergeTree
 ORDER BY ts;
 
@@ -17,9 +17,9 @@ CREATE TABLE market_price_data_kafka (
     market_id UUID,
     yes_price Decimal(20, 8),
     no_price Decimal(20, 8),
-    ts DateTime,   
+    ts String,   
 ) ENGINE = Kafka(
-    'polyMarket_redpanda:9092', -- broker (red panda)
+    'redpanda:9092', -- broker (red panda)
     'price-updates', -- topic
     'consumer-group-price-updates', -- consumer group
     'JSONEachRow' -- format
@@ -29,9 +29,4 @@ CREATE TABLE market_price_data_kafka (
 DROP TABLE IF EXISTS market_price_data_mv;
 CREATE MATERIALIZED VIEW market_price_data_mv
 TO market_price_data AS
-SELECT 
-    market_id,
-    yes_price AS price_yes,
-    no_price AS price_no,
-    toDateTime(ts) AS ts
-FROM market_price_data_kafka;
+SELECT * FROM market_price_data_kafka;

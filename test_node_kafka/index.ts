@@ -1,7 +1,7 @@
 import { Kafka, Partitioners, type ProducerRecord } from "kafkajs";
 
 const kafka = new Kafka({
-  brokers: ["localhost:9092"],
+  brokers: ["localhost:19092"],
   clientId: "test-node-kafka",
 });
 

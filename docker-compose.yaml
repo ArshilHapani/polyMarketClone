@@ -34,9 +34,6 @@ services:
     container_name: polyMarket_clickhouse
     networks:
       - polyMarket_network
-    ports:
-      - "8123:8123"
-      - "9000:9000"
     environment:
       CLICKHOUSE_USER: polyMarket
       CLICKHOUSE_PASSWORD: polyMarket
@@ -46,24 +43,26 @@ services:
     image: redpandadata/redpanda:v24.3.14
     container_name: polyMarket_redpanda
     ports:
-      - "9092:9092"
-      - "18082:8082"
-      - "18081:8081"
+      - 18081:18081
+      - 18082:18082
+      - 19092:19092
+      - 19644:9644
     environment:
       RP_BOOTSTRAP_USER: "polyMarket:polyMarket"
     networks:
       - polyMarket_network
     command:
-      - redpanda start
-      - --overprovisioned
-      - --reserve-memory 0M
+      - redpanda
+      - start
       - --kafka-addr internal://0.0.0.0:9092,external://0.0.0.0:19092
-      - --advertise-kafka-addr internal://localhost:9092,external://localhost:19092
+      - --advertise-kafka-addr internal://redpanda:9092,external://localhost:19092
       - --pandaproxy-addr internal://0.0.0.0:8082,external://0.0.0.0:18082
-      - --advertise-pandaproxy-addr internal://localhost:8082,external://localhost:18082
+      - --advertise-pandaproxy-addr internal://redpanda:8082,external://localhost:18082
       - --schema-registry-addr internal://0.0.0.0:8081,external://0.0.0.0:18081
-      - --advertise-rpc-addr localhost:33145
+      - --rpc-addr redpanda:33145
+      - --advertise-rpc-addr redpanda:33145
       - --mode dev-container
+      - --default-log-level=info
 
     healthcheck:
       test:

@@ -197,7 +197,6 @@ mod test {
         ClientConfig,
         producer::{FutureProducer, FutureRecord},
     };
-    use rust_decimal::Decimal;
     use serde_json::json;
     use uuid::Uuid;
 
@@ -227,7 +226,7 @@ mod test {
     #[tokio::test]
     async fn test_publish_data_to_clickhouse_client() {
         let producer: FutureProducer = ClientConfig::new()
-            .set("bootstrap.servers", "localhost:9092")
+            .set("bootstrap.servers", "localhost:19092")
             .set("message.timeout.ms", "10000")
             .create()
             .expect("Failed to create Kafka client");
@@ -237,13 +236,13 @@ mod test {
 
         let msg = json!({
             "market_id": market_id,
-            "yes_price": 0.5,
-            "no_price": 0.5,
+            "yes_price": 0.4,
+            "no_price": 0.6,
             "ts": ts,
         })
         .to_string();
 
-        for _i in 0..20 {
+        for _i in 0..200 {
             let record: FutureRecord<'_, String, String> =
                 FutureRecord::to("price-updates").payload(&msg);
             let res = producer.send(record, Duration::from_secs(0)).await;
