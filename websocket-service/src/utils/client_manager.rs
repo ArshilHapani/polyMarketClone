@@ -1,6 +1,6 @@
 use std::collections::HashMap;
 
-use utility_helpers::types::ChannelType;
+use utility_helpers::ws::types::ChannelType;
 use uuid::Uuid;
 
 use crate::utils::SafeSender;

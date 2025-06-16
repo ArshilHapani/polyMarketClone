@@ -7,11 +7,14 @@ use async_nats::{
 use auth_service::AuthService;
 use utility_helpers::types::EnvVarConfig;
 
+use crate::bloom_f::BloomFilterWrapper;
+
 #[derive(Clone)]
 pub struct AppState {
     pub pg_pool: sqlx::PgPool,
     pub auth_service: AuthService,
     pub jetstream: Context,
+    pub bloom_filter: BloomFilterWrapper, // already thread safe
 }
 
 impl AppState {
@@ -26,10 +29,13 @@ impl AppState {
         let pg_pool = sqlx::PgPool::connect(&env_var_config.database_url).await?;
         let auth_service = AuthService::new(pg_pool.clone())?;
 
+        let bloom_filter = BloomFilterWrapper::new(&pg_pool).await?;
+
         let state = AppState {
             pg_pool,
             auth_service,
             jetstream,
+            bloom_filter,
         };
 
         Ok(state)

@@ -1,4 +1,4 @@
-use std::sync::Arc;
+use std::{str::FromStr, sync::Arc};
 
 use axum::{
     Json,
@@ -9,6 +9,7 @@ use axum::{
     response::IntoResponse,
 };
 use serde_json::json;
+use uuid::Uuid;
 
 use crate::state::AppState;
 
@@ -44,7 +45,26 @@ pub async fn validate_jwt(
         .verify_session_token(token)
         .map_err(|_| invalid_token_error)?;
 
-    // FIXME: do i need to check whether user exists in db or not...
+    // bloom filter check
+    let user_id = Uuid::from_str(&claims.user_id);
+
+    if let Ok(user_id) = user_id {
+        if !app_state.bloom_filter.contains(&user_id) {
+            return Err((
+                StatusCode::NOT_FOUND,
+                Json(json!({
+                    "error": "User not found"
+                })),
+            ));
+        }
+    } else {
+        return Err((
+            StatusCode::BAD_REQUEST,
+            Json(json!({
+                "error": "Invalid user ID format"
+            })),
+        ));
+    }
 
     let mut req = req;
     req.extensions_mut().insert(claims);

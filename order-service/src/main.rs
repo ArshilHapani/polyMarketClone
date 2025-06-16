@@ -47,7 +47,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         let _ = order_book_handler(Arc::clone(&app_state), order_id)
             .await
             .map_err(|e| {
-                log_error!("Error occur while {e}");
+                log_error!("Error occur while adding order in book {e}");
             });
 
         message

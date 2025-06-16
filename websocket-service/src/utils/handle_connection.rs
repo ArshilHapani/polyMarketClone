@@ -8,7 +8,7 @@ use uuid::Uuid;
 
 use crate::{
     SafeAppState,
-    utils::{SafeSender, handle_message::handle_message, send_message},
+    utils::{SafeSender, message_handlers::handle_message, send_message},
 };
 
 pub async fn handle_connection(stream: WebSocket, state: SafeAppState) {
@@ -19,7 +19,7 @@ pub async fn handle_connection(stream: WebSocket, state: SafeAppState) {
     log_info!("New client connected: {client_id}");
 
     let heart_beat_handler = start_heartbeat(tx.clone(), client_id).await;
-    handle_message(&mut rx, &tx, client_id, &state).await;
+    handle_message(&mut rx, &tx, &client_id, &state).await;
 
     // cleanup
     log_info!("Client {client_id} disconnected, cleaning up resources");

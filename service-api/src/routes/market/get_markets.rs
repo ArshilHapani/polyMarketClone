@@ -7,7 +7,7 @@ use db_service::schema::{
     enums::{MarketStatus as MarketStatusDb, Outcome},
     market::Market as MarketSchema,
 };
-use service_api::generated::markets::{GetPaginatedMarketResponse, Market};
+use proto_defs::proto_types::markets::{GetPaginatedMarketResponse, Market};
 
 use crate::{state::AppState, utils::types::PaginationRequestQuery};
 

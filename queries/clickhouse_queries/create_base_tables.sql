@@ -1,4 +1,4 @@
--- db is already created
+CREATE DATABASE IF NOT EXISTS polyMarket;
 
 USE polyMarket;
 
@@ -7,7 +7,8 @@ CREATE TABLE market_price_data (
     market_id UUID,
     yes_price Decimal(20, 8),
     no_price Decimal(20, 8),
-    ts String,
+    ts DateTime('UTC'),
+    created_at DateTime('UTC') DEFAULT now(),
 ) ENGINE = MergeTree
 ORDER BY ts;
 
@@ -17,7 +18,7 @@ CREATE TABLE market_price_data_kafka (
     market_id UUID,
     yes_price Decimal(20, 8),
     no_price Decimal(20, 8),
-    ts String,   
+    ts String,
 ) ENGINE = Kafka(
     'redpanda:9092', -- broker (red panda)
     'price-updates', -- topic
@@ -29,4 +30,9 @@ CREATE TABLE market_price_data_kafka (
 DROP TABLE IF EXISTS market_price_data_mv;
 CREATE MATERIALIZED VIEW market_price_data_mv
 TO market_price_data AS
-SELECT * FROM market_price_data_kafka;
+SELECT 
+    market_id,
+    yes_price,
+    no_price,
+    parseDateTimeBestEffort(ts) AS ts
+FROM market_price_data_kafka;

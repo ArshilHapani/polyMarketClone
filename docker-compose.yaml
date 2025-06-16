@@ -37,7 +37,8 @@ services:
     environment:
       CLICKHOUSE_USER: polyMarket
       CLICKHOUSE_PASSWORD: polyMarket
-      CLICKHOUSE_DB: polyMarket
+    volumes:
+      - ./queries/clickhouse_queries/create_base_tables.sql:/docker-entrypoint-initdb.d/init.sql
 
   redpanda:
     image: redpandadata/redpanda:v24.3.14

@@ -193,6 +193,18 @@ impl User {
 
         Ok(())
     }
+
+    pub async fn get_all_user_ids(pool: &PgPool) -> Result<Vec<Uuid>, sqlx::Error> {
+        let user_ids = sqlx::query!(
+            r#"
+            SELECT id FROM "polymarket"."users"
+            "#
+        )
+        .fetch_all(pool)
+        .await?;
+
+        Ok(user_ids.into_iter().map(|u| u.id).collect())
+    }
 }
 
 #[cfg(test)]

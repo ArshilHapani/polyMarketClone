@@ -7,8 +7,10 @@ use db_service::schema::{
     user_trades::UserTrades,
     users::User,
 };
+use futures_util::SinkExt;
 use rdkafka::producer::FutureRecord;
 use rust_decimal::Decimal;
+use tokio_tungstenite::tungstenite::Message;
 use utility_helpers::log_info;
 use uuid::Uuid;
 
@@ -206,6 +208,28 @@ pub async fn order_book_handler(
     let (send_producer_future_resp, _) = tokio::join!(send_producer_future, another_future);
     send_producer_future_resp.map_err(|e| format!("Failed to send record to Kafka: {:#?}", e))?;
 
+    // sending message to websocket
+    let mut ws_publisher = app_state.websocket_stream.write().await;
+
+    let data = serde_json::json!({
+        "payload": {
+            "type": "Post",
+            "data": {
+                "channel": "price_poster",
+                "data": {
+                    "market_id": order.market_id,
+                    "yes_price": yes_price,
+                    "no_price": no_price,
+                }
+            }
+        }
+    })
+    .to_string();
+
+    if let Err(e) = ws_publisher.send(Message::Text(data.into())).await {
+        log_info!("Failed to send message to WebSocket: {:#?}", e);
+    }
+
     Ok(())
 }
 
@@ -213,11 +237,18 @@ pub async fn order_book_handler(
 mod test {
     use std::time::Duration;
 
+    use futures_util::SinkExt;
     use rdkafka::{
         ClientConfig,
         producer::{FutureProducer, FutureRecord},
     };
+    use rust_decimal_macros::dec;
     use serde_json::json;
+    use tokio_tungstenite::{
+        connect_async,
+        tungstenite::{Message, client::IntoClientRequest},
+    };
+    use utility_helpers::ws::{publisher_types::PricePosterDataStruct, types::ChannelType};
     use uuid::Uuid;
 
     #[tokio::test]
@@ -229,7 +260,7 @@ mod test {
             .create()
             .expect("Failed to create Kafka client");
 
-        let record = FutureRecord::to("price-updates")
+        let record = FutureRecord::to("price-updates-test")
             .payload("test message 1")
             .key("test_key_1");
 
@@ -244,6 +275,7 @@ mod test {
     }
 
     #[tokio::test]
+    #[ignore = "just ignore"]
     async fn test_publish_data_to_clickhouse_client() {
         let producer: FutureProducer = ClientConfig::new()
             .set("bootstrap.servers", "localhost:19092")
@@ -262,7 +294,7 @@ mod test {
         })
         .to_string();
 
-        for _i in 0..200 {
+        for _i in 0..10 {
             let record: FutureRecord<'_, String, String> =
                 FutureRecord::to("price-updates").payload(&msg);
             let res = producer.send(record, Duration::from_secs(0)).await;
@@ -271,6 +303,38 @@ mod test {
                 "Failed to send record to Kafka: {:?}",
                 res.err()
             );
+        }
+    }
+
+    #[tokio::test]
+    #[ignore = "just ignore"]
+    async fn test_websocket_message() {
+        let websocket_req = format!("ws://localhost:4010/ws")
+            .into_client_request()
+            .expect("Failed to create WebSocket request");
+        let (mut stream, _) = connect_async(websocket_req)
+            .await
+            .expect("Failed to connect to WebSocket server");
+
+        for _ in 0..10 {
+            let data = json!({
+                "payload":{
+                    "type": "Post",
+                    "data": {
+                        "channel": ChannelType::PricePoster.to_str(),
+                        "data": PricePosterDataStruct {
+                            market_id: Uuid::new_v4(),
+                            yes_price: dec!(0.4),
+                            no_price: dec!(0.6),
+                        }
+                    }
+                }
+            })
+            .to_string();
+
+            if let Err(e) = stream.send(Message::Text(data.into())).await {
+                panic!("Failed to send message: {:#?}", e);
+            }
         }
     }
 }

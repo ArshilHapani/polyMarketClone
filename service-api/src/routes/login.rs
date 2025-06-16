@@ -16,7 +16,7 @@ pub async fn oauth_login(
     Json(payload): Json<LoginRequest>,
 ) -> Result<ReturnType, ReturnType> {
     require_field!(payload.id_token);
-    let id_token = payload.id_token.as_ref().unwrap();
+    let id_token = payload.id_token.as_ref().unwrap(); // already verified by require_field!
 
     let (user_id, session_token, is_new_user) = app_state
         .auth_service
@@ -39,6 +39,9 @@ pub async fn oauth_login(
                 ),
             }
         })?;
+
+    // update bloom filter with new user id
+    app_state.bloom_filter.insert(&user_id);
 
     Ok((
         StatusCode::OK,

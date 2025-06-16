@@ -63,20 +63,3 @@ impl EnvVarConfig {
         })
     }
 }
-
-#[derive(Debug, Clone, Hash, Eq, PartialEq, Serialize, Deserialize)]
-pub enum ChannelType {
-    #[serde(rename = "price_update")]
-    PriceUpdate,
-    #[serde(rename = "price_poster")]
-    PricePoster,
-}
-
-impl ChannelType {
-    pub fn from_str_serde(s: &str) -> Result<Self, serde_json::Error> {
-        let json_str = format!("\"{}\"", s);
-
-        let deserialized_channel = serde_json::from_str::<ChannelType>(&json_str);
-        return deserialized_channel;
-    }
-}

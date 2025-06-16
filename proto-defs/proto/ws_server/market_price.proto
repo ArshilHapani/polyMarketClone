@@ -1,0 +1,4 @@
+syntax = "proto3";
+
+package ws_server.market_price;
+

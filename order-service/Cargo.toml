@@ -18,8 +18,8 @@ rust_decimal = { workspace = true }
 rust_decimal_macros = { workspace = true }
 dotenv = { workspace = true }
 sqlx = { workspace = true }
+parking_lot = { workspace = true }
 futures-util = { workspace = true }
-parking_lot = { version = "0.12.3" }
 rdkafka = { version = "0.25", features = ["cmake-build"] }
 tokio-tungstenite = "0.26.2"
 # kafka = "0.9"

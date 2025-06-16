@@ -1,14 +1,18 @@
-use utility_helpers::{log_error, types::ChannelType};
+use serde::{Deserialize, Serialize};
+use utility_helpers::{log_error, ws::types::ChannelType};
 use uuid::Uuid;
 
 use crate::{SafeAppState, utils::send_message};
 
-pub async fn process_channel_request(
+pub async fn process_channel_request<T>(
     channel: &ChannelType,
     client_id_: Uuid,
-    params: &serde_json::Value,
+    params: &T,
     state: &SafeAppState,
-) -> usize {
+) -> usize
+where
+    T: Serialize + for<'de> Deserialize<'de>,
+{
     let mut served_clients = 0;
     match channel {
         ChannelType::PricePoster => {
@@ -20,7 +24,9 @@ pub async fn process_channel_request(
                     if client_id_ == *client_id {
                         continue;
                     }
-                    if let Err(e) = send_message(tx, params.to_string().into()).await {
+                    let stringified_params = serde_json::to_string(params)
+                        .unwrap_or_else(|_| "Failed to serialize params".to_string());
+                    if let Err(e) = send_message(tx, stringified_params.into()).await {
                         log_error!("Failed to send price update to client {client_id}: {e}");
                         continue;
                     }

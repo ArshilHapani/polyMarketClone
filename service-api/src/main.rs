@@ -8,6 +8,8 @@ mod routes;
 mod state;
 mod utils;
 
+pub mod bloom_f;
+
 const PORT: u16 = 8080;
 
 #[tokio::main]

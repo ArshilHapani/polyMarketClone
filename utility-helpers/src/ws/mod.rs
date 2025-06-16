@@ -2,6 +2,7 @@ use serde::{Deserialize, Serialize};
 use serde_json;
 
 pub mod publisher_types;
+pub mod types;
 
 pub fn to_json_string<T>(val: &T) -> Result<String, serde_json::Error>
 where

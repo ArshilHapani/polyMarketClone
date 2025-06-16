@@ -452,6 +452,12 @@ dependencies = [
 ]
 
 [[package]]
+name = "bit-vec"
+version = "0.4.4"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "02b4ff8b16e6076c3e14220b39fbc1fabb6737522281a388998046859400895f"
+
+[[package]]
 name = "bitflags"
 version = "2.9.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -502,6 +508,15 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "3078c7629b62d3f0439517fa394996acacc5cbc91c5a20d8c658e77abd503a71"
 dependencies = [
  "generic-array",
+]
+
+[[package]]
+name = "bloom"
+version = "0.3.2"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "d00ac8e5056d6d65376a3c1aa5c7c34850d6949ace17f0266953a254eb3d6fe8"
+dependencies = [
+ "bit-vec",
 ]
 
 [[package]]
@@ -2618,6 +2633,16 @@ dependencies = [
 ]
 
 [[package]]
+name = "proto-defs"
+version = "0.1.0"
+dependencies = [
+ "prost",
+ "prost-build",
+ "prost-types",
+ "serde",
+]
+
+[[package]]
 name = "ptr_meta"
 version = "0.1.4"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -3256,11 +3281,12 @@ dependencies = [
  "auth-service",
  "axum",
  "axum-extra",
+ "bloom",
  "db-service",
  "dotenv",
- "prost",
+ "parking_lot",
  "prost-build",
- "prost-types",
+ "proto-defs",
  "rust_decimal",
  "rust_decimal_macros",
  "serde",
@@ -3271,6 +3297,7 @@ dependencies = [
  "tracing",
  "tracing-subscriber",
  "utility-helpers",
+ "uuid",
 ]
 
 [[package]]

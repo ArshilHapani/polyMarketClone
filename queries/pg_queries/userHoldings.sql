@@ -13,16 +13,16 @@
 --             VALUES ('24fa20ac-822f-49e9-9cb6-e25e940ad608'::uuid, 'bd609b17-d3d3-4f70-a5e2-0a3f3aa2160c'::uuid, 200)
 --             ON CONFLICT (user_id, market_id) DO NOTHING;
 
--- select * from polymarket.user_holdings order by created_at DESC;
+select * from polymarket.user_holdings order by created_at DESC;
 
-select 
-	uh.user_id,
-	uh.shares,
-	u.balance,
-	u.email
-FROM 
-	polymarket.user_holdings uh
-JOIN
-	polymarket.users u ON uh.user_id = u.id
-ORDER BY
-	uh.created_at DESC;
+-- select 
+-- 	uh.user_id,
+-- 	uh.shares,
+-- 	u.balance,
+-- 	u.email
+-- FROM 
+-- 	polymarket.user_holdings uh
+-- JOIN
+-- 	polymarket.users u ON uh.user_id = u.id
+-- ORDER BY
+-- 	uh.created_at DESC;

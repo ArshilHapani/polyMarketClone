@@ -1,17 +1,18 @@
-pub mod token_services;
-pub mod types;
-
 use base64::{Engine, engine::general_purpose};
 use dotenv::dotenv;
 use jsonwebtoken::{Algorithm, Validation, jwk::JwkSet};
 use reqwest::{Client, StatusCode};
 use std::error::Error as StdError;
 use utility_helpers::types::{EnvVarConfig, GoogleClaims};
+use uuid::Uuid;
 
 use token_services::Claims;
 use types::{
     AuthenticateUserError, GoogleClaimsError, GoogleTokenInfoResponse, SessionTokenClaims,
 };
+
+pub mod token_services;
+pub mod types;
 
 #[derive(Clone)]
 pub struct AuthService {
@@ -159,7 +160,7 @@ impl AuthService {
     pub async fn authenticate_user(
         &self,
         id_token: &String,
-    ) -> Result<(String, String, bool), AuthenticateUserError> {
+    ) -> Result<(Uuid, String, bool), AuthenticateUserError> {
         // validate google id token
         let google_claims = self
             .get_google_claims(&id_token)
@@ -179,7 +180,7 @@ impl AuthService {
             .generate_session_token(&google_claims, user.id.to_string())
             .map_err(|_| AuthenticateUserError::FailedToGenerateSessionToken)?;
 
-        Ok((user.id.to_string(), session_token, is_new_user))
+        Ok((user.id, session_token, is_new_user))
     }
 }
 

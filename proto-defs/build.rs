@@ -4,8 +4,9 @@ use std::{
     path::PathBuf,
 };
 
-fn main() -> Result<(), Box<dyn std::error::Error>> {
-    let out_dir = PathBuf::from("./src/generated");
+pub fn main() -> Result<(), Box<dyn std::error::Error>> {
+    let out_dir = PathBuf::from("./src/proto_types");
+
     fs::create_dir_all(&out_dir)?;
 
     let mut config = prost_build::Config::new();
@@ -14,12 +15,19 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         .protoc_arg("--proto_path=proto")
         .out_dir(&out_dir)
         .type_attribute(".", "#[derive(serde::Serialize, serde::Deserialize)]")
-        .compile_protos(&["proto/markets.proto"], &["proto"])?;
+        .compile_protos(
+            &[
+                "proto/api_service/markets.proto",
+                "proto/api_service/common.proto",
+            ],
+            &["proto"],
+        )?;
 
     let entries = fs::read_dir(&out_dir)?
         .filter_map(|e| e.ok())
         .filter(|e| e.path().extension().map(|ext| ext == "rs").unwrap_or(false));
 
+    // for creating mod.rs with all modules (for allowing access to all crates)
     let mut mod_rs = File::create(out_dir.join("mod.rs"))?;
     for entry in entries {
         let file_name = entry.file_name();
