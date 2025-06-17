@@ -6,7 +6,9 @@ edition = "2024"
 [dependencies]
 utility-helpers = { path = "../utility-helpers" }
 db-service = { path = "../db-service" }
+proto-defs = { path = "../proto-defs" }
 async-nats = { workspace = true }
+prost = { workspace = true }
 tokio = { workspace = true }
 uuid = { workspace = true }
 serde = { workspace = true }

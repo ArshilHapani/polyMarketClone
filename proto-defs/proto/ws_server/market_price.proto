@@ -1,4 +1,29 @@
 syntax = "proto3";
 
-package ws_server.market_price;
+package ws_market_price;
 
+enum OperationType {
+    SUBSCRIBE = 0;
+    UNSUBSCRIBE = 1;
+    POST = 2;    
+}
+
+enum Channel {
+    PRICEUPDATE = 0;
+    PRICEPOSTER = 1;
+}
+
+message WsMessage {
+    optional string id = 1;
+    Payload payload = 2;
+}
+
+message Payload {
+    OperationType type = 1;
+    WsData data = 2;
+}
+
+message WsData {
+    Channel channel = 1;
+    map<string,string> params = 2;
+}

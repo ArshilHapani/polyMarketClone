@@ -19,6 +19,7 @@ pub fn main() -> Result<(), Box<dyn std::error::Error>> {
             &[
                 "proto/api_service/markets.proto",
                 "proto/api_service/common.proto",
+                "proto/ws_server/market_price.proto",
             ],
             &["proto"],
         )?;

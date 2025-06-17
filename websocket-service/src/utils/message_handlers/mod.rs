@@ -5,9 +5,16 @@ use uuid::Uuid;
 
 use crate::{
     SafeAppState,
-    utils::{SafeSender, message_handlers::handle_text_message::handle_text_message, send_message},
+    utils::{
+        SafeSender,
+        message_handlers::{
+            handle_binary_message::handle_binary_message, handle_text_message::handle_text_message,
+        },
+        send_message,
+    },
 };
 
+pub mod handle_binary_message;
 pub mod handle_text_message;
 
 pub async fn handle_message(
@@ -21,6 +28,9 @@ pub async fn handle_message(
             Ok(message) => match message {
                 Message::Text(text) => {
                     handle_text_message(&text, client_id, tx, state).await;
+                }
+                Message::Binary(bin) => {
+                    handle_binary_message(&bin, client_id, tx, state).await;
                 }
                 Message::Pong(_) => {
                     log_info!("Received Pong from client {client_id}");

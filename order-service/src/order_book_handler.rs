@@ -1,4 +1,4 @@
-use std::{error::Error, str::FromStr, sync::Arc, time::Duration};
+use std::{collections::HashMap, error::Error, str::FromStr, sync::Arc, time::Duration};
 
 use db_service::schema::{
     enums::{OrderSide, OrderStatus, Outcome},
@@ -8,9 +8,13 @@ use db_service::schema::{
     users::User,
 };
 use futures_util::SinkExt;
+use prost::Message;
+use proto_defs::proto_types::ws_market_price::{
+    Channel, OperationType, Payload, WsData, WsMessage,
+};
 use rdkafka::producer::FutureRecord;
 use rust_decimal::Decimal;
-use tokio_tungstenite::tungstenite::Message;
+use tokio_tungstenite::tungstenite::Message as WsMessageType;
 use utility_helpers::log_info;
 use uuid::Uuid;
 
@@ -211,22 +215,29 @@ pub async fn order_book_handler(
     // sending message to websocket
     let mut ws_publisher = app_state.websocket_stream.write().await;
 
-    let data = serde_json::json!({
-        "payload": {
-            "type": "Post",
-            "data": {
-                "channel": "price_poster",
-                "data": {
-                    "market_id": order.market_id,
-                    "yes_price": yes_price,
-                    "no_price": no_price,
-                }
-            }
-        }
-    })
-    .to_string();
+    let market_data = HashMap::from([
+        ("market_id".to_string(), order.market_id.to_string()),
+        ("yes_price".to_string(), yes_price.to_string()),
+        ("no_price".to_string(), no_price.to_string()),
+    ]);
 
-    if let Err(e) = ws_publisher.send(Message::Text(data.into())).await {
+    let message = WsMessage {
+        id: None,
+        payload: Some(Payload {
+            r#type: OperationType::Post as i32,
+            data: Some(WsData {
+                channel: Channel::Priceposter as i32,
+                params: market_data,
+            }),
+        }),
+    };
+
+    let bin_data = message.encode_to_vec();
+
+    if let Err(e) = ws_publisher
+        .send(WsMessageType::Binary(bin_data.into()))
+        .await
+    {
         log_info!("Failed to send message to WebSocket: {:#?}", e);
     }
 
@@ -235,9 +246,13 @@ pub async fn order_book_handler(
 
 #[cfg(test)]
 mod test {
-    use std::time::Duration;
+    use std::{collections::HashMap, time::Duration};
 
     use futures_util::SinkExt;
+    use prost::Message;
+    use proto_defs::proto_types::ws_market_price::{
+        Channel, OperationType, Payload, WsData, WsMessage,
+    };
     use rdkafka::{
         ClientConfig,
         producer::{FutureProducer, FutureRecord},
@@ -246,9 +261,9 @@ mod test {
     use serde_json::json;
     use tokio_tungstenite::{
         connect_async,
-        tungstenite::{Message, client::IntoClientRequest},
+        tungstenite::{Message as WsMessageType, client::IntoClientRequest},
     };
-    use utility_helpers::ws::{publisher_types::PricePosterDataStruct, types::ChannelType};
+    use utility_helpers::log_error;
     use uuid::Uuid;
 
     #[tokio::test]
@@ -307,7 +322,6 @@ mod test {
     }
 
     #[tokio::test]
-    #[ignore = "just ignore"]
     async fn test_websocket_message() {
         let websocket_req = format!("ws://localhost:4010/ws")
             .into_client_request()
@@ -316,25 +330,27 @@ mod test {
             .await
             .expect("Failed to connect to WebSocket server");
 
-        for _ in 0..10 {
-            let data = json!({
-                "payload":{
-                    "type": "Post",
-                    "data": {
-                        "channel": ChannelType::PricePoster.to_str(),
-                        "data": PricePosterDataStruct {
-                            market_id: Uuid::new_v4(),
-                            yes_price: dec!(0.4),
-                            no_price: dec!(0.6),
-                        }
-                    }
-                }
-            })
-            .to_string();
+        let market_data = HashMap::from([
+            ("market_id".to_string(), Uuid::new_v4().to_string()),
+            ("yes_price".to_string(), dec!(0.4).to_string()),
+            ("no_price".to_string(), dec!(10).to_string()),
+        ]);
 
-            if let Err(e) = stream.send(Message::Text(data.into())).await {
-                panic!("Failed to send message: {:#?}", e);
-            }
+        let message = WsMessage {
+            id: None,
+            payload: Some(Payload {
+                r#type: OperationType::Post as i32,
+                data: Some(WsData {
+                    channel: Channel::Priceposter as i32,
+                    params: market_data,
+                }),
+            }),
+        };
+
+        let bin_data = message.encode_to_vec();
+
+        if let Err(e) = stream.send(WsMessageType::Binary(bin_data.into())).await {
+            log_error!("Failed to send message to WebSocket: {:#?}", e);
         }
     }
 }
