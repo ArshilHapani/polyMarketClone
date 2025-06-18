@@ -24,8 +24,9 @@ pub async fn handle_connection(stream: WebSocket, state: SafeAppState) {
     // cleanup
     log_info!("Client {client_id} disconnected, cleaning up resources");
     let mut channel_manager_guard = state.client_manager.write().await;
-    channel_manager_guard.cleanup();
+    channel_manager_guard.remove_client_without_channel(&client_id);
     heart_beat_handler.abort();
+    log_info!("Resource cleaned");
 }
 
 async fn start_heartbeat(tx: SafeSender, client_id: Uuid) -> tokio::task::JoinHandle<()> {

@@ -7,7 +7,6 @@ use tokio::sync::Mutex;
 pub mod client_manager;
 pub mod handle_connection;
 pub mod message_handlers;
-pub mod process_channel_request;
 
 // mutex because rx.next() method requires mutable access, so one reader and writer at a time...
 pub type SafeSender = Arc<Mutex<SplitSink<WebSocket, Message>>>;

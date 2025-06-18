@@ -22,7 +22,7 @@ async fn main() {
     let app = Router::new()
         .route("/", any(|| async { "Hello from WebSocket server!" }))
         .route("/ws", any(socket_handler))
-        .with_state(app_state.clone());
+        .with_state(app_state);
 
     let listener = tokio::net::TcpListener::bind("[::]:4010")
         .await

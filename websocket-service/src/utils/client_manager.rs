@@ -5,7 +5,7 @@ use uuid::Uuid;
 
 use crate::utils::SafeSender;
 
-type ClientData = (SafeSender, serde_json::Value);
+type ClientData = SafeSender;
 
 #[derive(Debug)]
 pub struct SubscriptionAndClientManager {
@@ -19,17 +19,11 @@ impl SubscriptionAndClientManager {
         }
     }
 
-    pub fn add_client(
-        &mut self,
-        channel: ChannelType,
-        client_id: Uuid,
-        tx: SafeSender,
-        params: serde_json::Value,
-    ) {
+    pub fn add_client(&mut self, channel: ChannelType, client_id: Uuid, tx: SafeSender) {
         self.subscription
             .entry(channel)
             .or_insert_with(HashMap::new)
-            .insert(client_id, (tx, params));
+            .insert(client_id, tx);
     }
 
     pub fn remove_client(&mut self, channel: &ChannelType, client_id: &Uuid) {
@@ -46,5 +40,13 @@ impl SubscriptionAndClientManager {
 
     pub fn cleanup(&mut self) {
         self.subscription.clear();
+    }
+
+    pub fn remove_client_without_channel(&mut self, client_id: &Uuid) {
+        for (_, clients) in self.subscription.iter_mut() {
+            if let Some(_) = clients.get(client_id) {
+                clients.remove(client_id);
+            }
+        }
     }
 }

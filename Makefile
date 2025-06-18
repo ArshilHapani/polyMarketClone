@@ -246,6 +246,10 @@ start-websocket-service:
 	@cd ./websocket-service && \
 		cargo watch -x run
 
+start-grpc-server:
+	@cd ./grpc-service && \
+		cargo watch -x run
+
 run-test-with-output:
 	@cargo test -- --nocapture
 

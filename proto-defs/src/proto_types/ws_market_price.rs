@@ -11,7 +11,7 @@ pub struct WsMessage {
 #[derive(Clone, PartialEq, ::prost::Message)]
 pub struct Payload {
     #[prost(enumeration = "OperationType", tag = "1")]
-    pub r#type: i32,
+    pub ops: i32,
     #[prost(message, optional, tag = "2")]
     pub data: ::core::option::Option<WsData>,
 }
@@ -20,11 +20,18 @@ pub struct Payload {
 pub struct WsData {
     #[prost(enumeration = "Channel", tag = "1")]
     pub channel: i32,
-    #[prost(map = "string, string", tag = "2")]
-    pub params: ::std::collections::HashMap<
-        ::prost::alloc::string::String,
-        ::prost::alloc::string::String,
-    >,
+    #[prost(string, tag = "2")]
+    pub params: ::prost::alloc::string::String,
+}
+#[derive(serde::Serialize, serde::Deserialize)]
+#[derive(Clone, PartialEq, ::prost::Message)]
+pub struct WsParamsPayload {
+    #[prost(string, tag = "1")]
+    pub market_id: ::prost::alloc::string::String,
+    #[prost(string, tag = "2")]
+    pub yes_price: ::prost::alloc::string::String,
+    #[prost(string, tag = "3")]
+    pub no_price: ::prost::alloc::string::String,
 }
 #[derive(serde::Serialize, serde::Deserialize)]
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash, PartialOrd, Ord, ::prost::Enumeration)]

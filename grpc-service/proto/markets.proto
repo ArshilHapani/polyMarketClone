@@ -1,0 +1,13 @@
+syntax = "proto3";
+
+package markets;
+
+service MarketService {
+    rpc GetMarketData(Empty) returns (MarketDataResponse);
+}
+
+message Empty {}
+
+message MarketDataResponse {
+    string name = 1;
+}

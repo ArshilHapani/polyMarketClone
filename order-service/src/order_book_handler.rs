@@ -215,16 +215,17 @@ pub async fn order_book_handler(
     // sending message to websocket
     let mut ws_publisher = app_state.websocket_stream.write().await;
 
-    let market_data = HashMap::from([
-        ("market_id".to_string(), order.market_id.to_string()),
-        ("yes_price".to_string(), yes_price.to_string()),
-        ("no_price".to_string(), no_price.to_string()),
-    ]);
+    let market_data = serde_json::json!({
+        "market_id": order.market_id.to_string(),
+        "yes_price": yes_price.to_string(),
+        "no_price": no_price.to_string(),
+    })
+    .to_string();
 
     let message = WsMessage {
         id: None,
         payload: Some(Payload {
-            r#type: OperationType::Post as i32,
+            ops: OperationType::Post as i32,
             data: Some(WsData {
                 channel: Channel::Priceposter as i32,
                 params: market_data,
@@ -246,7 +247,7 @@ pub async fn order_book_handler(
 
 #[cfg(test)]
 mod test {
-    use std::{collections::HashMap, time::Duration};
+    use std::time::Duration;
 
     use futures_util::SinkExt;
     use prost::Message;
@@ -330,18 +331,19 @@ mod test {
             .await
             .expect("Failed to connect to WebSocket server");
 
-        let market_data = HashMap::from([
-            ("market_id".to_string(), Uuid::new_v4().to_string()),
-            ("yes_price".to_string(), dec!(0.4).to_string()),
-            ("no_price".to_string(), dec!(10).to_string()),
-        ]);
+        let market_data = serde_json::json!({
+            "market_id": Uuid::new_v4().to_string(),
+            "yes_price": dec!(0.4).to_string(),
+            "no_price": dec!(0.6).to_string(),
+        })
+        .to_string();
 
         let message = WsMessage {
             id: None,
             payload: Some(Payload {
-                r#type: OperationType::Post as i32,
+                ops: OperationType::Post.into(),
                 data: Some(WsData {
-                    channel: Channel::Priceposter as i32,
+                    channel: Channel::Priceposter.into(),
                     params: market_data,
                 }),
             }),

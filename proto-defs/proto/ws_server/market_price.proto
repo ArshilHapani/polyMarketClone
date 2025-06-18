@@ -19,11 +19,17 @@ message WsMessage {
 }
 
 message Payload {
-    OperationType type = 1;
+    OperationType ops = 1;
     WsData data = 2;
 }
 
 message WsData {
     Channel channel = 1;
-    map<string,string> params = 2;
+    string params = 2;
+}
+
+message WsParamsPayload {
+    string market_id = 1;
+    string yes_price = 2;
+    string no_price = 3;
 }

@@ -28,7 +28,6 @@ impl ChannelType {
 pub enum MessagePayload {
     Subscribe {
         channel: String,
-        params: serde_json::Value,
     },
     Unsubscribe {
         channel: String,

@@ -14,6 +14,7 @@ use crate::{
     },
 };
 
+pub mod channel_handlers;
 pub mod handle_binary_message;
 pub mod handle_text_message;
 
@@ -30,7 +31,9 @@ pub async fn handle_message(
                     handle_text_message(&text, client_id, tx, state).await;
                 }
                 Message::Binary(bin) => {
-                    handle_binary_message(&bin, client_id, tx, state).await;
+                    // protobuf
+                    // we are getting bin msgs always from server, so we don't need to send them feedback (as of now). So we are not going to pass `tx` to this function
+                    handle_binary_message(&bin, client_id, state).await;
                 }
                 Message::Pong(_) => {
                     log_info!("Received Pong from client {client_id}");
