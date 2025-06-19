@@ -13,7 +13,6 @@ use crate::utils::middleware as custom_middleware;
 
 pub mod admin;
 pub mod login;
-pub mod market;
 pub mod user;
 
 async fn default_home_route() -> (StatusCode, impl IntoResponse) {
@@ -37,5 +36,4 @@ pub fn router(app_state: AppState) -> Router<AppState> {
         .route("/login", post(login::oauth_login))
         .nest("/user", user_routes)
         .nest("/admin", admin_routes)
-        .nest("/market", market::router())
 }

@@ -20,6 +20,7 @@ pub struct CreateMarketRequest {
     liquidity_b: Option<f64>,
 }
 
+// Add market expiry in db
 pub async fn create_new_market(
     State(state): State<AppState>,
     Json(payload): Json<CreateMarketRequest>,

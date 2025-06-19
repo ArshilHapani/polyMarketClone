@@ -2,6 +2,14 @@ syntax = "proto3";
 
 package markets;
 
+import "common.proto";
+
+
+service MarketService {
+    rpc GetMarketData(common.PageRequest) returns (GetPaginatedMarketResponse);
+}
+
+
 enum MarketStatus {
     UNSPECIFIED_MARKET_STATUS = 0;
     OPEN = 1;
@@ -30,8 +38,5 @@ message Market {
 
 message GetPaginatedMarketResponse {
     repeated Market markets = 1;
-    uint64 page = 2;
-    uint64 page_size = 3;
-    uint64 total_items = 4;
-    uint64 total_pages = 5;
+    common.PageInfo pageInfo = 2;
 }

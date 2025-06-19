@@ -6,7 +6,7 @@ use grpc_service::{
 };
 use tonic::transport::Server;
 use tonic_web::GrpcWebLayer;
-use tower_http::cors::{Any, CorsLayer};
+use tower_http::cors::CorsLayer;
 use utility_helpers::log_info;
 
 const FILE_DESCRIPTOR_SET: &[u8] = include_bytes!("generated/descriptor.bin");
@@ -35,13 +35,8 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     Server::builder()
         .accept_http1(true)
+        .layer(CorsLayer::permissive()) // allows CORS for all origins
         .layer(GrpcWebLayer::new())
-        .layer(
-            CorsLayer::new()
-                .allow_origin(Any)
-                .allow_methods(Any)
-                .allow_headers(Any),
-        )
         .add_service(reflector_service)
         .add_service(MarketServiceServer::new(market_service_layer))
         .serve(addr)

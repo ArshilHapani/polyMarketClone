@@ -1,9 +1,9 @@
-import { UserAuthActions } from "@/utils/interactions/dataPosters";
-import { GoogleLogin, googleLogout } from "@react-oauth/google";
+import { GoogleLogin } from "@react-oauth/google";
 import { useMutation } from "@tanstack/react-query";
 import React from "react";
 import cookie from "js-cookie";
 
+import { UserAuthActions } from "@/utils/interactions/dataPosters";
 import { toaster } from "./ui/toaster";
 
 const GoogleSignInButton = () => {
@@ -12,7 +12,6 @@ const GoogleSignInButton = () => {
   });
 
   function handleLogin(loginId: string) {
-    console.log({ loginId });
     toaster.promise(mutateAsync({ id_token: loginId }), {
       error(arg: any) {
         return {
@@ -48,9 +47,10 @@ const GoogleSignInButton = () => {
         }}
         onError={() => {
           console.log("Login Failed");
+          toaster.error({ title: "Failed to login with google" });
         }}
         logo_alignment="center"
-        shape="pill"
+        shape="circle"
         size="large"
       />
     </>

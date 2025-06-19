@@ -15,14 +15,7 @@ pub fn main() -> Result<(), Box<dyn std::error::Error>> {
         .protoc_arg("--proto_path=proto")
         .out_dir(&out_dir)
         .type_attribute(".", "#[derive(serde::Serialize, serde::Deserialize)]")
-        .compile_protos(
-            &[
-                "proto/api_service/markets.proto",
-                "proto/api_service/common.proto",
-                "proto/ws_server/market_price.proto",
-            ],
-            &["proto"],
-        )?;
+        .compile_protos(&["proto/ws_server/market_price.proto"], &["proto"])?;
 
     let entries = fs::read_dir(&out_dir)?
         .filter_map(|e| e.ok())

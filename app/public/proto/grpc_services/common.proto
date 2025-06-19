@@ -6,5 +6,10 @@ message PageInfo {
     uint64 page = 1;
     uint64 page_size = 2;
     uint64 total_items = 3;
-    uint64 total_page = 4;
+    uint64 total_pages = 4;
+}
+
+message PageRequest {
+    uint64 page = 1;
+    uint64 page_size = 2;
 }
