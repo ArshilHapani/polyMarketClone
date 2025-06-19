@@ -44,10 +44,9 @@ pub async fn handle_message(
                         log_error!("Failed to send Pong to client {client_id}: {e}");
                     }
                 }
-                _ => {
-                    log_info!(
-                        "Received unsupported message type from client {client_id}: {message:?}"
-                    );
+                Message::Close(_) => {
+                    log_info!("Client {client_id} disconnected");
+                    return;
                 }
             },
             Err(e) => {

@@ -1,23 +1,35 @@
+use std::str::FromStr;
+
 use serde::{Deserialize, Serialize};
+use uuid::Uuid;
 
 #[derive(Debug, Clone, Hash, Eq, PartialEq, Serialize, Deserialize)]
 #[serde(rename_all = "snake_case")]
 pub enum ChannelType {
-    PriceUpdate,
+    PriceUpdate(Uuid),
     PricePoster,
 }
 
 impl ChannelType {
-    pub fn from_str_serde(s: &str) -> Result<Self, serde_json::Error> {
-        let json_str = format!("\"{s}\"");
-
-        let deserialized_channel = serde_json::from_str::<ChannelType>(&json_str);
-        return deserialized_channel;
+    pub fn from_str(s: &str) -> Option<ChannelType> {
+        if s.starts_with("price_update:") {
+            let uuid_str = s.strip_prefix("price_update:");
+            if let Some(uuid_str) = uuid_str {
+                let uuid = Uuid::from_str(uuid_str);
+                return match uuid {
+                    Ok(uuid) => Some(ChannelType::PriceUpdate(uuid)),
+                    _ => None,
+                };
+            }
+        } else if s.starts_with("price_poster") {
+            return Some(ChannelType::PricePoster);
+        }
+        None
     }
 
     pub fn to_str(&self) -> String {
         match self {
-            ChannelType::PriceUpdate => "price_update".to_string(),
+            ChannelType::PriceUpdate(uuid) => format!("price_update:{uuid}"),
             ChannelType::PricePoster => "price_poster".to_string(),
         }
     }
@@ -26,16 +38,8 @@ impl ChannelType {
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(tag = "type", content = "data")]
 pub enum MessagePayload {
-    Subscribe {
-        channel: String,
-    },
-    Unsubscribe {
-        channel: String,
-    },
-    Post {
-        channel: String,
-        data: serde_json::Value,
-    },
+    Subscribe { channel: String },
+    Unsubscribe { channel: String },
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]

@@ -22,14 +22,17 @@ pub async fn handle_text_message(
             MessagePayload::Subscribe { channel } => {
                 log_info!("Client {client_id} subscribed to channel: {channel}");
 
-                let deserialized_channel = ChannelType::from_str_serde(&channel);
+                let deserialized_channel = ChannelType::from_str(&channel);
 
                 let channel_type = match deserialized_channel {
-                    Ok(channel_type) => channel_type,
-                    Err(_) => {
+                    Some(channel_type) => channel_type,
+                    None => {
                         log_error!("Invalid channel type from client {client_id}: {channel}");
-                        if let Err(e) =
-                            send_message(tx, Message::Text("Invalid channel".into())).await
+                        if let Err(e) = send_message(
+                            tx,
+                            Message::Text(format!("Invalid channel {channel}").into()),
+                        )
+                        .await
                         {
                             log_error!("Failed to send error response to client {client_id}: {e}");
                         }
@@ -55,11 +58,11 @@ pub async fn handle_text_message(
             MessagePayload::Unsubscribe { channel } => {
                 log_info!("Client {client_id} unsubscribed from channel: {channel}");
 
-                let deserialized_channel = ChannelType::from_str_serde(&channel);
+                let deserialized_channel = ChannelType::from_str(&channel);
 
                 let channel_type = match deserialized_channel {
-                    Ok(channel_type) => channel_type,
-                    Err(_) => {
+                    Some(channel_type) => channel_type,
+                    None => {
                         log_error!("Invalid channel type from client {client_id}: {channel}");
                         if let Err(e) =
                             send_message(tx, Message::Text("Invalid channel".into())).await
@@ -81,17 +84,6 @@ pub async fn handle_text_message(
                     log_error!(
                         "Failed to send unsubscription confirmation to client {client_id}: {e}"
                     );
-                }
-            }
-            _ => {
-                log_error!(
-                    "Unsupported channel type from client {client_id}: {:?}",
-                    client_message.payload
-                );
-                if let Err(e) =
-                    send_message(tx, Message::Text("Unsupported channel type".into())).await
-                {
-                    log_error!("Failed to send error response to client {client_id}: {e}");
                 }
             }
         },

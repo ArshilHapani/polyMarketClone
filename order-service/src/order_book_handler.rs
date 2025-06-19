@@ -1,4 +1,4 @@
-use std::{collections::HashMap, error::Error, str::FromStr, sync::Arc, time::Duration};
+use std::{error::Error, str::FromStr, sync::Arc, time::Duration};
 
 use db_service::schema::{
     enums::{OrderSide, OrderStatus, Outcome},
@@ -247,7 +247,7 @@ pub async fn order_book_handler(
 
 #[cfg(test)]
 mod test {
-    use std::time::Duration;
+    use std::{str::FromStr, time::Duration};
 
     use futures_util::SinkExt;
     use prost::Message;
@@ -331,8 +331,12 @@ mod test {
             .await
             .expect("Failed to connect to WebSocket server");
 
+        let real_market_id = Uuid::from_str("67df943a-09a5-4ddb-adeb-11042c37c324")
+            .unwrap()
+            .to_string();
+
         let market_data = serde_json::json!({
-            "market_id": Uuid::new_v4().to_string(),
+            "market_id": real_market_id,
             "yes_price": dec!(0.4).to_string(),
             "no_price": dec!(0.6).to_string(),
         })

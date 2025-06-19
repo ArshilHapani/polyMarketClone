@@ -1448,16 +1448,21 @@ checksum = "07e28edb80900c19c28f1072f2e8aeca7fa06b23cd4169cefe1af5aa3260783f"
 name = "grpc-service"
 version = "0.1.0"
 dependencies = [
+ "db-service",
  "prost",
  "prost-types",
  "serde",
  "serde_json",
+ "sqlx",
  "tokio",
  "tonic",
  "tonic-build",
  "tonic-reflection",
  "tonic-web",
  "tower-http",
+ "tracing",
+ "tracing-subscriber",
+ "utility-helpers",
 ]
 
 [[package]]
@@ -3323,7 +3328,6 @@ dependencies = [
  "db-service",
  "dotenv",
  "parking_lot",
- "prost-build",
  "proto-defs",
  "rust_decimal",
  "rust_decimal_macros",

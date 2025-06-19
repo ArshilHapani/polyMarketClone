@@ -1,3 +1,5 @@
+use std::str::FromStr;
+
 use axum::extract::ws::Message as WsSendMessage;
 use prost::Message;
 use proto_defs::proto_types::ws_market_price::{WsData, WsParamsPayload};
@@ -15,7 +17,14 @@ pub async fn price_poster_handler_bin(
     if let Ok(msg_payload) = serde_json::from_str::<WsParamsPayload>(&data.params) {
         // broadcast the message to all clients
         let clients = state.client_manager.write().await;
-        let clients = clients.get_clients(&ChannelType::PriceUpdate);
+        let market_id = Uuid::from_str(&msg_payload.market_id).unwrap_or_else(|_| {
+            log_error!(
+                "Invalid market ID from client {client_id}: {}",
+                msg_payload.market_id
+            );
+            return Uuid::nil();
+        });
+        let clients = clients.get_clients(&ChannelType::PriceUpdate(market_id));
         let data_to_send = msg_payload.encode_to_vec();
 
         if let Some(clients) = clients {

@@ -24,6 +24,3 @@ async-nats = { workspace = true }
 bloom = { workspace = true }
 uuid = { workspace = true }
 parking_lot = { workspace = true }
-
-[build-dependencies]
-prost-build = "0.13.5"

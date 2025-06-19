@@ -1,23 +1,36 @@
-pub mod procedures;
-pub mod state;
+use std::sync::Arc;
 
-pub mod markets_tonic {
-    include!("generated/markets.rs");
-}
+use grpc_service::{
+    generated::markets::market_service_server::MarketServiceServer,
+    procedures::market_service::MarketServiceStub, state::AppState,
+};
 use tonic::transport::Server;
 use tonic_web::GrpcWebLayer;
 use tower_http::cors::{Any, CorsLayer};
+use utility_helpers::log_info;
 
 const FILE_DESCRIPTOR_SET: &[u8] = include_bytes!("generated/descriptor.bin");
 
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
+    // enabling tracer
+    tracing_subscriber::fmt::init();
+
     let reflector_service = tonic_reflection::server::Builder::configure()
         .register_encoded_file_descriptor_set(FILE_DESCRIPTOR_SET)
         .include_reflection_service(true)
         .build_v1alpha()?;
 
-    println!("GRPC server running on port http://localhost:5010");
+    let app_state = AppState::new().await?;
+    let state = Arc::new(app_state);
+
+    // layers
+    let market_service_layer = MarketServiceStub {
+        state: state.clone(),
+    };
+
+    log_info!("GRPC server running on port grpc://localhost:5010");
+
     let addr = "0.0.0.0:5010".parse()?;
 
     Server::builder()
@@ -30,6 +43,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
                 .allow_headers(Any),
         )
         .add_service(reflector_service)
+        .add_service(MarketServiceServer::new(market_service_layer))
         .serve(addr)
         .await?;
 
