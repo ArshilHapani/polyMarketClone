@@ -24,8 +24,6 @@ rust_decimal_macros = "1.37.1"
 solana-sdk = "2.2.2"
 dotenv = "0.15.0"
 base64 = "0.22.1"
-deadpool = { version = "0.12.1" }
-deadpool-lapin = "0.12.1"
 deadpool-redis = { version = "0.20.0", features = [
     "tokio-comp",
     "tokio-rustls-comp",
@@ -51,3 +49,4 @@ futures-util = "0.3.31"
 futures = "0.3.31"
 bloom = "0.3.2"
 parking_lot = { version = "0.12.3" }
+rmp-serde = "1.3.0"

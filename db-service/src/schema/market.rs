@@ -17,6 +17,7 @@ pub struct Market {
     pub status: MarketStatus,
     pub liquidity_b: Decimal,
     pub final_outcome: Outcome,
+    pub market_expiry: NaiveDateTime,
     pub created_at: NaiveDateTime,
     pub updated_at: NaiveDateTime,
 }
@@ -27,6 +28,7 @@ impl Market {
         description: String,
         logo: String,
         liquidity_b: Decimal,
+        market_expiry: NaiveDateTime,
         pg_pool: &PgPool,
     ) -> Result<Self, sqlx::Error> {
         let market = sqlx::query_as!(
@@ -36,12 +38,14 @@ impl Market {
                 name,
                 description,
                 logo,
-                liquidity_b 
+                liquidity_b,
+                market_expiry
             ) VALUES (
                 $1,
                 $2,
                 $3,
-                $4 
+                $4,
+                $5
             ) RETURNING 
                 id,
                 name,
@@ -50,13 +54,15 @@ impl Market {
                 status as "status: MarketStatus",
                 final_outcome as "final_outcome: Outcome",
                 liquidity_b,
+                market_expiry,
                 created_at,
                 updated_at
             "#,
             name,
             description,
             logo,
-            liquidity_b
+            liquidity_b,
+            market_expiry
         )
         .fetch_one(pg_pool)
         .await?;
@@ -77,6 +83,7 @@ impl Market {
                 status as "status: MarketStatus",
                 final_outcome as "final_outcome: Outcome",
                 liquidity_b,
+                market_expiry,
                 created_at,
                 updated_at
             FROM "polymarket"."markets"
@@ -119,6 +126,7 @@ impl Market {
                 status as "status: MarketStatus",
                 final_outcome as "final_outcome: Outcome",
                 liquidity_b,
+                market_expiry,
                 created_at,
                 updated_at
             FROM "polymarket"."markets"
@@ -154,6 +162,7 @@ impl Market {
                 status as "status: MarketStatus",
                 final_outcome as "final_outcome: Outcome",
                 liquidity_b,
+                market_expiry,
                 created_at,
                 updated_at
             FROM "polymarket"."markets"
@@ -199,6 +208,7 @@ impl Market {
                 status as "status: MarketStatus",
                 final_outcome as "final_outcome: Outcome",
                 liquidity_b,
+                market_expiry,
                 created_at,
                 updated_at
             FROM polymarket.markets WHERE
@@ -216,6 +226,8 @@ impl Market {
 mod tests {
     use std::env;
 
+    use chrono::DateTime;
+
     use super::*;
 
     #[tokio::test]
@@ -225,11 +237,15 @@ mod tests {
         let database_url = env::var("DATABASE_URL").expect("DATABASE_URL must be set");
         let pg_pool = PgPool::connect(&database_url).await.unwrap();
 
+        let date_time = DateTime::parse_from_rfc3339("2025-06-20T12:28:33.675Z").unwrap();
+        let market_expiry = date_time.naive_utc();
+
         let market = Market::create_new_market(
             "Test Market 0".to_string(),
             "Test Description".to_string(),
             "Test Logo".to_string(),
             Decimal::new(100, 2),
+            market_expiry,
             &pg_pool,
         )
         .await
@@ -285,11 +301,15 @@ mod tests {
         let database_url = env::var("DATABASE_URL").expect("DATABASE_URL must be set");
         let pg_pool = PgPool::connect(&database_url).await.unwrap();
 
+        let date_time = DateTime::parse_from_rfc3339("2025-06-20T12:28:33.675Z").unwrap();
+        let market_expiry = date_time.naive_utc();
+
         let market = Market::create_new_market(
-            "Test Market".to_string(),
+            "Test Market 0".to_string(),
             "Test Description".to_string(),
             "Test Logo".to_string(),
             Decimal::new(100, 2),
+            market_expiry,
             &pg_pool,
         )
         .await

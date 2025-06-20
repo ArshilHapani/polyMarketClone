@@ -10,3 +10,11 @@ export interface LoginResponse extends BaseResponse {
   userId: string;
   sessionToken: string;
 }
+
+export interface GetUserResponse {
+  avatar: string;
+  balance: number;
+  email: string;
+  name: string;
+  public_key: string;
+}

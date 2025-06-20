@@ -342,6 +342,7 @@ impl Order {
 mod tests {
     use std::str::FromStr;
 
+    use chrono::DateTime;
     use utility_helpers::types::GoogleClaims;
 
     use super::*;
@@ -368,11 +369,15 @@ mod tests {
         .await
         .unwrap();
 
+        let date_time = DateTime::parse_from_rfc3339("2025-06-20T12:28:33.675Z").unwrap();
+        let market_expiry = date_time.naive_utc();
+
         let market = Market::create_new_market(
-            "Arshil".to_string(),
-            "...".to_string(),
-            "...".to_string(),
-            Decimal::from_str("10.0").unwrap(),
+            "Test Market 0".to_string(),
+            "Test Description".to_string(),
+            "Test Logo".to_string(),
+            Decimal::new(100, 2),
+            market_expiry,
             &pool,
         )
         .await
@@ -462,15 +467,20 @@ mod tests {
         .await
         .unwrap();
 
+        let date_time = DateTime::parse_from_rfc3339("2025-06-20T12:28:33.675Z").unwrap();
+        let market_expiry = date_time.naive_utc();
+
         let market = Market::create_new_market(
-            "Arshil".to_string(),
-            "...".to_string(),
-            "...".to_string(),
-            Decimal::from_str("10.0").unwrap(),
+            "Test Market 0".to_string(),
+            "Test Description".to_string(),
+            "Test Logo".to_string(),
+            Decimal::new(100, 2),
+            market_expiry,
             &pool,
         )
         .await
         .unwrap();
+
         // values are taken from the database
         let user_id = user.id;
         let market_id = market.id;

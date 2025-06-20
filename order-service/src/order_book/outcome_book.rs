@@ -1,6 +1,5 @@
 use std::collections::BTreeMap;
 
-use chrono::NaiveDateTime;
 use db_service::schema::{
     enums::{OrderSide, OrderStatus},
     orders::Order,
@@ -18,10 +17,8 @@ pub(super) struct PriceLevel {
 struct OrderBookEntry {
     user_id: Uuid,
     order_id: Uuid,
-    price: Decimal,
     total_quantity: Decimal,
     filled_quantity: Decimal,
-    timestamp: NaiveDateTime,
 }
 
 #[derive(Debug, Default)]
@@ -52,8 +49,6 @@ impl OutcomeBook {
         let entry = OrderBookEntry {
             filled_quantity: order.filled_quantity,
             order_id: order.id,
-            price: order.price,
-            timestamp: order.created_at,
             total_quantity: order.quantity,
             user_id: order.user_id,
         };
@@ -257,6 +252,7 @@ impl OutcomeBook {
 
 #[cfg(test)]
 mod test {
+    use chrono::NaiveDateTime;
     use db_service::schema::enums::Outcome;
     use rust_decimal_macros::dec;
 
@@ -306,10 +302,8 @@ mod test {
 
         assert_eq!(order_book_entry.user_id, user_id);
         assert_eq!(order_book_entry.order_id, id);
-        assert_eq!(order_book_entry.price, price);
         assert_eq!(order_book_entry.filled_quantity, Decimal::ZERO);
         assert_eq!(order_book_entry.total_quantity, Decimal::new(10, 0));
-        assert_eq!(order_book_entry.timestamp, created_at);
 
         assert_eq!(outcome_book.best_bid(), Some(Decimal::new(25, 2)));
         assert_eq!(outcome_book.best_ask(), None);

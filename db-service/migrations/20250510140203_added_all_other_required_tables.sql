@@ -36,6 +36,7 @@ CREATE TABLE IF NOT EXISTS polymarket.markets (
     "status" polymarket.market_status NOT NULL DEFAULT 'open',
     "liquidity_b" decimal NOT NULL DEFAULT 0,
     "final_outcome" polymarket.outcome NOT NULL DEFAULT 'unspecified',
+    "market_expiry" timestamp NOT NULL,
     "created_at" timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP,
     "updated_at" timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP
 );

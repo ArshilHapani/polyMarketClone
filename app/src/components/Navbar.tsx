@@ -1,12 +1,13 @@
 "use client";
 
-import { Flex, IconButton, Input, InputGroup, Text } from "@chakra-ui/react";
-import { Bell, Search } from "lucide-react";
+import React from "react";
+import { Search } from "lucide-react";
 import Image from "next/image";
 import Link from "next/link";
-import React from "react";
+import { Flex, Input, InputGroup, Text } from "@chakra-ui/react";
 
-import GoogleSignInButton from "./GoogleSignInButton";
+import NavbarAvatarButton from "./NavbarAvatarButton";
+import NavbarNotificationButton from "./NavbarNotificationButton";
 
 const Navbar = () => {
   return (
@@ -44,10 +45,8 @@ const Navbar = () => {
         <InputGroup startElement={<Search opacity={0.4} />}>
           <Input placeholder="Search" variant="subtle" />
         </InputGroup>
-        <IconButton variant="subtle">
-          <Bell size={20} />
-        </IconButton>
-        <GoogleSignInButton />
+        <NavbarNotificationButton />
+        <NavbarAvatarButton />
       </Flex>
     </Flex>
   );

@@ -1,9 +1,8 @@
 syntax = "proto3";
 
-package markets;
-
 import "common.proto";
 
+package markets;
 
 service MarketService {
     rpc GetMarketData(common.PageRequest) returns (GetPaginatedMarketResponse);
@@ -34,6 +33,7 @@ message Market {
     Outcome final_outcome = 7;
     string created_at = 8;
     string updated_at = 9;
+    string market_expiry = 10;
 }
 
 message GetPaginatedMarketResponse {

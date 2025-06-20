@@ -1,4 +1,5 @@
 pub mod macros;
+pub mod redis;
 pub mod symmetric;
 pub mod types;
 pub mod ws;

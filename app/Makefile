@@ -16,6 +16,7 @@ generate-service-types:
 
 
 generate-grpc-types:
+	@cp -r ../grpc-service/proto/*.proto ./public/proto/grpc_services
 	@echo "Generating types make sure that all files are in public/proto directory"
 	@protoc -I=./public/proto/grpc_services \
 			-I=$(shell pkg-config --variable=prefix protobuf)/include \

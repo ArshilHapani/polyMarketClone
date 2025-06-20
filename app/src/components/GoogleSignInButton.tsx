@@ -5,11 +5,13 @@ import cookie from "js-cookie";
 
 import { UserAuthActions } from "@/utils/interactions/dataPosters";
 import { toaster } from "./ui/toaster";
+import useRevalidation from "@/hooks/useRevalidate";
 
 const GoogleSignInButton = () => {
   const { mutateAsync } = useMutation({
     mutationFn: UserAuthActions.handleSignInWithGoogle,
   });
+  const revalidate = useRevalidation();
 
   function handleLogin(loginId: string) {
     toaster.promise(mutateAsync({ id_token: loginId }), {
@@ -24,6 +26,8 @@ const GoogleSignInButton = () => {
           expires: 60 * 60 * 24 * 30, // 30 days,
           secure: true,
         });
+        queueMicrotask(() => revalidate(["userData"]));
+
         return {
           title: "Success",
           description: "Welcome to polymarket",

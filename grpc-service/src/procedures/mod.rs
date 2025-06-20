@@ -21,6 +21,7 @@ impl From<&DbMarket> for Market {
             name: value.name.clone(),
             status: value.status as i32,
             updated_at: value.updated_at.to_string(),
+            market_expiry: value.market_expiry.to_string(),
         }
     }
 }

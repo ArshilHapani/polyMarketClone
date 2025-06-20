@@ -1,9 +1,8 @@
 "use client";
 
-import { Container } from "@chakra-ui/react";
+import { Container, Text } from "@chakra-ui/react";
 import { useQuery } from "@tanstack/react-query";
 
-import GoogleSignInButton from "@/components/GoogleSignInButton";
 import { MarketGetters } from "@/utils/interactions/dataGetter";
 
 export default function Home() {
@@ -13,10 +12,9 @@ export default function Home() {
   });
   return (
     <Container my={10}>
-      <pre>{JSON.stringify(data, null, 2)}</pre>
-      <h1>Error</h1>
-      <pre>{JSON.stringify(error, null, 2)}</pre>
-      <GoogleSignInButton />
+      <Text fontSize="2xl" fontWeight="bold" mb={4}>
+        Trending Markets
+      </Text>
     </Container>
   );
 }

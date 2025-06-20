@@ -28,22 +28,26 @@ pub async fn get_profile(
             .into_response(),
         )
     })?;
-    let user = User::get_user_by_id(&app_state.pg_pool, user_id)
+
+    let user_key = format!("user:{}", user_id);
+    let user = app_state
+        .redis_helper
+        .get_or_set_cache(&user_key, || async {
+            Ok(User::get_user_by_id(&app_state.pg_pool, user_id).await?)
+        })
         .await
-        .map_err(|e| {
-            log_error!("Failed to get user by ID: {}", e);
+        .map_err(|err| {
+            log_error!("Failed to retrieve user profile: {}", err);
             (
                 StatusCode::INTERNAL_SERVER_ERROR,
                 Json(json!({
-                    "error": "Failed to get user profile"
+                    "error": "Failed to retrieve user profile"
                 }))
                 .into_response(),
             )
         })?;
 
     let response = json!({
-        "id": user.id,
-        "google_id": user.google_id,
         "email": user.email,
         "name": user.name,
         "avatar": user.avatar,

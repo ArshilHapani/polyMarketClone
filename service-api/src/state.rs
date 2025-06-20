@@ -5,7 +5,7 @@ use async_nats::{
     jetstream::{self, Context},
 };
 use auth_service::AuthService;
-use utility_helpers::types::EnvVarConfig;
+use utility_helpers::{redis::RedisHelper, types::EnvVarConfig};
 
 use crate::bloom_f::BloomFilterWrapper;
 
@@ -15,6 +15,7 @@ pub struct AppState {
     pub auth_service: AuthService,
     pub jetstream: Context,
     pub bloom_filter: BloomFilterWrapper, // already thread safe
+    pub redis_helper: RedisHelper,
 }
 
 impl AppState {
@@ -30,12 +31,18 @@ impl AppState {
         let auth_service = AuthService::new(pg_pool.clone())?;
 
         let bloom_filter = BloomFilterWrapper::new(&pg_pool).await?;
+        let redis_helper = RedisHelper::new(
+            &env_var_config.redis_url,
+            60 * 60, // 1 hour cache expiry
+        )
+        .await?;
 
         let state = AppState {
             pg_pool,
             auth_service,
             jetstream,
             bloom_filter,
+            redis_helper,
         };
 
         Ok(state)

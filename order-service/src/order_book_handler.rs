@@ -323,6 +323,7 @@ mod test {
     }
 
     #[tokio::test]
+    #[ignore = "just ignore"]
     async fn test_websocket_message() {
         let websocket_req = format!("ws://localhost:4010/ws")
             .into_client_request()

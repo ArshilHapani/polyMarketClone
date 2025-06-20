@@ -53,6 +53,10 @@ export interface Market {
      * @generated from protobuf field: string updated_at = 9;
      */
     updatedAt: string;
+    /**
+     * @generated from protobuf field: string market_expiry = 10;
+     */
+    marketExpiry: string;
 }
 /**
  * @generated from protobuf message markets.GetPaginatedMarketResponse
@@ -121,7 +125,8 @@ class Market$Type extends MessageType<Market> {
             { no: 6, name: "liquidity_b", kind: "scalar", T: 1 /*ScalarType.DOUBLE*/ },
             { no: 7, name: "final_outcome", kind: "enum", T: () => ["markets.Outcome", Outcome] },
             { no: 8, name: "created_at", kind: "scalar", T: 9 /*ScalarType.STRING*/ },
-            { no: 9, name: "updated_at", kind: "scalar", T: 9 /*ScalarType.STRING*/ }
+            { no: 9, name: "updated_at", kind: "scalar", T: 9 /*ScalarType.STRING*/ },
+            { no: 10, name: "market_expiry", kind: "scalar", T: 9 /*ScalarType.STRING*/ }
         ]);
     }
     create(value?: PartialMessage<Market>): Market {
@@ -135,6 +140,7 @@ class Market$Type extends MessageType<Market> {
         message.finalOutcome = 0;
         message.createdAt = "";
         message.updatedAt = "";
+        message.marketExpiry = "";
         if (value !== undefined)
             reflectionMergePartial<Market>(this, message, value);
         return message;
@@ -170,6 +176,9 @@ class Market$Type extends MessageType<Market> {
                     break;
                 case /* string updated_at */ 9:
                     message.updatedAt = reader.string();
+                    break;
+                case /* string market_expiry */ 10:
+                    message.marketExpiry = reader.string();
                     break;
                 default:
                     let u = options.readUnknownField;
@@ -210,6 +219,9 @@ class Market$Type extends MessageType<Market> {
         /* string updated_at = 9; */
         if (message.updatedAt !== "")
             writer.tag(9, WireType.LengthDelimited).string(message.updatedAt);
+        /* string market_expiry = 10; */
+        if (message.marketExpiry !== "")
+            writer.tag(10, WireType.LengthDelimited).string(message.marketExpiry);
         let u = options.writeUnknownFields;
         if (u !== false)
             (u == true ? UnknownFieldHandler.onWrite : u)(this.typeName, message, writer);

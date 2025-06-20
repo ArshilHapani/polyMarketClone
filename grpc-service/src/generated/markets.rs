@@ -20,6 +20,8 @@ pub struct Market {
     pub created_at: ::prost::alloc::string::String,
     #[prost(string, tag = "9")]
     pub updated_at: ::prost::alloc::string::String,
+    #[prost(string, tag = "10")]
+    pub market_expiry: ::prost::alloc::string::String,
 }
 #[derive(serde::Serialize, serde::Deserialize)]
 #[derive(Clone, PartialEq, ::prost::Message)]
