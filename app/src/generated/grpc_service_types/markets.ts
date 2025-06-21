@@ -14,6 +14,15 @@ import { reflectionMergePartial } from "@protobuf-ts/runtime";
 import { MessageType } from "@protobuf-ts/runtime";
 import { PageInfo } from "./common";
 /**
+ * @generated from protobuf message markets.GetMarketByIdRequest
+ */
+export interface GetMarketByIdRequest {
+    /**
+     * @generated from protobuf field: string market_id = 1;
+     */
+    marketId: string;
+}
+/**
  * @generated from protobuf message markets.Market
  */
 export interface Market {
@@ -57,6 +66,14 @@ export interface Market {
      * @generated from protobuf field: string market_expiry = 10;
      */
     marketExpiry: string;
+    /**
+     * @generated from protobuf field: float yes_price = 11;
+     */
+    yesPrice: number;
+    /**
+     * @generated from protobuf field: float no_price = 12;
+     */
+    noPrice: number;
 }
 /**
  * @generated from protobuf message markets.GetPaginatedMarketResponse
@@ -114,6 +131,53 @@ export enum Outcome {
     UNSPECIFIED = 3
 }
 // @generated message type with reflection information, may provide speed optimized methods
+class GetMarketByIdRequest$Type extends MessageType<GetMarketByIdRequest> {
+    constructor() {
+        super("markets.GetMarketByIdRequest", [
+            { no: 1, name: "market_id", kind: "scalar", T: 9 /*ScalarType.STRING*/ }
+        ]);
+    }
+    create(value?: PartialMessage<GetMarketByIdRequest>): GetMarketByIdRequest {
+        const message = globalThis.Object.create((this.messagePrototype!));
+        message.marketId = "";
+        if (value !== undefined)
+            reflectionMergePartial<GetMarketByIdRequest>(this, message, value);
+        return message;
+    }
+    internalBinaryRead(reader: IBinaryReader, length: number, options: BinaryReadOptions, target?: GetMarketByIdRequest): GetMarketByIdRequest {
+        let message = target ?? this.create(), end = reader.pos + length;
+        while (reader.pos < end) {
+            let [fieldNo, wireType] = reader.tag();
+            switch (fieldNo) {
+                case /* string market_id */ 1:
+                    message.marketId = reader.string();
+                    break;
+                default:
+                    let u = options.readUnknownField;
+                    if (u === "throw")
+                        throw new globalThis.Error(`Unknown field ${fieldNo} (wire type ${wireType}) for ${this.typeName}`);
+                    let d = reader.skip(wireType);
+                    if (u !== false)
+                        (u === true ? UnknownFieldHandler.onRead : u)(this.typeName, message, fieldNo, wireType, d);
+            }
+        }
+        return message;
+    }
+    internalBinaryWrite(message: GetMarketByIdRequest, writer: IBinaryWriter, options: BinaryWriteOptions): IBinaryWriter {
+        /* string market_id = 1; */
+        if (message.marketId !== "")
+            writer.tag(1, WireType.LengthDelimited).string(message.marketId);
+        let u = options.writeUnknownFields;
+        if (u !== false)
+            (u == true ? UnknownFieldHandler.onWrite : u)(this.typeName, message, writer);
+        return writer;
+    }
+}
+/**
+ * @generated MessageType for protobuf message markets.GetMarketByIdRequest
+ */
+export const GetMarketByIdRequest = new GetMarketByIdRequest$Type();
+// @generated message type with reflection information, may provide speed optimized methods
 class Market$Type extends MessageType<Market> {
     constructor() {
         super("markets.Market", [
@@ -126,7 +190,9 @@ class Market$Type extends MessageType<Market> {
             { no: 7, name: "final_outcome", kind: "enum", T: () => ["markets.Outcome", Outcome] },
             { no: 8, name: "created_at", kind: "scalar", T: 9 /*ScalarType.STRING*/ },
             { no: 9, name: "updated_at", kind: "scalar", T: 9 /*ScalarType.STRING*/ },
-            { no: 10, name: "market_expiry", kind: "scalar", T: 9 /*ScalarType.STRING*/ }
+            { no: 10, name: "market_expiry", kind: "scalar", T: 9 /*ScalarType.STRING*/ },
+            { no: 11, name: "yes_price", kind: "scalar", T: 2 /*ScalarType.FLOAT*/ },
+            { no: 12, name: "no_price", kind: "scalar", T: 2 /*ScalarType.FLOAT*/ }
         ]);
     }
     create(value?: PartialMessage<Market>): Market {
@@ -141,6 +207,8 @@ class Market$Type extends MessageType<Market> {
         message.createdAt = "";
         message.updatedAt = "";
         message.marketExpiry = "";
+        message.yesPrice = 0;
+        message.noPrice = 0;
         if (value !== undefined)
             reflectionMergePartial<Market>(this, message, value);
         return message;
@@ -179,6 +247,12 @@ class Market$Type extends MessageType<Market> {
                     break;
                 case /* string market_expiry */ 10:
                     message.marketExpiry = reader.string();
+                    break;
+                case /* float yes_price */ 11:
+                    message.yesPrice = reader.float();
+                    break;
+                case /* float no_price */ 12:
+                    message.noPrice = reader.float();
                     break;
                 default:
                     let u = options.readUnknownField;
@@ -222,6 +296,12 @@ class Market$Type extends MessageType<Market> {
         /* string market_expiry = 10; */
         if (message.marketExpiry !== "")
             writer.tag(10, WireType.LengthDelimited).string(message.marketExpiry);
+        /* float yes_price = 11; */
+        if (message.yesPrice !== 0)
+            writer.tag(11, WireType.Bit32).float(message.yesPrice);
+        /* float no_price = 12; */
+        if (message.noPrice !== 0)
+            writer.tag(12, WireType.Bit32).float(message.noPrice);
         let u = options.writeUnknownFields;
         if (u !== false)
             (u == true ? UnknownFieldHandler.onWrite : u)(this.typeName, message, writer);
@@ -290,5 +370,6 @@ export const GetPaginatedMarketResponse = new GetPaginatedMarketResponse$Type();
  * @generated ServiceType for protobuf service markets.MarketService
  */
 export const MarketService = new ServiceType("markets.MarketService", [
-    { name: "GetMarketData", options: {}, I: PageRequest, O: GetPaginatedMarketResponse }
+    { name: "GetMarketData", options: {}, I: PageRequest, O: GetPaginatedMarketResponse },
+    { name: "GetMarketById", options: {}, I: GetMarketByIdRequest, O: Market }
 ]);

@@ -14,7 +14,7 @@ const NavbarNotificationButton = () => {
   return (
     <Popover.Root>
       <Popover.Trigger>
-        <IconButton variant="subtle">
+        <IconButton variant="subtle" as="span">
           <Bell size={20} />
         </IconButton>
       </Popover.Trigger>

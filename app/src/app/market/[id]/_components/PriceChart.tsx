@@ -1,0 +1,268 @@
+"use client";
+
+import { Chart, useChart } from "@chakra-ui/charts";
+import { Box, Button, ButtonGroup, Flex, Text } from "@chakra-ui/react";
+import { FileUp, Settings } from "lucide-react";
+import Image from "next/image";
+import { useState } from "react";
+import {
+  CartesianGrid,
+  Line,
+  LineChart,
+  Tooltip,
+  XAxis,
+  YAxis,
+} from "recharts";
+
+type Props = {};
+
+const PriceChart = ({}: Props) => {
+  const [graphTimelineFilter, setGraphTimelineFilter] =
+    useState<(typeof PAST_DAYS_FILTERS)[number]>("1D");
+
+  const data = generateRandomChartData(30, graphTimelineFilter);
+  const [labelsData, setLabelsData] = useState({
+    yes: data.reduce((acc, item) => acc + item.yes, 0) / data.length,
+    no: data.reduce((acc, item) => acc + item.no, 0) / data.length,
+  });
+
+  const chart = useChart({
+    data,
+    series: [
+      { name: "yes", color: "green.600" },
+      { name: "no", color: "red.400" },
+    ],
+  });
+
+  return (
+    <Box mt={5}>
+      {/* current yes / no price and logo */}
+      <Flex mt={4} mb={6} justifyContent="space-between" alignItems="center">
+        <Flex gap={4} alignItems="center">
+          <Text fontWeight="bold" fontSize="sm" color="green.600">
+            Yes {labelsData.yes.toFixed(2)}%
+          </Text>
+          <Text fontWeight="bold" fontSize="sm" color="red.400">
+            No {labelsData.no.toFixed(2)}%
+          </Text>
+        </Flex>
+        <Image
+          className="pointer-events-none opacity-50 select-none"
+          src="/assets/logo.svg"
+          alt="Logo"
+          width={135}
+          height={23}
+        />
+      </Flex>
+      <Chart.Root maxH="sm" chart={chart}>
+        <LineChart data={chart.data}>
+          <CartesianGrid stroke={chart.color("gray.200")} vertical={false} />
+          <XAxis
+            axisLine={false}
+            dataKey={chart.key("time")}
+            tickFormatter={(value) =>
+              new Date(value).toLocaleDateString("en-US", {
+                year: "numeric",
+                month: "short",
+                day: "numeric",
+              })
+            }
+            stroke={chart.color("border")}
+            interval="preserveStartEnd"
+            ticks={
+              chart.data.length > 6
+                ? chart.data
+                    .filter(
+                      (_, i) =>
+                        i % Math.ceil(chart.data.length / 5) === 0 ||
+                        i === chart.data.length - 1,
+                    )
+                    .map((d) => d.time)
+                : undefined
+            }
+          />
+          <Tooltip
+            animationDuration={100}
+            cursor={{ strokeDasharray: "3 3", stroke: chart.color("gray.400") }}
+            content={({ active, payload, label }) => {
+              if (!active || !payload || !payload.length) return null;
+              const date = new Date(label).toLocaleString("en-US", {
+                year: "numeric",
+                month: "short",
+                day: "numeric",
+                hour: "2-digit",
+                minute: "2-digit",
+              });
+              return (
+                <Box bg="white" p={2} borderRadius="md" boxShadow="md">
+                  <Text fontWeight="bold" mb={1}>
+                    {date}
+                  </Text>
+                  {payload.map((entry: any) => (
+                    <Text
+                      key={entry.dataKey}
+                      color={chart.color(entry.stroke)}
+                      fontWeight="semibold"
+                    >
+                      {entry.name?.toUpperCase()}:{" "}
+                      {(entry.value * 100).toFixed(2)}%
+                    </Text>
+                  ))}
+                </Box>
+              );
+            }}
+          />
+          <YAxis
+            tickLine={false}
+            axisLine={false}
+            tickFormatter={(value) => `${value * 100}%`}
+            orientation="right"
+          />
+          {chart.series.map((item) => {
+            const lastIndex = chart.data.length - 1;
+            return (
+              <Line
+                key={item.name}
+                isAnimationActive
+                dataKey={chart.key(item.name)}
+                fill={chart.color(item.color)}
+                stroke={chart.color(item.color)}
+                strokeWidth={2}
+                type="monotoneX"
+                dot={(props) => {
+                  if (props.index !== lastIndex) return <></>;
+                  return (
+                    <g>
+                      {/* Inner constant circle */}
+                      <circle
+                        cx={props.cx}
+                        cy={props.cy}
+                        r={3}
+                        fill={chart.color(item.color)}
+                        opacity={0.8}
+                      />
+                      {/* Outer blinking circle */}
+                      <circle
+                        cx={props.cx}
+                        cy={props.cy}
+                        r={6}
+                        fill={chart.color(item.color)}
+                        style={{
+                          animation: "blinker 2s linear infinite",
+                          opacity: 0.5,
+                        }}
+                      />
+                      <text
+                        x={props.cx}
+                        y={props.cy - 14}
+                        textAnchor="middle"
+                        fontSize={12}
+                        fontWeight="bold"
+                        fill={chart.color(item.color)}
+                        style={{
+                          textShadow: "0 1px 4px #fff, 0 1px 4px #fff",
+                          letterSpacing: 1,
+                        }}
+                      >
+                        {item.name?.toUpperCase()}
+                      </text>
+                    </g>
+                  );
+                }}
+              />
+            );
+          })}
+        </LineChart>
+      </Chart.Root>
+
+      {/* timeline buttons */}
+      <Flex mt={4} alignItems="center" justifyContent="space-between">
+        <ButtonGroup variant="subtle" size="sm" gap={0}>
+          {PAST_DAYS_FILTERS.map((filter) => (
+            <Button
+              key={filter}
+              value={filter}
+              onClick={() => setGraphTimelineFilter(filter)}
+              backgroundColor={
+                graphTimelineFilter === filter ? "gray.200" : "gray.50"
+              }
+              _hover={{ backgroundColor: "gray.100" }}
+              _active={{ backgroundColor: "gray.300" }}
+            >
+              {filter}
+            </Button>
+          ))}
+        </ButtonGroup>
+        <Flex fontSize="sm" color="gray.500" alignItems="center" gap={2}>
+          <FileUp size={18} />
+          <Settings size={18} />
+        </Flex>
+      </Flex>
+    </Box>
+  );
+};
+
+export default PriceChart;
+
+const PAST_DAYS_FILTERS = ["1H", "6H", "1D", "1W", "1M", "ALL"] as const;
+function generateRandomChartData(
+  n: number,
+  filterDays: (typeof PAST_DAYS_FILTERS)[number] = "1D",
+) {
+  let interval = "day";
+  let startDate = new Date();
+
+  switch (filterDays) {
+    case "1H":
+      n = 12; // 5-min intervals for 1 hour
+      interval = "minute";
+      break;
+    case "6H":
+      n = 12; // 30-min intervals for 6 hours
+      interval = "minute";
+      break;
+    case "1D":
+      n = 24; // hourly points for 1 day
+      interval = "hour";
+      break;
+    case "1W":
+      n = 7; // daily points for 1 week
+      interval = "day";
+      break;
+    case "1M":
+      n = 30; // daily points for 1 month
+      interval = "day";
+      break;
+    case "ALL":
+      n = 60; // 2 months of daily points
+      interval = "day";
+      break;
+    default:
+      n = 30;
+      interval = "day";
+  }
+
+  const data = [];
+  let prevYes = Math.random();
+  for (let i = 0; i < n; i++) {
+    let yes = prevYes + (Math.random() - 0.5) * 0.5;
+    yes = Math.max(0, Math.min(1, yes));
+    const no = 1 - yes;
+    const date = new Date(startDate);
+    if (interval === "minute") {
+      let step = filterDays === "1H" ? 5 : 30;
+      date.setMinutes(startDate.getMinutes() - (n - i - 1) * step);
+    } else if (interval === "hour") {
+      date.setHours(startDate.getHours() - (n - i - 1));
+    } else {
+      date.setDate(startDate.getDate() - (n - i - 1));
+    }
+    data.push({
+      no: Number(no.toFixed(2)),
+      yes: Number(yes.toFixed(2)),
+      time: date.toISOString(),
+    });
+    prevYes = yes;
+  }
+  return data;
+}

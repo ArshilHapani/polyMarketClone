@@ -24,7 +24,7 @@ const Navbar = () => {
           <Image src="/assets/logo.svg" alt="Logo" width={135} height={23} />
         </Link>
         {/* links */}
-        <Flex as="nav" ml={8} gap={6}>
+        <Flex as="nav" ml={8} gap={6} display={["none", "flex"]}>
           {LINKS.map((link) => (
             <Link href={link.href} key={link.name}>
               <Text
@@ -42,7 +42,10 @@ const Navbar = () => {
 
       {/* right section */}
       <Flex gap={4}>
-        <InputGroup startElement={<Search opacity={0.4} />}>
+        <InputGroup
+          startElement={<Search opacity={0.4} />}
+          display={["none", "flex"]}
+        >
           <Input placeholder="Search" variant="subtle" />
         </InputGroup>
         <NavbarNotificationButton />

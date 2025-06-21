@@ -5,9 +5,13 @@ import "common.proto";
 package markets;
 
 service MarketService {
-    rpc GetMarketData(common.PageRequest) returns (GetPaginatedMarketResponse);
+    rpc GetMarketData(common.PageRequest) returns (GetPaginatedMarketResponse);    
+    rpc GetMarketById(GetMarketByIdRequest) returns (Market);
 }
 
+message GetMarketByIdRequest {
+    string market_id = 1;
+}
 
 enum MarketStatus {
     UNSPECIFIED_MARKET_STATUS = 0;
@@ -34,6 +38,8 @@ message Market {
     string created_at = 8;
     string updated_at = 9;
     string market_expiry = 10;
+    float yes_price = 11;
+    float no_price = 12;
 }
 
 message GetPaginatedMarketResponse {

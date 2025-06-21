@@ -14,11 +14,22 @@ export class MarketGetters {
         page,
         pageSize,
       });
-      console.log("Market data fetched successfully:", data);
       return data.response.markets;
     } catch (error: any) {
       console.error("Error fetching market data:", error);
       return [];
+    }
+  }
+
+  static async getMarketById(marketId: string) {
+    try {
+      const { response } = await marketServiceClient.getMarketById({
+        marketId,
+      });
+      return response;
+    } catch (error: any) {
+      console.log("Failed to get market due to ", error);
+      return null;
     }
   }
 }

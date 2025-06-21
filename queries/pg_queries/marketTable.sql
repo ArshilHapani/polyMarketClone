@@ -13,4 +13,12 @@
 --             LEFT JOIN polymarket.markets m ON o.market_id = m.id
 --             WHERE o.status = 'open'::polymarket.order_status 
 
-select * from polymarket.markets;
+-- select * from polymarket.markets;
+
+SELECT
+  market_id,
+  SUM(quantity * price) AS notional_volume
+FROM
+  polymarket.user_trades
+GROUP BY
+  market_id;
