@@ -1,8 +1,9 @@
 import axios from "axios";
 import jsCookies from "js-cookie";
 
-import { marketServiceClient } from "../grpc/clients";
+import { marketServiceClient, priceServiceClient } from "../grpc/clients";
 import { GetUserOrdersPaginatedResponse, GetUserResponse } from "../types/api";
+import { Timeframe } from "@/generated/grpc_service_types/price";
 
 const TOKEN = jsCookies.get("polymarketAuthToken") || "";
 const BASE_URL = process.env.NEXT_PUBLIC_SERVICE_API_URL || "";
@@ -97,6 +98,27 @@ export class OrderGetters {
     } catch (error: any) {
       console.error("Failed to get orders ", error);
       return { orders: [], page: 0, page_size: 0 };
+    }
+  }
+}
+
+export class ChartGetters {
+  static async getChartDataWithinTimeRange(
+    marketId: string,
+    timeframe: Timeframe,
+  ) {
+    try {
+      const { response } = await priceServiceClient.getPriceDataWithinInterval({
+        marketId,
+        timeframe,
+      });
+      return response;
+    } catch (error: any) {
+      console.error("Failed to get chart data: ", error);
+      return {
+        marketId: "",
+        priceData: [],
+      };
     }
   }
 }

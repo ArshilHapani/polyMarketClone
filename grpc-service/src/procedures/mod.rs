@@ -5,7 +5,8 @@ use crate::{
     utils::to_f64,
 };
 
-pub mod market_service;
+pub mod market_services;
+pub mod price_services;
 
 // all type conversations.....
 

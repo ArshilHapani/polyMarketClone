@@ -1,8 +1,12 @@
 use std::sync::Arc;
 
 use grpc_service::{
-    generated::markets::market_service_server::MarketServiceServer,
-    procedures::market_service::MarketServiceStub, state::AppState,
+    generated::{
+        markets::market_service_server::MarketServiceServer,
+        price::price_service_server::PriceServiceServer,
+    },
+    procedures::{market_services::MarketServiceStub, price_services::PriceServiceStub},
+    state::AppState,
 };
 use tonic::transport::Server;
 use tonic_web::GrpcWebLayer;
@@ -24,8 +28,11 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     let app_state = AppState::new().await?;
     let state = Arc::new(app_state);
 
-    // layers
+    // services
     let market_service_layer = MarketServiceStub {
+        state: state.clone(),
+    };
+    let pair_service_layer = PriceServiceStub {
         state: state.clone(),
     };
 
@@ -39,6 +46,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         .layer(GrpcWebLayer::new())
         .add_service(reflector_service)
         .add_service(MarketServiceServer::new(market_service_layer))
+        .add_service(PriceServiceServer::new(pair_service_layer))
         .serve(addr)
         .await?;
 

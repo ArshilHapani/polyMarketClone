@@ -15,7 +15,7 @@ fn main() -> Result<(), Box<dyn Error>> {
         .out_dir(&out_dir)
         .type_attribute(".", "#[derive(serde::Serialize, serde::Deserialize)]")
         .build_client(false)
-        .compile_protos(&["proto/markets.proto"], &["proto"])?;
+        .compile_protos(&["proto/markets.proto", "proto/price.proto"], &["proto"])?;
 
     // building common mod.rs file with all module names
 

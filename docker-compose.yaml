@@ -32,6 +32,8 @@ services:
   clickhouse:
     image: clickhouse:24.8.14
     container_name: polyMarket_clickhouse
+    ports:
+      - "8123:8123"
     networks:
       - polyMarket_network
     environment:

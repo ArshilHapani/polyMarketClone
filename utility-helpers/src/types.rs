@@ -21,6 +21,8 @@ pub struct EnvVarConfig {
     pub influxdb_url: String,
     pub kafka_url: String,
     pub websocket_url: String,
+    pub clickhouse_url: String,
+    pub clickhouse_password: String,
 }
 
 impl EnvVarConfig {
@@ -50,6 +52,11 @@ impl EnvVarConfig {
         let websocket_url = var("WS_SERVER_URL")
             .map_err(|_| "WS_SERVER_URL environment variable not set".to_string())?;
 
+        let clickhouse_url = var("CLICKHOUSE_URL")
+            .map_err(|_| "CLICKHOUSE_URL environment variable not set".to_string())?;
+        let clickhouse_password = var("CLICKHOUSE_PASSWORD")
+            .map_err(|_| "CLICKHOUSE_PASSWORD environment variable not set".to_string())?;
+
         Ok(EnvVarConfig {
             jwt_secret,
             secret_key,
@@ -60,6 +67,8 @@ impl EnvVarConfig {
             influxdb_url,
             kafka_url,
             websocket_url,
+            clickhouse_url,
+            clickhouse_password,
         })
     }
 }

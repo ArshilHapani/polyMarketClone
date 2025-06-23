@@ -64,7 +64,7 @@ const MarketPage = async ({ params }: Props) => {
         </Flex>
 
         {/* charts */}
-        <PriceChart />
+        <PriceChart market_id={id} />
 
         {/*  action bar for purchasing now  */}
         <PurchaseNowActionBar market_id={id} />

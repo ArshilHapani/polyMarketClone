@@ -1,7 +1,10 @@
 "use client";
 
+import { Timeframe } from "@/generated/grpc_service_types/price";
+import { ChartGetters } from "@/utils/interactions/dataGetter";
 import { Chart, useChart } from "@chakra-ui/charts";
 import { Box, Button, ButtonGroup, Flex, Text } from "@chakra-ui/react";
+import { useQuery } from "@tanstack/react-query";
 import { FileUp, Settings } from "lucide-react";
 import Image from "next/image";
 import { useState } from "react";
@@ -14,13 +17,29 @@ import {
   YAxis,
 } from "recharts";
 
-type Props = {};
+type Props = {
+  market_id: string;
+};
 
-const PriceChart = ({}: Props) => {
+const PriceChart = ({ market_id }: Props) => {
   const [graphTimelineFilter, setGraphTimelineFilter] =
     useState<(typeof PAST_DAYS_FILTERS)[number]>("1D");
 
-  const data = generateRandomChartData(30, graphTimelineFilter);
+  const { data: resp } = useQuery({
+    queryKey: ["chartData", graphTimelineFilter],
+    queryFn: () =>
+      ChartGetters.getChartDataWithinTimeRange(
+        market_id,
+        fromChartArrayIdxToFilterTypeEnum(graphTimelineFilter),
+      ),
+  });
+  const data =
+    resp?.priceData.map((item) => ({
+      yes: item.yesPrice,
+      no: item.noPrice,
+      time: new Date(item.timestamp).toISOString(),
+    })) ?? [];
+
   const [labelsData, setLabelsData] = useState({
     yes: data.reduce((acc, item) => acc + item.yes, 0) / data.length,
     no: data.reduce((acc, item) => acc + item.no, 0) / data.length,
@@ -205,6 +224,28 @@ const PriceChart = ({}: Props) => {
 export default PriceChart;
 
 const PAST_DAYS_FILTERS = ["1H", "6H", "1D", "1W", "1M", "ALL"] as const;
+
+function fromChartArrayIdxToFilterTypeEnum(
+  item: (typeof PAST_DAYS_FILTERS)[number],
+): Timeframe {
+  switch (item) {
+    case "1H":
+      return Timeframe.ONE_HOUR;
+    case "6H":
+      return Timeframe.SIX_HOUR;
+    case "1D":
+      return Timeframe.ONE_DAY;
+    case "1W":
+      return Timeframe.ONE_WEEK;
+    case "1M":
+      return Timeframe.ONE_MONTH;
+    case "ALL":
+      return Timeframe.ALL;
+    default:
+      throw new Error("Invalid timeframe");
+  }
+}
+
 function generateRandomChartData(
   n: number,
   filterDays: (typeof PAST_DAYS_FILTERS)[number] = "1D",
