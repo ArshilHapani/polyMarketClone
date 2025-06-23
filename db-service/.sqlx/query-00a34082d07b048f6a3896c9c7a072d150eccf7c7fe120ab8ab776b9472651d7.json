@@ -1,6 +1,6 @@
 {
   "db_name": "PostgreSQL",
-  "query": "\n            INSERT INTO \"polymarket\".\"markets\" (\n                name,\n                description,\n                logo,\n                liquidity_b \n            ) VALUES (\n                $1,\n                $2,\n                $3,\n                $4 \n            ) RETURNING \n                id,\n                name,\n                description,\n                logo,\n                status as \"status: MarketStatus\",\n                final_outcome as \"final_outcome: Outcome\",\n                liquidity_b,\n                created_at,\n                updated_at\n            ",
+  "query": "\n            INSERT INTO \"polymarket\".\"markets\" (\n                name,\n                description,\n                logo,\n                liquidity_b,\n                market_expiry\n            ) VALUES (\n                $1,\n                $2,\n                $3,\n                $4,\n                $5\n            ) RETURNING \n                id,\n                name,\n                description,\n                logo,\n                status as \"status: MarketStatus\",\n                final_outcome as \"final_outcome: Outcome\",\n                liquidity_b,\n                market_expiry,\n                created_at,\n                updated_at\n            ",
   "describe": {
     "columns": [
       {
@@ -62,11 +62,16 @@
       },
       {
         "ordinal": 7,
-        "name": "created_at",
+        "name": "market_expiry",
         "type_info": "Timestamp"
       },
       {
         "ordinal": 8,
+        "name": "created_at",
+        "type_info": "Timestamp"
+      },
+      {
+        "ordinal": 9,
         "name": "updated_at",
         "type_info": "Timestamp"
       }
@@ -76,7 +81,8 @@
         "Varchar",
         "Text",
         "Varchar",
-        "Numeric"
+        "Numeric",
+        "Timestamp"
       ]
     },
     "nullable": [
@@ -88,8 +94,9 @@
       false,
       false,
       false,
+      false,
       false
     ]
   },
-  "hash": "fd673e93466f6559f0526f4c1732fb8f988f7af13bd4ccba28e0f54b0eb95ff4"
+  "hash": "00a34082d07b048f6a3896c9c7a072d150eccf7c7fe120ab8ab776b9472651d7"
 }

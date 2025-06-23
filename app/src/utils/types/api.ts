@@ -1,3 +1,5 @@
+import { Order } from ".";
+
 export interface BaseResponse {
   message: string;
   success: boolean;
@@ -17,4 +19,10 @@ export interface GetUserResponse {
   email: string;
   name: string;
   public_key: string;
+}
+
+export interface GetUserOrdersPaginatedResponse {
+  orders: Order[];
+  page: number;
+  page_size: number;
 }

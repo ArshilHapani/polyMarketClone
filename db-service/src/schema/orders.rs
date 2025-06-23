@@ -336,6 +336,74 @@ impl Order {
         log_info!("Order updated - {:?}", order.id);
         Ok(order)
     }
+
+    pub async fn get_user_orders_by_paginated(
+        pool: &PgPool,
+        user_id: Uuid,
+        page: u32,
+        page_size: u32,
+    ) -> Result<Vec<Order>, sqlx::Error> {
+        let offset = (page - 1) * page_size;
+
+        let orders = sqlx::query_as!(
+            Order,
+            r#"
+            SELECT
+            id, user_id, market_id,
+            outcome as "outcome: Outcome",
+            price, quantity, filled_quantity,
+            status as "status: OrderStatus",
+            side as "side: OrderSide",
+            created_at, updated_at
+            FROM polymarket.orders
+            WHERE user_id = $1
+            ORDER BY created_at DESC
+            LIMIT $2 OFFSET $3
+            "#,
+            user_id,
+            page_size as i64,
+            offset as i64
+        )
+        .fetch_all(pool)
+        .await?;
+
+        Ok(orders)
+    }
+
+    pub async fn get_user_orders_by_market_paginated(
+        pool: &PgPool,
+        user_id: Uuid,
+        market_id: Uuid,
+        page: u32,
+        page_size: u32,
+    ) -> Result<Vec<Order>, sqlx::Error> {
+        let offset = (page - 1) * page_size;
+
+        let orders = sqlx::query_as!(
+            Order,
+            r#"
+            SELECT
+            id, user_id, market_id,
+            outcome as "outcome: Outcome",
+            price, quantity, filled_quantity,
+            status as "status: OrderStatus",
+            side as "side: OrderSide",
+            created_at, updated_at
+            FROM polymarket.orders
+            WHERE user_id = $1 AND market_id = $2
+            ORDER BY created_at DESC
+            LIMIT $3 OFFSET $4
+            "#,
+            user_id,
+            market_id,
+            page_size as i64,
+            offset as i64
+        )
+        .fetch_all(pool)
+        .await?;
+
+        Ok(orders)
+    }
 }
 
 #[cfg(test)]

@@ -1,6 +1,6 @@
 {
   "db_name": "PostgreSQL",
-  "query": "\n            SELECT \n                id,\n                name,\n                description,\n                logo,\n                status as \"status: MarketStatus\",\n                final_outcome as \"final_outcome: Outcome\",\n                liquidity_b,\n                created_at,\n                updated_at\n            FROM polymarket.markets WHERE\n            status = 'open'::polymarket.market_status;\n            ",
+  "query": "\n            SELECT \n                id,\n                name,\n                description,\n                logo,\n                status as \"status: MarketStatus\",\n                final_outcome as \"final_outcome: Outcome\",\n                liquidity_b,\n                market_expiry,\n                created_at,\n                updated_at\n            FROM polymarket.markets WHERE\n            status = 'open'::polymarket.market_status;\n            ",
   "describe": {
     "columns": [
       {
@@ -62,11 +62,16 @@
       },
       {
         "ordinal": 7,
-        "name": "created_at",
+        "name": "market_expiry",
         "type_info": "Timestamp"
       },
       {
         "ordinal": 8,
+        "name": "created_at",
+        "type_info": "Timestamp"
+      },
+      {
+        "ordinal": 9,
         "name": "updated_at",
         "type_info": "Timestamp"
       }
@@ -83,8 +88,9 @@
       false,
       false,
       false,
+      false,
       false
     ]
   },
-  "hash": "642c0b6d417a6efa81ba6023827218db644f06f8388fde2eaedb549db903b087"
+  "hash": "75915bedb837dd0e4064334a7587117cdcfc5b446b1a9914b1ba6b644949c5c1"
 }

@@ -4,8 +4,8 @@ import React from "react";
 import cookie from "js-cookie";
 
 import { UserAuthActions } from "@/utils/interactions/dataPosters";
-import { toaster } from "./ui/toaster";
 import useRevalidation from "@/hooks/useRevalidate";
+import { toaster } from "./ui/toaster";
 
 const GoogleSignInButton = () => {
   const { mutateAsync } = useMutation({

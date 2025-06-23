@@ -1,88 +1,53 @@
 "use client";
 
-import { Box, Button, Flex, NumberInput, Text } from "@chakra-ui/react";
+import { Box, Button, Flex } from "@chakra-ui/react";
 import { useState } from "react";
+
+import MarketOrderForm from "./MarketOrderForm";
+import LimitOrderForm from "./LimitOrderForm";
 
 type Props = {
   mode: "buy" | "sell";
+  orderType: "market" | "limit";
+  market_id: string;
 };
 
-const TradeForm = ({ mode }: Props) => {
-  const [amount, setAmount] = useState("");
+const TradeForm = ({ mode, orderType, market_id }: Props) => {
+  const [stockMode, setStockMode] = useState<"yes" | "no">("yes");
+
   return (
     <Box>
       <Flex gap={2} width="100%" justifyContent="space-between">
-        <Button width="1/2" bg="green.600/90" _hover={{ bg: "green.600" }}>
+        <Button
+          width="1/2"
+          bg={stockMode === "yes" ? "green.600" : "gray.500"}
+          _hover={{ bg: "green.600" }}
+          onClick={() => setStockMode("yes")}
+        >
           Yes $5
         </Button>
-        <Button width="1/2" bg="red.600/90" _hover={{ bg: "red.600" }}>
+        <Button
+          width="1/2"
+          bg={stockMode === "no" ? "red.600" : "gray.500"}
+          _hover={{ bg: "red.600" }}
+          onClick={() => setStockMode("no")}
+        >
           No $5
         </Button>
       </Flex>
 
-      {/* market order field */}
-      <Box>
-        <Flex mt={4}>
-          <Text
-            fontSize="lg"
-            color="gray.600"
-            fontWeight="semibold"
-            width="1/3"
-          >
-            Amount
-          </Text>
-          <NumberInput.Root
-            formatOptions={{
-              style: "currency",
-              currency: "USD",
-              currencyDisplay: "symbol",
-              currencySign: "accounting",
-            }}
-          >
-            <NumberInput.Input
-              width="full"
-              dir="rtl"
-              outline="none"
-              border="none"
-              placeholder="$10"
-              fontSize="4xl"
-              fontWeight="extrabold"
-              value={amount}
-              onChange={(e) => setAmount(e.target.value)}
-            />
-          </NumberInput.Root>
-        </Flex>
-        {/* pre defined amount setter */}
-        <Flex mt={3} gap={2} justifyContent={"end"}>
-          {PREDEFINED_AMOUNTS.map((amount) => (
-            <Button
-              key={amount}
-              variant="outline"
-              rounded="full"
-              bg="transparent"
-              border="1px solid"
-              borderColor="gray.300"
-              padding={1}
-            >
-              ${amount}
-            </Button>
-          ))}
-        </Flex>
-
-        <Button
-          type="submit"
-          width="full"
-          mt={4}
-          bg="blue.600/90"
-          _hover={{ bg: "blue.600" }}
-        >
-          {mode === "buy" ? "Buy" : "Sell"} Now
-        </Button>
-      </Box>
+      {/* market / limit order form */}
+      {orderType === "limit" ? (
+        <LimitOrderForm
+          mode={mode}
+          stockMode={stockMode}
+          market_id={market_id}
+        />
+      ) : (
+        <MarketOrderForm mode={mode} stockMode={stockMode} />
+      )}
     </Box>
   );
 };
 
 export default TradeForm;
-
-const PREDEFINED_AMOUNTS = [1, 20, 100];

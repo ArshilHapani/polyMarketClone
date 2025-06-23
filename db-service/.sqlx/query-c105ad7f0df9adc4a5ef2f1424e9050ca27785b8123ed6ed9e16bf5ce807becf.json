@@ -1,6 +1,6 @@
 {
   "db_name": "PostgreSQL",
-  "query": "\n            SELECT \n                id,\n                name,\n                description,\n                logo,\n                status as \"status: MarketStatus\",\n                final_outcome as \"final_outcome: Outcome\",\n                liquidity_b,\n                created_at,\n                updated_at\n            FROM \"polymarket\".\"markets\"\n            ",
+  "query": "\n            SELECT \n                id,\n                name,\n                description,\n                logo,\n                status as \"status: MarketStatus\",\n                final_outcome as \"final_outcome: Outcome\",\n                liquidity_b,\n                market_expiry,\n                created_at,\n                updated_at\n            FROM \"polymarket\".\"markets\"\n            WHERE id = $1\n            ",
   "describe": {
     "columns": [
       {
@@ -62,19 +62,27 @@
       },
       {
         "ordinal": 7,
-        "name": "created_at",
+        "name": "market_expiry",
         "type_info": "Timestamp"
       },
       {
         "ordinal": 8,
+        "name": "created_at",
+        "type_info": "Timestamp"
+      },
+      {
+        "ordinal": 9,
         "name": "updated_at",
         "type_info": "Timestamp"
       }
     ],
     "parameters": {
-      "Left": []
+      "Left": [
+        "Uuid"
+      ]
     },
     "nullable": [
+      false,
       false,
       false,
       false,
@@ -86,5 +94,5 @@
       false
     ]
   },
-  "hash": "b1e1a9a54e2119aa8c292d75bf89dc4d092fbcc05a959379ff85e8b61d22086d"
+  "hash": "c105ad7f0df9adc4a5ef2f1424e9050ca27785b8123ed6ed9e16bf5ce807becf"
 }

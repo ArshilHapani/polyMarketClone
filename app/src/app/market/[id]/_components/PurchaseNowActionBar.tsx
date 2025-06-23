@@ -7,12 +7,18 @@ import {
   Flex,
   Tabs,
   useDisclosure,
+  Portal,
+  Select,
   CloseButton,
+  createListCollection,
 } from "@chakra-ui/react";
+
 import TradeForm from "./TradeForm";
 
-const PurchaseNowActionBar = () => {
+const PurchaseNowActionBar = ({ market_id }: { market_id: string }) => {
   const { open: isOpen, onToggle } = useDisclosure();
+  const [orderType, setOrderType] = useState<"market" | "limit">("market");
+
   const ctnRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -34,7 +40,7 @@ const PurchaseNowActionBar = () => {
       left={0}
       right={0}
       bottom={5}
-      zIndex={1400}
+      zIndex={10}
       width={isOpen ? "400px" : "140px"}
       minHeight="80px"
       mx="auto"
@@ -78,13 +84,54 @@ const PurchaseNowActionBar = () => {
                 <Tabs.Trigger value="buy">Buy</Tabs.Trigger>
                 <Tabs.Trigger value="sell">Sell</Tabs.Trigger>
               </Flex>
-              <CloseButton onClick={onToggle} />
+              <Flex gap={2}>
+                <Select.Root
+                  collection={orderTypes}
+                  size="sm"
+                  width="100px"
+                  defaultValue={[orderType]}
+                  onValueChange={(v) =>
+                    setOrderType(v.value[0] as typeof orderType)
+                  }
+                >
+                  <Select.HiddenSelect />
+                  <Select.Control>
+                    <Select.Trigger border={"none"}>
+                      <Select.ValueText placeholder="Type" />
+                    </Select.Trigger>
+                    <Select.IndicatorGroup>
+                      <Select.Indicator />
+                    </Select.IndicatorGroup>
+                  </Select.Control>
+                  <Portal>
+                    <Select.Positioner>
+                      <Select.Content bg="gray.50">
+                        {orderTypes.items.map((orderType) => (
+                          <Select.Item item={orderType} key={orderType.value}>
+                            {orderType.label}
+                            <Select.ItemIndicator />
+                          </Select.Item>
+                        ))}
+                      </Select.Content>
+                    </Select.Positioner>
+                  </Portal>
+                </Select.Root>
+                <CloseButton onClick={onToggle} />
+              </Flex>
             </Tabs.List>
             <Tabs.Content value="buy">
-              <TradeForm mode="buy" />
+              <TradeForm
+                mode="buy"
+                orderType={orderType}
+                market_id={market_id}
+              />
             </Tabs.Content>
             <Tabs.Content value="sell">
-              <TradeForm mode="sell" />
+              <TradeForm
+                mode="sell"
+                orderType={orderType}
+                market_id={market_id}
+              />
             </Tabs.Content>
           </Tabs.Root>
         </Box>
@@ -94,3 +141,10 @@ const PurchaseNowActionBar = () => {
 };
 
 export default PurchaseNowActionBar;
+
+const orderTypes = createListCollection({
+  items: [
+    { label: "Limit", value: "limit" },
+    { label: "Market", value: "market" },
+  ],
+});

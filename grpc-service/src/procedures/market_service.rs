@@ -75,10 +75,12 @@ impl MarketService for MarketServiceStub {
         let market_id = Uuid::from_str(&market_id)
             .map_err(|_| Status::invalid_argument("Invalid market id"))?;
 
+        let key = format!("market:{}", market_id);
+
         let market = self
             .state
             .redis_helper
-            .get_or_set_cache("market", || async {
+            .get_or_set_cache(&key, || async {
                 Ok(market::Market::get_market_by_id(&self.state.db_pool, &market_id).await?)
             })
             .await
