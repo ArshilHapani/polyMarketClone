@@ -7,6 +7,7 @@ pub struct WsMessage {
     #[prost(message, optional, tag = "2")]
     pub payload: ::core::option::Option<Payload>,
 }
+/// wrapped data payload
 #[derive(serde::Serialize, serde::Deserialize)]
 #[derive(Clone, PartialEq, ::prost::Message)]
 pub struct Payload {
@@ -15,6 +16,7 @@ pub struct Payload {
     #[prost(message, optional, tag = "2")]
     pub data: ::core::option::Option<WsData>,
 }
+/// data to send to the channel
 #[derive(serde::Serialize, serde::Deserialize)]
 #[derive(Clone, PartialEq, ::prost::Message)]
 pub struct WsData {
@@ -28,10 +30,12 @@ pub struct WsData {
 pub struct WsParamsPayload {
     #[prost(string, tag = "1")]
     pub market_id: ::prost::alloc::string::String,
-    #[prost(string, tag = "2")]
-    pub yes_price: ::prost::alloc::string::String,
-    #[prost(string, tag = "3")]
-    pub no_price: ::prost::alloc::string::String,
+    #[prost(double, tag = "2")]
+    pub yes_price: f64,
+    #[prost(double, tag = "3")]
+    pub no_price: f64,
+    #[prost(uint64, tag = "4")]
+    pub timestamp: u64,
 }
 #[derive(serde::Serialize, serde::Deserialize)]
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash, PartialOrd, Ord, ::prost::Enumeration)]

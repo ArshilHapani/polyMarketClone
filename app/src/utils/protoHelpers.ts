@@ -23,7 +23,7 @@ async function loadProtoFile(filePath: string, lookupKey: string) {
 export async function encodeProtoMessage(
   filePath: string,
   lookupKey: string,
-  message: object
+  message: object,
 ): Promise<Uint8Array> {
   const messageType = await loadProtoFile(filePath, lookupKey);
   const errMsg = messageType.verify(message);
@@ -37,7 +37,7 @@ export async function encodeProtoMessage(
 export async function decodeProtoMessage<T>(
   filePath: string,
   lookupKey: string,
-  buffer: ArrayBufferLike
+  buffer: ArrayBufferLike,
 ): Promise<T> {
   const messageType = await loadProtoFile(filePath, lookupKey);
   const uintData = new Uint8Array(buffer);
@@ -49,6 +49,5 @@ export async function decodeProtoMessage<T>(
     enums: String,
     bytes: String,
   }) as unknown as T;
-  console.log({ obj });
   return obj;
 }

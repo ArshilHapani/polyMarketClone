@@ -25,3 +25,14 @@ generate-grpc-types:
 			--ts_opt=generate_dependencies,long_type_number \
 			$(shell find ./public/proto/grpc_services -name '*.proto')
 	@echo "Types generated successfully."
+
+generate-ws-types:
+	@cp -r ../proto-defs/proto/ws_server/*.proto ./public/proto/ws_server
+	@echo "Generating types make sure that all files are in public/proto directory"
+	@protoc -I=./public/proto/ws_server \
+			-I=$(shell pkg-config --variable=prefix protobuf)/include \
+			--plugin=protoc-gen-ts=./node_modules/.bin/protoc-gen-ts \
+			--ts_out=./src/generated/ws_service_types \
+			--ts_opt=generate_dependencies,long_type_number \
+			$(shell find ./public/proto/ws_server -name '*.proto')
+	@echo "Types generated successfully."

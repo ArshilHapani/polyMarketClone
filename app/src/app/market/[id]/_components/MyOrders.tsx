@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { Trash2 } from "lucide-react";
 import { useQuery } from "@tanstack/react-query";
 import { Badge, IconButton, Table } from "@chakra-ui/react";
@@ -15,10 +15,37 @@ type Props = {
 
 const MyOrders = ({ marketId }: Props) => {
   const [page, setPage] = useState(1);
+  const observerDivRef = useRef<HTMLDivElement | null>(null);
   const { data } = useQuery({
     queryKey: ["marketOrders", marketId, page],
     queryFn: () => OrderGetters.getUserOrdersByMarket(marketId, page, 10),
   });
+
+  useEffect(() => {
+    const observerCallback = (entries: IntersectionObserverEntry[]) => {
+      const entry = entries[0];
+      if (entry.isIntersecting) {
+        // setPage((prevPage) => prevPage + 1);
+        console.log("Observer triggered, loading more orders...");
+      }
+    };
+    const observer = new IntersectionObserver(observerCallback, {
+      root: null,
+      rootMargin: "0px",
+      threshold: 1.0,
+    });
+
+    if (observerDivRef.current) {
+      observer.observe(observerDivRef.current);
+    }
+
+    return () => {
+      if (observerDivRef.current) {
+        observer.unobserve(observerDivRef.current);
+      }
+    };
+  }, []);
+
   if (!data?.orders || data?.orders.length === 0) {
     return (
       <EmptyStateCustom
@@ -28,7 +55,7 @@ const MyOrders = ({ marketId }: Props) => {
     );
   }
   return (
-    <Table.ScrollArea borderWidth="1px" rounded="md" maxHeight="500px">
+    <>
       <Table.Root size="md" stickyHeader>
         <Table.Header>
           <Table.Row bg="bg.subtle">
@@ -53,7 +80,7 @@ const MyOrders = ({ marketId }: Props) => {
               <Table.Cell>
                 <Badge
                   backgroundColor={
-                    item.side === "BUY" ? "green.600" : "red.600"
+                    item.outcome === "YES" ? "green.600" : "red.600"
                   }
                   variant="solid"
                 >
@@ -87,7 +114,8 @@ const MyOrders = ({ marketId }: Props) => {
           ))}
         </Table.Body>
       </Table.Root>
-    </Table.ScrollArea>
+      <div ref={observerDivRef} />
+    </>
   );
 };
 

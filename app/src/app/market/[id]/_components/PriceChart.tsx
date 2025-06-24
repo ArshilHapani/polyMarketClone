@@ -1,13 +1,11 @@
 "use client";
 
-import { Timeframe } from "@/generated/grpc_service_types/price";
-import { ChartGetters } from "@/utils/interactions/dataGetter";
 import { Chart, useChart } from "@chakra-ui/charts";
 import { Box, Button, ButtonGroup, Flex, Text } from "@chakra-ui/react";
 import { useQuery } from "@tanstack/react-query";
 import { FileUp, Settings } from "lucide-react";
 import Image from "next/image";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import {
   CartesianGrid,
   Line,
@@ -17,6 +15,12 @@ import {
   YAxis,
 } from "recharts";
 
+import { ChartGetters } from "@/utils/interactions/dataGetter";
+import useSubscription from "@/hooks/useSubscription";
+
+import { Timeframe } from "@/generated/grpc_service_types/price";
+import { WsParamsPayload } from "@/generated/ws_service_types/market_price";
+
 type Props = {
   market_id: string;
 };
@@ -24,6 +28,23 @@ type Props = {
 const PriceChart = ({ market_id }: Props) => {
   const [graphTimelineFilter, setGraphTimelineFilter] =
     useState<(typeof PAST_DAYS_FILTERS)[number]>("1D");
+
+  const [priceData, setPriceData] = useState<
+    { yes: number; no: number; time: string }[]
+  >([]);
+
+  const { messages } = useSubscription<WsParamsPayload>(
+    "/proto/ws_server/market_price.proto",
+    "ws_market_price.WsParamsPayload",
+    {
+      payload: {
+        type: "Subscribe",
+        data: {
+          channel: `price_update:${market_id}`,
+        },
+      },
+    },
+  );
 
   const { data: resp } = useQuery({
     queryKey: ["chartData", graphTimelineFilter],
@@ -33,20 +54,37 @@ const PriceChart = ({ market_id }: Props) => {
         fromChartArrayIdxToFilterTypeEnum(graphTimelineFilter),
       ),
   });
-  const data =
-    resp?.priceData.map((item) => ({
-      yes: item.yesPrice,
-      no: item.noPrice,
-      time: new Date(item.timestamp).toISOString(),
-    })) ?? [];
+
+  useEffect(() => {
+    if (resp?.priceData) {
+      setPriceData(
+        resp.priceData.map((item) => ({
+          yes: item.yesPrice,
+          no: item.noPrice,
+          time: new Date(item.timestamp).toISOString(),
+        })),
+      );
+    }
+  }, [resp?.priceData]);
+
+  useEffect(() => {
+    if (messages?.length) {
+      const newData = messages.map((msg) => ({
+        yes: msg?.yesPrice,
+        no: msg?.noPrice,
+        time: new Date(Number(msg?.timestamp) * 1000).toISOString(),
+      }));
+      setPriceData((prevData) => [...newData, ...prevData]);
+    }
+  }, [messages]);
 
   const [labelsData, setLabelsData] = useState({
-    yes: data.reduce((acc, item) => acc + item.yes, 0) / data.length,
-    no: data.reduce((acc, item) => acc + item.no, 0) / data.length,
+    yes: priceData.reduce((acc, item) => acc + item.yes, 0) / priceData.length,
+    no: priceData.reduce((acc, item) => acc + item.no, 0) / priceData.length,
   });
 
   const chart = useChart({
-    data,
+    data: priceData,
     series: [
       { name: "yes", color: "green.600" },
       { name: "no", color: "red.400" },
@@ -117,9 +155,9 @@ const PriceChart = ({ market_id }: Props) => {
                   <Text fontWeight="bold" mb={1}>
                     {date}
                   </Text>
-                  {payload.map((entry: any) => (
+                  {payload.map((entry: any, index) => (
                     <Text
-                      key={entry.dataKey}
+                      key={entry.dataKey + index}
                       color={chart.color(entry.stroke)}
                       fontWeight="semibold"
                     >
@@ -137,11 +175,11 @@ const PriceChart = ({ market_id }: Props) => {
             tickFormatter={(value) => `${value * 100}%`}
             orientation="right"
           />
-          {chart.series.map((item) => {
+          {chart.series.map((item, idx) => {
             const lastIndex = chart.data.length - 1;
             return (
               <Line
-                key={item.name}
+                key={(item?.name ?? "") + idx + item.stackId}
                 isAnimationActive
                 dataKey={chart.key(item.name)}
                 fill={chart.color(item.color)}
@@ -244,66 +282,4 @@ function fromChartArrayIdxToFilterTypeEnum(
     default:
       throw new Error("Invalid timeframe");
   }
-}
-
-function generateRandomChartData(
-  n: number,
-  filterDays: (typeof PAST_DAYS_FILTERS)[number] = "1D",
-) {
-  let interval = "day";
-  let startDate = new Date();
-
-  switch (filterDays) {
-    case "1H":
-      n = 12; // 5-min intervals for 1 hour
-      interval = "minute";
-      break;
-    case "6H":
-      n = 12; // 30-min intervals for 6 hours
-      interval = "minute";
-      break;
-    case "1D":
-      n = 24; // hourly points for 1 day
-      interval = "hour";
-      break;
-    case "1W":
-      n = 7; // daily points for 1 week
-      interval = "day";
-      break;
-    case "1M":
-      n = 30; // daily points for 1 month
-      interval = "day";
-      break;
-    case "ALL":
-      n = 60; // 2 months of daily points
-      interval = "day";
-      break;
-    default:
-      n = 30;
-      interval = "day";
-  }
-
-  const data = [];
-  let prevYes = Math.random();
-  for (let i = 0; i < n; i++) {
-    let yes = prevYes + (Math.random() - 0.5) * 0.5;
-    yes = Math.max(0, Math.min(1, yes));
-    const no = 1 - yes;
-    const date = new Date(startDate);
-    if (interval === "minute") {
-      let step = filterDays === "1H" ? 5 : 30;
-      date.setMinutes(startDate.getMinutes() - (n - i - 1) * step);
-    } else if (interval === "hour") {
-      date.setHours(startDate.getHours() - (n - i - 1));
-    } else {
-      date.setDate(startDate.getDate() - (n - i - 1));
-    }
-    data.push({
-      no: Number(no.toFixed(2)),
-      yes: Number(yes.toFixed(2)),
-      time: date.toISOString(),
-    });
-    prevYes = yes;
-  }
-  return data;
 }

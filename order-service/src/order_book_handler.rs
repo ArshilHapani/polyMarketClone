@@ -192,11 +192,13 @@ pub async fn order_book_handler(
     // send price in kafka
     let producer = app_state.producer.read().await;
 
+    let current_time = chrono::Utc::now();
+
     let data_to_publish = serde_json::json!({
         "market_id": order.market_id.to_string(),
         "yes_price":yes_price.to_string(),
         "no_price": no_price.to_string(),
-        "ts": chrono::Utc::now().to_rfc3339().to_string(),
+        "ts": current_time.to_rfc3339().to_string(),
     })
     .to_string();
 
@@ -215,10 +217,16 @@ pub async fn order_book_handler(
     // sending message to websocket
     let mut ws_publisher = app_state.websocket_stream.write().await;
 
+    let yes_price = f64::from_str(&yes_price.to_string())
+        .map_err(|_| "Failed to parse yes price to f64".to_string())?;
+    let no_price = f64::from_str(&no_price.to_string())
+        .map_err(|_| "Failed to parse no price to f64".to_string())?;
+
     let market_data = serde_json::json!({
         "market_id": order.market_id.to_string(),
-        "yes_price": yes_price.to_string(),
-        "no_price": no_price.to_string(),
+        "yes_price": yes_price,
+        "no_price": no_price,
+        "timestamp": current_time.timestamp_millis(),
     })
     .to_string();
 
