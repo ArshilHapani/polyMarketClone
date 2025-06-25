@@ -7,13 +7,13 @@ use tokio::{net::TcpStream, sync::RwLock as AsyncRwLock};
 use tokio_tungstenite::{
     MaybeTlsStream, WebSocketStream, connect_async, tungstenite::client::IntoClientRequest,
 };
-use utility_helpers::types::EnvVarConfig;
+use utility_helpers::{log_info, types::EnvVarConfig};
 
 use crate::order_book::global_book::GlobalMarketBook;
 
 pub struct AppState {
     pub db_pool: sqlx::PgPool,
-    // prefering RwLock rather than tokio's rwLock because the operations on orderbook are not async
+    // preferring RwLock rather than tokio's rwLock because the operations on orderbook are not async
     pub order_book: Arc<RwLock<GlobalMarketBook>>,
     pub jetstream: AsyncRwLock<async_nats::jetstream::Context>,
     pub producer: AsyncRwLock<FutureProducer>,
@@ -29,10 +29,14 @@ impl AppState {
         let nc = connect(&env_var_config.nc_url)
             .await
             .expect("Failed to connect to NATS server");
+        log_info!("Connected to NATS");
+
         let jetstream = async_nats::jetstream::new(nc);
         let db_pool = sqlx::PgPool::connect(&env_var_config.database_url)
             .await
             .expect("Failed to connect to the database");
+        log_info!("Connected to database");
+
         let order_book = Arc::new(RwLock::new(GlobalMarketBook::new()));
         let producer = ClientConfig::new()
             .set("bootstrap.servers", &env_var_config.kafka_url)
@@ -45,6 +49,7 @@ impl AppState {
         let (stream, _) = connect_async(websocket_req)
             .await
             .expect("Failed to connect to WebSocket server");
+        log_info!("Connected to WebSocket server");
 
         Ok(AppState {
             db_pool,

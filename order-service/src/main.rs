@@ -1,60 +1,40 @@
-use async_nats::jetstream;
 use db_service::schema::{enums::OrderStatus, orders::Order};
-use futures_util::stream::StreamExt;
 use state::AppState;
 use std::sync::Arc;
 use utility_helpers::{log_error, log_info};
 
-use crate::order_book_handler::order_book_handler;
+use crate::nats_handler::handle_nats_message;
 
+mod nats_handler;
 mod order_book;
 mod order_book_handler;
 mod state;
+mod ws_handler;
 
-#[tokio::main]
+#[tokio::main(flavor = "multi_thread")]
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
     tracing_subscriber::fmt::init();
 
     let app_state = initialize_app().await?;
+    let nats_app_state = Arc::clone(&app_state);
+    let ws_app_state = Arc::clone(&app_state);
 
     log_info!("Connected to NATS JetStream");
 
-    let stream = app_state
-        .jetstream
-        .read()
-        .await
-        .get_or_create_stream(jetstream::stream::Config {
-            name: "ORDERS".to_string(),
-            subjects: vec!["orders.>".to_string()],
-            ..Default::default()
-        })
-        .await?;
+    let nats_join_handler = tokio::spawn(async move {
+        if let Err(e) = handle_nats_message(nats_app_state).await {
+            log_error!("Error in NATS handler: {}", e);
+        }
+    });
+    let ws_join_handler = tokio::spawn(async move {
+        if let Err(e) = ws_handler::ws_handler(ws_app_state).await {
+            log_error!("Error in WebSocket handler: {}", e);
+        }
+    });
 
-    let consumer = stream
-        .create_consumer(jetstream::consumer::pull::Config {
-            durable_name: Some("orders".to_string()),
-            ..Default::default()
-        })
-        .await?;
-
-    let mut messages = consumer.messages().await?;
-
-    while let Some(message) = messages.next().await {
-        let message = message?;
-        let order_id = String::from_utf8(message.payload.to_vec())
-            .map_err(|_| "Failed to convert payload to string".to_string())?;
-        log_info!("Received order ID: {}", order_id);
-        let _ = order_book_handler(Arc::clone(&app_state), order_id)
-            .await
-            .map_err(|e| {
-                log_error!("Error occur while adding order in book {e}");
-            });
-
-        message
-            .ack()
-            .await
-            .map_err(|_| "Failed to acknowledge message".to_string())?;
-    }
+    // try_join! because if either of the tasks fails then we want to stop the executions
+    tokio::try_join!(nats_join_handler, ws_join_handler)
+        .map_err(|e| format!("Error in tokio join: {}", e))?;
 
     Ok(())
 }

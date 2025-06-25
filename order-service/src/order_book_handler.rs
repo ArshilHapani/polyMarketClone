@@ -36,8 +36,7 @@ pub async fn order_book_handler(
     }
 
     // working on unspecified status order
-    let matched_order = {
-        let mut order_book = app_state.order_book.write();
+    let (matched_order, updated_raw_order) = {
         let mut order_raw = Order {
             id: order.id,
             status: OrderStatus::OPEN,
@@ -52,16 +51,18 @@ pub async fn order_book_handler(
             user_id: order.user_id,
         };
 
-        let matches = order_book.process_order(&mut order_raw, order.liquidity_b);
+        {
+            let mut order_book = app_state.order_book.write();
+            let matches = order_book.process_order(&mut order_raw, order.liquidity_b);
 
-        // updating current order filled quantity and status
-        order_raw
-            .update(&app_state.db_pool)
-            .await
-            .map_err(|e| format!("Failed to update order: {:#?}", e))?;
-
-        matches
+            // updating current order filled quantity and status
+            (matches, order_raw)
+        }
     };
+    updated_raw_order
+        .update(&app_state.db_pool)
+        .await
+        .map_err(|e| format!("Failed to update order: {:#?}", e))?;
 
     for match_item in matched_order {
         // update the opposite order's filled quantity
@@ -171,16 +172,18 @@ pub async fn order_book_handler(
     }
 
     let (yes_price, no_price) = {
-        let order_book = app_state.order_book.read();
+        {
+            let order_book = app_state.order_book.read();
 
-        let yes_price = order_book
-            .get_market_price(&order.market_id, Outcome::YES)
-            .unwrap_or_else(|| Decimal::new(5, 1));
-        let no_price = order_book
-            .get_market_price(&order.market_id, Outcome::NO)
-            .unwrap_or_else(|| Decimal::new(5, 1));
+            let yes_price = order_book
+                .get_market_price(&order.market_id, Outcome::YES)
+                .unwrap_or_else(|| Decimal::new(5, 1));
+            let no_price = order_book
+                .get_market_price(&order.market_id, Outcome::NO)
+                .unwrap_or_else(|| Decimal::new(5, 1));
 
-        (yes_price, no_price)
+            (yes_price, no_price)
+        }
     };
 
     log_info!(
@@ -209,10 +212,6 @@ pub async fn order_book_handler(
         .key(&market_id);
 
     let send_producer_future = producer.send(record, Duration::from_secs(0));
-    let another_future = async { 10 };
-
-    let (send_producer_future_resp, _) = tokio::join!(send_producer_future, another_future);
-    send_producer_future_resp.map_err(|e| format!("Failed to send record to Kafka: {:#?}", e))?;
 
     // sending message to websocket
     let mut ws_publisher = app_state.websocket_stream.write().await;
@@ -243,10 +242,14 @@ pub async fn order_book_handler(
 
     let bin_data = message.encode_to_vec();
 
-    if let Err(e) = ws_publisher
-        .send(WsMessageType::Binary(bin_data.into()))
-        .await
-    {
+    let ws_broadcast_future = ws_publisher.send(WsMessageType::Binary(bin_data.into()));
+
+    let (send_producer_future_resp, ws_broadcast_future_result) =
+        tokio::join!(send_producer_future, ws_broadcast_future);
+
+    send_producer_future_resp.map_err(|e| format!("Failed to send record to Kafka: {:#?}", e))?;
+
+    if let Err(e) = ws_broadcast_future_result {
         log_info!("Failed to send message to WebSocket: {:#?}", e);
     }
 
