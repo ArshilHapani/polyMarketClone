@@ -104,10 +104,10 @@ impl MarketBook {
         result
     }
 
-    pub(crate) fn get_order_book(&mut self, outcome: Outcome) -> Option<&mut OutcomeBook> {
+    pub(crate) fn get_order_book(&self, outcome: Outcome) -> Option<&OutcomeBook> {
         match outcome {
-            Outcome::YES => Some(&mut self.yes_order_book),
-            Outcome::NO => Some(&mut self.no_order_book),
+            Outcome::YES => Some(&self.yes_order_book),
+            Outcome::NO => Some(&self.no_order_book),
             _ => None,
         }
     }

@@ -8,23 +8,23 @@ use rust_decimal::Decimal;
 use uuid::Uuid;
 
 #[derive(Default, Debug)]
-pub(super) struct PriceLevel {
-    orders: Vec<OrderBookEntry>, // should I consider using hashmap here for O(1) lookup
+pub(crate) struct PriceLevel {
+    pub(crate) orders: Vec<OrderBookEntry>, // should I consider using hashmap here for O(1) lookup
     pub(crate) total_quantity: Decimal,
 }
 
 #[derive(Debug)]
-struct OrderBookEntry {
-    user_id: Uuid,
-    order_id: Uuid,
-    total_quantity: Decimal,
-    filled_quantity: Decimal,
+pub(crate) struct OrderBookEntry {
+    pub user_id: Uuid,
+    pub order_id: Uuid,
+    pub total_quantity: Decimal,
+    pub filled_quantity: Decimal,
 }
 
 #[derive(Debug, Default)]
 pub(crate) struct OutcomeBook {
-    pub(super) bids: BTreeMap<Decimal, PriceLevel>, // buyers side
-    pub(super) asks: BTreeMap<Decimal, PriceLevel>, // sellers side
+    pub(crate) bids: BTreeMap<Decimal, PriceLevel>, // buyers side
+    pub(crate) asks: BTreeMap<Decimal, PriceLevel>, // sellers side
 }
 
 #[derive(Debug)]
@@ -247,6 +247,15 @@ impl OutcomeBook {
         }
 
         matches
+    }
+
+    // Getters
+
+    pub(crate) fn get_orders(&self, side: OrderSide) -> &BTreeMap<Decimal, PriceLevel> {
+        match side {
+            OrderSide::BUY => &self.bids,
+            OrderSide::SELL => &self.asks,
+        }
     }
 }
 

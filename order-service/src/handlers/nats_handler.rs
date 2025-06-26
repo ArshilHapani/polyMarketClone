@@ -4,7 +4,7 @@ use async_nats::jetstream;
 use futures_util::StreamExt;
 use utility_helpers::{log_error, log_info};
 
-use crate::{order_book_handler::order_book_handler, state::AppState};
+use crate::{handlers::order_book_handler::order_book_handler, state::AppState};
 
 pub async fn handle_nats_message(
     app_state: Arc<AppState>,

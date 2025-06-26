@@ -51,6 +51,7 @@ pub async fn order_book_handler(
             user_id: order.user_id,
         };
 
+        // synchronous processing of order book (to prevent guard from being blocked)
         {
             let mut order_book = app_state.order_book.write();
             let matches = order_book.process_order(&mut order_raw, order.liquidity_b);
@@ -172,6 +173,7 @@ pub async fn order_book_handler(
     }
 
     let (yes_price, no_price) = {
+        // synchronous processing of order book (to prevent guard from being blocked)
         {
             let order_book = app_state.order_book.read();
 
@@ -181,6 +183,31 @@ pub async fn order_book_handler(
             let no_price = order_book
                 .get_market_price(&order.market_id, Outcome::NO)
                 .unwrap_or_else(|| Decimal::new(5, 1));
+
+            let yes_orders = order_book.get_orders(&order.market_id, Outcome::YES);
+            let no_orders = order_book.get_orders(&order.market_id, Outcome::NO);
+
+            if let Some(yes_orders) = yes_orders {
+                let bids = yes_orders.get_orders(OrderSide::BUY);
+                let asks = yes_orders.get_orders(OrderSide::SELL);
+
+                /*
+                   type OrderBookLevel = {
+                   price: number;
+                   shares: number;
+                   total: number; // clf sum of shares * price from the best price up to this level
+                   users: number;
+                   type: "buy" | "sell";
+                   };
+                */
+                for (price, level) in bids {
+                    // price
+                    // let shares = level.total_quantity;
+                    // let users = level.orders.len();
+                    let r#type = "buy";
+                    // TODO: add this into redpanda and subscribe the consumer to websocket and stream data into subscribers if there are any for particular order book
+                }
+            }
 
             (yes_price, no_price)
         }

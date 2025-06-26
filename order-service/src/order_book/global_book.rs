@@ -3,7 +3,7 @@ use rust_decimal::Decimal;
 use std::collections::HashMap;
 use uuid::Uuid;
 
-use crate::order_book::outcome_book::OrderBookMatchedOutput;
+use crate::order_book::outcome_book::{OrderBookMatchedOutput, OutcomeBook};
 
 use super::market_book::MarketBook;
 
@@ -35,6 +35,12 @@ impl GlobalMarketBook {
             Outcome::NO => market.current_no_price,
             _ => Decimal::ZERO,
         })
+    }
+
+    pub(crate) fn get_orders(&self, market_id: &Uuid, outcome: Outcome) -> Option<&OutcomeBook> {
+        self.markets
+            .get(market_id)
+            .and_then(|market| market.get_order_book(outcome))
     }
 
     fn get_or_create_market(&mut self, market_id: Uuid, liquidity_b: Decimal) -> &mut MarketBook {
