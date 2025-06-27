@@ -22,6 +22,5 @@ dotenv = { workspace = true }
 sqlx = { workspace = true }
 parking_lot = { workspace = true }
 futures-util = { workspace = true }
-rdkafka = { version = "0.25", features = ["cmake-build"] }
+rdkafka = { workspace = true }
 tokio-tungstenite = "0.26.2"
-# kafka = "0.9"

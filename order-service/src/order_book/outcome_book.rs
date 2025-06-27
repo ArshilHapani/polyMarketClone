@@ -5,6 +5,8 @@ use db_service::schema::{
     orders::Order,
 };
 use rust_decimal::Decimal;
+use serde::Serialize;
+use serde_json::json;
 use uuid::Uuid;
 
 #[derive(Default, Debug)]
@@ -25,6 +27,14 @@ pub(crate) struct OrderBookEntry {
 pub(crate) struct OutcomeBook {
     pub(crate) bids: BTreeMap<Decimal, PriceLevel>, // buyers side
     pub(crate) asks: BTreeMap<Decimal, PriceLevel>, // sellers side
+}
+
+#[derive(Serialize)]
+pub(crate) struct OrderBookDataStruct {
+    pub market_id: Uuid,
+    pub bids: Vec<serde_json::Value>,
+    pub asks: Vec<serde_json::Value>,
+    pub timestamp: String,
 }
 
 #[derive(Debug)]
@@ -251,10 +261,35 @@ impl OutcomeBook {
 
     // Getters
 
-    pub(crate) fn get_orders(&self, side: OrderSide) -> &BTreeMap<Decimal, PriceLevel> {
-        match side {
-            OrderSide::BUY => &self.bids,
-            OrderSide::SELL => &self.asks,
+    pub(crate) fn get_order_book(&self, market_id: Uuid) -> OrderBookDataStruct {
+        let bids = &self.bids;
+        let asks = &self.asks;
+
+        let mut bids_values = Vec::new();
+        let mut asks_values = Vec::new();
+
+        for (price, level) in bids {
+            let data = json!({
+                "price": price,
+                "shares": level.total_quantity,
+                "users": level.orders.len()
+            });
+            bids_values.push(data);
+        }
+        for (price, level) in asks {
+            let data = json!({
+                "price": price,
+                "shares": level.total_quantity,
+                "users": level.orders.len()
+            });
+            asks_values.push(data);
+        }
+
+        OrderBookDataStruct {
+            market_id,
+            bids: bids_values,
+            asks: asks_values,
+            timestamp: chrono::Utc::now().to_rfc3339(),
         }
     }
 }

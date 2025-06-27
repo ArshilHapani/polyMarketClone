@@ -8,19 +8,25 @@ use uuid::Uuid;
 pub enum ChannelType {
     PriceUpdate(Uuid),
     PricePoster,
+    OrderBookUpdate(Uuid),
 }
 
 impl ChannelType {
     pub fn from_str(s: &str) -> Option<ChannelType> {
         if s.starts_with("price_update:") {
             let uuid_str = s.strip_prefix("price_update:");
-            if let Some(uuid_str) = uuid_str {
-                let uuid = Uuid::from_str(uuid_str);
-                return match uuid {
-                    Ok(uuid) => Some(ChannelType::PriceUpdate(uuid)),
-                    _ => None,
-                };
-            }
+            let uuid = Self::get_uuid_from_str(uuid_str);
+            return match uuid {
+                Some(uuid) => Some(ChannelType::PriceUpdate(uuid)),
+                _ => None,
+            };
+        } else if s.starts_with("order_book_update:") {
+            let uuid_str = s.strip_prefix("order_book_update:");
+            let uuid = Self::get_uuid_from_str(uuid_str);
+            return match uuid {
+                Some(uuid) => Some(ChannelType::OrderBookUpdate(uuid)),
+                _ => None,
+            };
         } else if s.starts_with("price_poster") {
             return Some(ChannelType::PricePoster);
         }
@@ -31,7 +37,19 @@ impl ChannelType {
         match self {
             ChannelType::PriceUpdate(uuid) => format!("price_update:{uuid}"),
             ChannelType::PricePoster => "price_poster".to_string(),
+            ChannelType::OrderBookUpdate(uuid) => format!("order_book_update:{uuid}"),
         }
+    }
+
+    fn get_uuid_from_str(st: Option<&str>) -> Option<Uuid> {
+        if let Some(uuid_str) = st {
+            let uuid = Uuid::from_str(uuid_str);
+            return match uuid {
+                Ok(uuid) => Some(uuid),
+                _ => None,
+            };
+        }
+        None
     }
 }
 

@@ -11,8 +11,6 @@ pub async fn handle_nats_message(
 ) -> Result<(), Box<dyn std::error::Error>> {
     let stream = app_state
         .jetstream
-        .read()
-        .await
         .get_or_create_stream(jetstream::stream::Config {
             name: "ORDERS".to_string(),
             subjects: vec!["orders.>".to_string()],

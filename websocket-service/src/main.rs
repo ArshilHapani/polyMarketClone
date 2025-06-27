@@ -14,7 +14,7 @@ mod utils;
 
 pub type SafeAppState = Arc<WebSocketAppState>;
 
-#[tokio::main]
+#[tokio::main(flavor = "multi_thread")]
 async fn main() {
     tracing_subscriber::fmt::init();
     let app_state = Arc::new(WebSocketAppState::new());

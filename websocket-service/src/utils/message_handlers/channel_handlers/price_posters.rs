@@ -2,7 +2,7 @@ use std::str::FromStr;
 
 use axum::extract::ws::Message as WsSendMessage;
 use prost::Message;
-use proto_defs::proto_types::ws_market_price::{WsData, WsParamsPayload};
+use proto_defs::proto_types::{ws_common_types::WsData, ws_market_price::WsParamsPayload};
 use utility_helpers::{log_error, log_info, ws::types::ChannelType};
 use uuid::Uuid;
 

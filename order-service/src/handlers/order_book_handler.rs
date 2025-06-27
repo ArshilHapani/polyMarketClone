@@ -9,7 +9,7 @@ use db_service::schema::{
 };
 use futures_util::SinkExt;
 use prost::Message;
-use proto_defs::proto_types::ws_market_price::{
+use proto_defs::proto_types::ws_common_types::{
     Channel, OperationType, Payload, WsData, WsMessage,
 };
 use rdkafka::producer::FutureRecord;
@@ -187,26 +187,14 @@ pub async fn order_book_handler(
             let yes_orders = order_book.get_orders(&order.market_id, Outcome::YES);
             let no_orders = order_book.get_orders(&order.market_id, Outcome::NO);
 
+            // processing yes orders
             if let Some(yes_orders) = yes_orders {
-                let bids = yes_orders.get_orders(OrderSide::BUY);
-                let asks = yes_orders.get_orders(OrderSide::SELL);
-
-                /*
-                   type OrderBookLevel = {
-                   price: number;
-                   shares: number;
-                   total: number; // clf sum of shares * price from the best price up to this level
-                   users: number;
-                   type: "buy" | "sell";
-                   };
-                */
-                for (price, level) in bids {
-                    // price
-                    // let shares = level.total_quantity;
-                    // let users = level.orders.len();
-                    let r#type = "buy";
-                    // TODO: add this into redpanda and subscribe the consumer to websocket and stream data into subscribers if there are any for particular order book
-                }
+                let serializable_order_book = yes_orders.get_order_book(order.market_id);
+                // TODO: kafka publish... only if there are subs for particular market, send subscription message from websocket to order db when client request data
+            }
+            // processing no orders
+            if let Some(no_orders) = no_orders {
+                let serializable_order_book = no_orders.get_order_book(order.market_id);
             }
 
             (yes_price, no_price)
@@ -289,7 +277,7 @@ mod test {
 
     use futures_util::SinkExt;
     use prost::Message;
-    use proto_defs::proto_types::ws_market_price::{
+    use proto_defs::proto_types::ws_common_types::{
         Channel, OperationType, Payload, WsData, WsMessage,
     };
     use rdkafka::{

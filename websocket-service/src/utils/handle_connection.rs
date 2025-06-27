@@ -18,7 +18,7 @@ pub async fn handle_connection(stream: WebSocket, state: SafeAppState) {
     let client_id = Uuid::new_v4();
     log_info!("New client connected: {client_id}");
 
-    let heart_beat_handler = start_heartbeat(tx.clone(), client_id).await;
+    let heart_beat_handler = start_heartbeat(tx.clone(), client_id).await; // spawns task and return join handler immediately
     handle_message(&mut rx, &tx, &client_id, &state).await;
 
     // cleanup

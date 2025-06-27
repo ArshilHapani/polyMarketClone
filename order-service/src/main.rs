@@ -3,7 +3,7 @@ use state::AppState;
 use std::sync::Arc;
 use utility_helpers::{log_error, log_info};
 
-use crate::handlers::nats_handler::handle_nats_message;
+use crate::handlers::{nats_handler::handle_nats_message, ws_handler::handle_ws_messages};
 
 mod handlers;
 mod order_book;
@@ -15,12 +15,20 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     let app_state = initialize_app().await?;
     let nats_app_state = Arc::clone(&app_state);
+    let ws_app_state = Arc::clone(&app_state);
 
-    log_info!("Connected to NATS JetStream");
+    let nats_handler_join = tokio::spawn(async move {
+        if let Err(e) = handle_nats_message(nats_app_state).await {
+            log_error!("Error in NATS handler: {}", e);
+        }
+    });
+    let ws_handler_join = tokio::spawn(async move {
+        if let Err(e) = handle_ws_messages(ws_app_state).await {
+            log_error!("Error in WS handler: {}", e);
+        }
+    });
 
-    if let Err(e) = handle_nats_message(nats_app_state).await {
-        log_error!("Error in NATS handler: {}", e);
-    }
+    tokio::try_join!(nats_handler_join, ws_handler_join)?;
 
     Ok(())
 }
@@ -29,6 +37,8 @@ async fn initialize_app() -> Result<Arc<AppState>, Box<dyn std::error::Error>> {
     let app_state = Arc::new(AppState::new().await?);
 
     let open_orders = Order::get_all_open_or_unspecified_orders(&app_state.db_pool).await?;
+
+    // synchronous block, to prevent guard from being blocked
     {
         let mut global_book = app_state.order_book.write();
 

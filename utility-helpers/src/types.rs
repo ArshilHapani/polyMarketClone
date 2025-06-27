@@ -23,6 +23,7 @@ pub struct EnvVarConfig {
     pub websocket_url: String,
     pub clickhouse_url: String,
     pub clickhouse_password: String,
+    pub shared_secret: String,
 }
 
 impl EnvVarConfig {
@@ -57,6 +58,9 @@ impl EnvVarConfig {
         let clickhouse_password = var("CLICKHOUSE_PASSWORD")
             .map_err(|_| "CLICKHOUSE_PASSWORD environment variable not set".to_string())?;
 
+        let shared_secret =
+            var("SHARED_SECRET").map_err(|_| "SHARED_SECRET variable not set".to_string())?;
+
         Ok(EnvVarConfig {
             jwt_secret,
             secret_key,
@@ -69,6 +73,7 @@ impl EnvVarConfig {
             websocket_url,
             clickhouse_url,
             clickhouse_password,
+            shared_secret,
         })
     }
 }
