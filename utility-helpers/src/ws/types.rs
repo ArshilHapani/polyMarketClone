@@ -9,6 +9,7 @@ pub enum ChannelType {
     PriceUpdate(Uuid),
     PricePoster,
     OrderBookUpdate(Uuid),
+    OrderBookPoster,
 }
 
 impl ChannelType {
@@ -29,6 +30,8 @@ impl ChannelType {
             };
         } else if s.starts_with("price_poster") {
             return Some(ChannelType::PricePoster);
+        } else if s.starts_with("order_book_poster") {
+            return Some(ChannelType::OrderBookPoster);
         }
         None
     }
@@ -36,8 +39,9 @@ impl ChannelType {
     pub fn to_str(&self) -> String {
         match self {
             ChannelType::PriceUpdate(uuid) => format!("price_update:{uuid}"),
-            ChannelType::PricePoster => "price_poster".to_string(),
             ChannelType::OrderBookUpdate(uuid) => format!("order_book_update:{uuid}"),
+            ChannelType::PricePoster => "price_poster".to_string(),
+            ChannelType::OrderBookPoster => "order_book_poster".to_string(),
         }
     }
 

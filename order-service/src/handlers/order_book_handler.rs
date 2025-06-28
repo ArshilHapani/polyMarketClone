@@ -14,11 +14,12 @@ use proto_defs::proto_types::ws_common_types::{
 };
 use rdkafka::producer::FutureRecord;
 use rust_decimal::Decimal;
+use serde_json::json;
 use tokio_tungstenite::tungstenite::Message as WsMessageType;
-use utility_helpers::log_info;
+use utility_helpers::{kafka_topics::KafkaTopics, log_error, log_info, log_warn};
 use uuid::Uuid;
 
-use crate::state::AppState;
+use crate::{order_book::outcome_book::OrderBookDataStruct, state::AppState};
 
 pub async fn order_book_handler(
     app_state: Arc<AppState>,
@@ -28,6 +29,12 @@ pub async fn order_book_handler(
     let order = Order::find_order_by_id_with_market(order_id, &app_state.db_pool)
         .await
         .map_err(|e| format!("Failed to find order {:#?}", e))?;
+
+    let market_id = order.market_id.to_string();
+    // send price in kafka
+    let producer = app_state.producer.read().await;
+
+    let current_time = chrono::Utc::now();
 
     // open orders are already added to order book during initialization
     if order.status == OrderStatus::OPEN {
@@ -172,7 +179,8 @@ pub async fn order_book_handler(
         /////// Database Transaction end ////////
     }
 
-    let (yes_price, no_price) = {
+    // sync block
+    let (yes_price, no_price, yes_orders_data, no_orders_data, required_market_subs) = {
         // synchronous processing of order book (to prevent guard from being blocked)
         {
             let order_book = app_state.order_book.read();
@@ -188,16 +196,28 @@ pub async fn order_book_handler(
             let no_orders = order_book.get_orders(&order.market_id, Outcome::NO);
 
             // processing yes orders
-            if let Some(yes_orders) = yes_orders {
-                let serializable_order_book = yes_orders.get_order_book(order.market_id);
-                // TODO: kafka publish... only if there are subs for particular market, send subscription message from websocket to order db when client request data
-            }
+            let yes_orders_data = if let Some(yes_orders) = yes_orders {
+                yes_orders.get_order_book(order.market_id)
+            } else {
+                OrderBookDataStruct::default()
+            };
             // processing no orders
-            if let Some(no_orders) = no_orders {
-                let serializable_order_book = no_orders.get_order_book(order.market_id);
-            }
+            let no_orders_data = if let Some(no_orders) = no_orders {
+                no_orders.get_order_book(order.market_id)
+            } else {
+                OrderBookDataStruct::default()
+            };
+            let market_subs_guard = app_state.market_subs.read();
+            let required_market_subs = market_subs_guard.contains(&order.market_id);
 
-            (yes_price, no_price)
+            (
+                // passing states from sync codeblock to async code block....
+                yes_price,
+                no_price,
+                yes_orders_data,
+                no_orders_data,
+                required_market_subs,
+            )
         }
     };
 
@@ -207,10 +227,27 @@ pub async fn order_book_handler(
         no_price
     );
 
-    // send price in kafka
-    let producer = app_state.producer.read().await;
+    if required_market_subs {
+        let combined_data = json!({
+            "yes_book": yes_orders_data,
+            "no_book": no_orders_data
+        })
+        .to_string();
+        let topic = KafkaTopics::MarketOrderBook(market_id.clone()).to_string();
+        let future_record: FutureRecord<'_, String, String> = FutureRecord::to(&topic)
+            .payload(&combined_data)
+            .key(&market_id);
 
-    let current_time = chrono::Utc::now();
+        if let Err(e) = producer.send(future_record, Duration::from_secs(0)).await {
+            log_error!("Failed to produce message {e:?}");
+        }
+        log_info!("Message produced to topic: {}", topic);
+    } else {
+        log_warn!(
+            "Market ID {} is not subscribed, skipping order book update",
+            order.market_id
+        );
+    }
 
     let data_to_publish = serde_json::json!({
         "market_id": order.market_id.to_string(),
@@ -220,16 +257,15 @@ pub async fn order_book_handler(
     })
     .to_string();
 
-    let market_id = order.market_id.to_string();
-
-    let record = FutureRecord::to("price-updates")
+    let price_update_topic = KafkaTopics::PriceUpdates.to_string();
+    let record = FutureRecord::to(&price_update_topic)
         .payload(&data_to_publish)
         .key(&market_id);
 
     let send_producer_future = producer.send(record, Duration::from_secs(0));
 
     // sending message to websocket
-    let mut ws_publisher = app_state.websocket_stream.write().await;
+    let mut ws_publisher = app_state.ws_tx.write().await;
 
     let yes_price = f64::from_str(&yes_price.to_string())
         .map_err(|_| "Failed to parse yes price to f64".to_string())?;
@@ -267,7 +303,6 @@ pub async fn order_book_handler(
     if let Err(e) = ws_broadcast_future_result {
         log_info!("Failed to send message to WebSocket: {:#?}", e);
     }
-
     Ok(())
 }
 

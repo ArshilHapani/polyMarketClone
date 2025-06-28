@@ -31,7 +31,7 @@ pub async fn handle_connection(stream: WebSocket, state: SafeAppState) {
 
 async fn start_heartbeat(tx: SafeSender, client_id: Uuid) -> tokio::task::JoinHandle<()> {
     tokio::spawn(async move {
-        let mut interval = tokio::time::interval(tokio::time::Duration::from_secs(30));
+        let mut interval = tokio::time::interval(tokio::time::Duration::from_secs(45));
 
         loop {
             interval.tick().await;

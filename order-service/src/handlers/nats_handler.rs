@@ -9,8 +9,8 @@ use crate::{handlers::order_book_handler::order_book_handler, state::AppState};
 pub async fn handle_nats_message(
     app_state: Arc<AppState>,
 ) -> Result<(), Box<dyn std::error::Error>> {
-    let stream = app_state
-        .jetstream
+    let stream_guard = app_state.jetstream.write().await;
+    let stream = stream_guard
         .get_or_create_stream(jetstream::stream::Config {
             name: "ORDERS".to_string(),
             subjects: vec!["orders.>".to_string()],
@@ -27,8 +27,7 @@ pub async fn handle_nats_message(
 
     let mut messages = consumer.messages().await?;
 
-    while let Some(message) = messages.next().await {
-        let message = message?;
+    while let Some(Ok(message)) = messages.next().await {
         let order_id = String::from_utf8(message.payload.to_vec())
             .map_err(|_| "Failed to convert payload to string".to_string())?;
         log_info!("Received order ID: {}", order_id);

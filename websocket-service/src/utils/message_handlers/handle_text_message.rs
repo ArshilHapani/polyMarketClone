@@ -1,14 +1,15 @@
 use axum::extract::ws::{Message, Utf8Bytes};
+use futures::SinkExt;
 use serde_json::json;
 use utility_helpers::{
-    log_error, log_info,
+    log_error, log_info, log_warn,
     ws::types::{ChannelType, ClientMessage, MessagePayload},
 };
 use uuid::Uuid;
 
 use crate::{
     SafeAppState,
-    utils::{SafeSender, send_message},
+    utils::{SafeSender, client_manager::SpecialKindOfClients, send_message},
 };
 
 pub async fn handle_text_message(
@@ -41,6 +42,33 @@ pub async fn handle_text_message(
                 };
 
                 let mut channel_manager_guard = state.client_manager.write().await;
+                match channel_type {
+                    ChannelType::OrderBookUpdate(_) => {
+                        // sending payload to special client
+                        let payload = json!({
+                            "payload": {
+                                "type": "Subscribe",
+                                "data":{
+                                    "channel": channel_type.to_str() // market id is in channel...
+                                }
+                            }
+                        })
+                        .to_string();
+
+                        // special client tx
+                        let tx = channel_manager_guard
+                            .get_special_client(SpecialKindOfClients::OrderService);
+                        if let Some(tx) = tx {
+                            let mut tx_guard = tx.lock().await;
+                            if let Err(e) = tx_guard.send(Message::Text(payload.into())).await {
+                                log_error!("Failed to send message to special service {e}");
+                            }
+                        } else {
+                            log_warn!("No special service client found in ws server");
+                        }
+                    }
+                    _ => {}
+                }
 
                 channel_manager_guard.add_client(channel_type.clone(), *client_id, tx.clone());
 

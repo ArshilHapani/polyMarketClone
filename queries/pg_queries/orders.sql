@@ -1,8 +1,8 @@
 -- truncate table polymarket.orders CASCADE;
 
 -- select count(*) from polymarket.orders where status = 'open'::polymarket.order_status;
-select * from polymarket.orders ORDER BY created_at DESC;
-
+-- select * from polymarket.orders where id = 'c6df1d26-e223-4dc3-98a9-663eb51b293f'::uuid ORDER BY created_at DESC;
+select * from polymarket.orders order by created_at DESC;
 -- select * from polymarket.orders where status = 'open'::polymarket.order_status ORDER BY created_at DESC;
 
 

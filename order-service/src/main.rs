@@ -6,6 +6,7 @@ use utility_helpers::{log_error, log_info};
 use crate::handlers::{nats_handler::handle_nats_message, ws_handler::handle_ws_messages};
 
 mod handlers;
+mod kafka_admin;
 mod order_book;
 mod state;
 

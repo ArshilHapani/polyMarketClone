@@ -1,3 +1,4 @@
+pub mod kafka_topics;
 pub mod macros;
 pub mod redis;
 pub mod symmetric;

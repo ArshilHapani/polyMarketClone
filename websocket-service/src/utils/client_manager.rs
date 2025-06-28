@@ -1,4 +1,4 @@
-use std::collections::HashMap;
+use std::{collections::HashMap, sync::Arc};
 
 use utility_helpers::ws::types::ChannelType;
 use uuid::Uuid;
@@ -7,7 +7,7 @@ use crate::utils::SafeSender;
 
 type ClientData = SafeSender;
 
-#[derive(Debug, Hash, PartialEq)]
+#[derive(Debug, Hash, PartialEq, Eq)]
 pub enum SpecialKindOfClients {
     OrderService,
 }
@@ -15,7 +15,7 @@ pub enum SpecialKindOfClients {
 #[derive(Debug)]
 pub struct SubscriptionAndClientManager {
     subscription: HashMap<ChannelType, HashMap<Uuid, ClientData>>,
-    special_clients: HashMap<Uuid, SpecialKindOfClients>,
+    special_clients: HashMap<SpecialKindOfClients, Uuid>,
 }
 
 impl SubscriptionAndClientManager {
@@ -57,16 +57,44 @@ impl SubscriptionAndClientManager {
         }
     }
 
-    pub fn set_special_client(&mut self, client_id: Uuid, kind: SpecialKindOfClients) -> bool {
+    pub fn set_special_client(
+        &mut self,
+        client_id: Uuid,
+        sender: SafeSender,
+        channel: ChannelType,
+        kind: SpecialKindOfClients,
+    ) {
         if !self.is_client_id_exist(&client_id) {
-            return false;
+            self.add_client(channel, client_id, sender);
         }
-        self.special_clients.insert(client_id, kind);
-        true
+        self.special_clients.insert(kind, client_id);
     }
 
-    pub fn unset_special_client(&mut self, client_id: &Uuid) {
-        self.special_clients.remove(client_id);
+    pub fn get_special_client(&self, kind: SpecialKindOfClients) -> Option<ClientData> {
+        let client_id = self.special_clients.get(&kind);
+        if let Some(client_id) = client_id {
+            let client_tx = self.get_client_transmitter(client_id);
+            if let Some(tx) = client_tx {
+                return Some(tx);
+            }
+        }
+
+        None
+    }
+
+    pub fn unset_special_client(&mut self, client_type: &SpecialKindOfClients) {
+        self.special_clients.remove(client_type);
+    }
+
+    pub fn get_client_transmitter(&self, client_id: &Uuid) -> Option<SafeSender> {
+        for (_, clients) in self.subscription.iter() {
+            for (client, tx) in clients {
+                if *client == *client_id {
+                    return Some(Arc::clone(tx));
+                }
+            }
+        }
+        None
     }
 
     fn is_client_id_exist(&self, client_id: &Uuid) -> bool {

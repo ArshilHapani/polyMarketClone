@@ -1,19 +1,24 @@
 use axum::body::Bytes;
 use prost::Message;
 use proto_defs::proto_types::ws_common_types::{Channel, OperationType, WsMessage};
-use utility_helpers::log_info;
+use utility_helpers::{log_info, log_warn, ws::types::ChannelType};
 use uuid::Uuid;
 
 use crate::{
     SafeAppState,
     utils::{
-        client_manager::SpecialKindOfClients,
+        SafeSender, client_manager::SpecialKindOfClients,
         message_handlers::channel_handlers::price_posters::price_poster_handler_bin,
     },
 };
 
 // binary messages are only sended by poster channels
-pub async fn handle_binary_message(message: &Bytes, client_id: &Uuid, state: &SafeAppState) {
+pub async fn handle_binary_message(
+    message: &Bytes,
+    client_id: &Uuid,
+    tx: &SafeSender,
+    state: &SafeAppState,
+) {
     log_info!(
         "Received binary message from client {client_id}: {} bytes",
         message.len()
@@ -39,6 +44,7 @@ pub async fn handle_binary_message(message: &Bytes, client_id: &Uuid, state: &Sa
                             }
                         }
                     }
+                    // this message send by order service to connect to the websocket server
                     OperationType::Handshake => {
                         /*
                          * This is specially used to connect order service to the websocket server and identifies the order-service's (for now) client id
@@ -60,7 +66,7 @@ pub async fn handle_binary_message(message: &Bytes, client_id: &Uuid, state: &Sa
                                     dotenv::dotenv().ok();
                                     let shared_secret_env = std::env::var("SHARED_SECRET")
                                         .unwrap_or_else(|_| {
-                                            log_info!("SHARED_SECRET not found in .env file");
+                                            log_warn!("SHARED_SECRET not found in .env file");
                                             String::new()
                                         });
 
@@ -68,21 +74,22 @@ pub async fn handle_binary_message(message: &Bytes, client_id: &Uuid, state: &Sa
 
                                     if shared_secret != shared_secret_env {
                                         log_info!(
-                                            "Handshake failed for OrderService with client ID: {}. Invalid shared secret.",
-                                            client_id
+                                            "Handshake failed for OrderService with client ID: {client_id}. Invalid shared secret."
                                         );
                                         return;
                                     }
 
-                                    log_info!(
-                                        "Handshake successful for OrderService with client ID: {}",
-                                        client_id
-                                    );
                                     let mut client_manager_guard =
                                         state.client_manager.write().await;
+
                                     client_manager_guard.set_special_client(
                                         *client_id,
+                                        tx.clone(),
+                                        ChannelType::OrderBookPoster,
                                         SpecialKindOfClients::OrderService,
+                                    );
+                                    log_info!(
+                                        "Handshake successful for OrderService with client ID: {client_id}"
                                     );
                                 }
                                 _ => {}
@@ -90,19 +97,13 @@ pub async fn handle_binary_message(message: &Bytes, client_id: &Uuid, state: &Sa
                         }
                     }
                     _ => {
-                        log_info!(
-                            "Unsupported operation type from client {client_id}: {:?}",
-                            type_c
-                        );
+                        log_info!("Unsupported operation type from client {client_id}: {type_c:?}");
                     }
                 }
             }
         }
         Err(e) => {
-            log_info!(
-                "Failed to decode binary message from client {client_id}: {}",
-                e
-            );
+            log_info!("Failed to decode binary message from client {client_id}: {e}");
         }
     }
 }

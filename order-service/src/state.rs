@@ -1,17 +1,22 @@
 use std::{collections::HashSet, sync::Arc};
 
 use async_nats::connect;
-use futures_util::SinkExt;
+use futures_util::{
+    SinkExt, StreamExt,
+    stream::{SplitSink, SplitStream},
+};
 use parking_lot::RwLock;
 use prost::Message;
 use proto_defs::proto_types::ws_common_types::{
     Channel, OperationType, Payload, WsData, WsMessage,
 };
-use rdkafka::{ClientConfig, producer::FutureProducer};
+use rdkafka::{
+    ClientConfig, admin::AdminClient, client::DefaultClientContext, producer::FutureProducer,
+};
 use tokio::{net::TcpStream, sync::RwLock as AsyncRwLock};
 use tokio_tungstenite::{
     MaybeTlsStream, WebSocketStream, connect_async, tungstenite::Message as WsMessageSentType,
-    tungstenite::client::IntoClientRequest,
+    tungstenite::Message as WsSendMessage, tungstenite::client::IntoClientRequest,
 };
 use utility_helpers::{log_error, log_info, types::EnvVarConfig};
 use uuid::Uuid;
@@ -21,9 +26,12 @@ use crate::order_book::global_book::GlobalMarketBook;
 pub struct AppState {
     // async states
     pub db_pool: sqlx::PgPool,
-    pub jetstream: async_nats::jetstream::Context, // it's already thread safe for async operations internally...
+    pub jetstream: AsyncRwLock<async_nats::jetstream::Context>, // it's already thread safe for async operations internally...
     pub producer: AsyncRwLock<FutureProducer>,
-    pub websocket_stream: AsyncRwLock<WebSocketStream<MaybeTlsStream<TcpStream>>>,
+    pub ws_tx: AsyncRwLock<SplitSink<WebSocketStream<MaybeTlsStream<TcpStream>>, WsSendMessage>>,
+    pub ws_rx: AsyncRwLock<SplitStream<WebSocketStream<MaybeTlsStream<TcpStream>>>>,
+    pub kafka_admin: AsyncRwLock<AdminClient<DefaultClientContext>>,
+    pub topic_cache: AsyncRwLock<HashSet<String>>, // cache of topics to avoid creating them multiple times
 
     // sync states
     // preferring RwLock rather than tokio's rwLock because the operations on orderbook are not async (to gain maximum performance)
@@ -52,6 +60,11 @@ impl AppState {
             .set("bootstrap.servers", &env_var_config.kafka_url)
             .create::<FutureProducer>()
             .expect("Failed to create Kafka producer");
+        let kafka_admin: AdminClient<DefaultClientContext> = ClientConfig::new()
+            .set("bootstrap.servers", &env_var_config.kafka_url)
+            .create()
+            .expect("Failed to create Kafka AdminClient");
+
         log_info!("Connected to red panda (kafka)");
 
         let websocket_req = format!("{}/ws", env_var_config.websocket_url)
@@ -83,15 +96,19 @@ impl AppState {
             log_error!("Handshake failed with websocket server {e}");
         }
         log_info!("Handshake complete with websocket service");
+        let (tx, rx) = stream.split();
 
         let order_book = Arc::new(RwLock::new(GlobalMarketBook::new()));
         let market_subs = Arc::new(RwLock::new(HashSet::new()));
 
         Ok(AppState {
             db_pool,
-            jetstream,
+            jetstream: AsyncRwLock::new(jetstream),
             producer: AsyncRwLock::new(producer),
-            websocket_stream: AsyncRwLock::new(stream),
+            kafka_admin: AsyncRwLock::new(kafka_admin),
+            topic_cache: AsyncRwLock::new(HashSet::new()),
+            ws_rx: AsyncRwLock::new(rx),
+            ws_tx: AsyncRwLock::new(tx),
             order_book,
             market_subs,
         })
