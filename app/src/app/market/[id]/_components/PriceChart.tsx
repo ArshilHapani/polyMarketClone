@@ -27,7 +27,7 @@ type Props = {
 
 const PriceChart = ({ market_id }: Props) => {
   const [graphTimelineFilter, setGraphTimelineFilter] =
-    useState<(typeof PAST_DAYS_FILTERS)[number]>("1D");
+    useState<(typeof PAST_DAYS_FILTERS)[number]>("ALL");
 
   const [priceData, setPriceData] = useState<
     { yes: number; no: number; time: string }[]

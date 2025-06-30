@@ -197,13 +197,13 @@ pub async fn order_book_handler(
 
             // processing yes orders
             let yes_orders_data = if let Some(yes_orders) = yes_orders {
-                yes_orders.get_order_book(order.market_id)
+                yes_orders.get_order_book()
             } else {
                 OrderBookDataStruct::default()
             };
             // processing no orders
             let no_orders_data = if let Some(no_orders) = no_orders {
-                no_orders.get_order_book(order.market_id)
+                no_orders.get_order_book()
             } else {
                 OrderBookDataStruct::default()
             };
@@ -227,12 +227,16 @@ pub async fn order_book_handler(
         no_price
     );
 
+    // push the message to kafka if the market is subscribed
     if required_market_subs {
         let combined_data = json!({
             "yes_book": yes_orders_data,
-            "no_book": no_orders_data
+            "no_book": no_orders_data,
+            "market_id": market_id,
+            "timestamp": current_time.to_rfc3339(),
         })
         .to_string();
+        println!("Combined data: {}", combined_data);
         let topic = KafkaTopics::MarketOrderBook(market_id.clone()).to_string();
         let future_record: FutureRecord<'_, String, String> = FutureRecord::to(&topic)
             .payload(&combined_data)

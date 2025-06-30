@@ -31,10 +31,8 @@ pub(crate) struct OutcomeBook {
 
 #[derive(Serialize, Default, Deserialize)]
 pub(crate) struct OrderBookDataStruct {
-    pub market_id: Uuid,
     pub bids: Vec<serde_json::Value>,
     pub asks: Vec<serde_json::Value>,
-    pub timestamp: String,
 }
 
 #[derive(Debug)]
@@ -261,7 +259,7 @@ impl OutcomeBook {
 
     // Getters
 
-    pub(crate) fn get_order_book(&self, market_id: Uuid) -> OrderBookDataStruct {
+    pub(crate) fn get_order_book(&self) -> OrderBookDataStruct {
         let bids = &self.bids;
         let asks = &self.asks;
 
@@ -286,10 +284,8 @@ impl OutcomeBook {
         }
 
         OrderBookDataStruct {
-            market_id,
             bids: bids_values,
             asks: asks_values,
-            timestamp: chrono::Utc::now().to_rfc3339(),
         }
     }
 }
