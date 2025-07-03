@@ -18,7 +18,7 @@ use rust_decimal::{Decimal, prelude::FromPrimitive};
 use serde::{Deserialize, Serialize};
 use serde_json::json;
 use sqlx::types::Uuid;
-use utility_helpers::{log_error, log_info};
+use utility_helpers::{log_error, log_info, nats_helper::NatsSubjects};
 
 use crate::{require_field, state::AppState};
 
@@ -119,8 +119,9 @@ pub async fn create_order(
     app_state
         .jetstream
         .get_or_create_stream(jetstream::stream::Config {
-            name: "ORDERS".into(),
-            subjects: vec!["orders.>".into()],
+            // these `ORDER` name does not indicate the operations on orders, instead it indicates that the streams is used by order-service microservice, so don't confuse it with the order name and same for it's topics, all topics are prefixed with `order.`
+            name: "ORDER".into(),
+            subjects: vec!["order.>".into()],
             ..Default::default()
         })
         .await
@@ -214,9 +215,11 @@ pub async fn create_order(
     // pushing the order to the jetstream
     let order_id_str = order.id.to_string().into_bytes();
 
+    let subject = NatsSubjects::OrderCreate;
+
     app_state
         .jetstream
-        .publish("orders.created".to_string(), order_id_str.into())
+        .publish(subject.to_string(), order_id_str.into())
         .await
         .map_err(|e| {
             log_error!("Failed to publish order to jetstream - {:?}", e);

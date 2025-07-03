@@ -1,7 +1,13 @@
-use crate::log_info;
+use crate::{
+    log_info,
+    message_pack_helper::{deserialize_from_message_pack, serialize_to_message_pack},
+    redis::keys::RedisKey,
+};
 use deadpool_redis::{Config, Pool, Runtime, redis::AsyncCommands};
 use serde::{Serialize, de::DeserializeOwned};
 use std::future::Future;
+
+pub mod keys;
 
 #[derive(Clone, Debug)]
 pub struct RedisHelper {
@@ -16,9 +22,14 @@ impl RedisHelper {
         Ok(RedisHelper { pool, cache_expiry })
     }
 
+    /// Retrieves data from the cache or computes it using the provided callback.
+    ///
+    /// If the data is not found in the cache, it will call the callback to get
+    ///
+    /// It uses MessagePack for serialization and deserialization.
     pub async fn get_or_set_cache<T, F, Fut>(
         &self,
-        key: &str,
+        key: RedisKey,
         callback: F,
     ) -> Result<T, Box<dyn std::error::Error>>
     where
@@ -28,16 +39,16 @@ impl RedisHelper {
     {
         let mut conn = self.pool.get().await?;
 
-        if let Ok(data) = conn.get::<_, Vec<u8>>(key).await {
+        if let Ok(data) = conn.get::<_, Vec<u8>>(key.to_string()).await {
             if !data.is_empty() {
-                match rmp_serde::from_slice(&data) {
+                match deserialize_from_message_pack(&data) {
                     Ok(decoded) => {
                         log_info!("Cache hit for key: {}", key);
                         return Ok(decoded);
                     }
                     Err(e) => {
                         log_info!("Cache corruption detected for key: {}, error: {}", key, e);
-                        let _: () = conn.del(key).await.unwrap_or(());
+                        let _: () = conn.del(key.to_string()).await.unwrap_or(());
                     }
                 }
             }
@@ -45,11 +56,15 @@ impl RedisHelper {
 
         let fresh_data = callback().await?;
 
-        match rmp_serde::to_vec_named(&fresh_data) {
+        match serialize_to_message_pack(&fresh_data) {
             Ok(encoded) => {
                 if !encoded.is_empty() {
                     if let Err(e) = conn
-                        .set_ex::<&str, Vec<u8>, String>(key, encoded, self.cache_expiry)
+                        .set_ex::<&str, Vec<u8>, String>(
+                            &key.to_string(),
+                            encoded,
+                            self.cache_expiry,
+                        )
                         .await
                     {
                         log_info!("Failed to set cache for key: {}, error: {}", key, e);
@@ -84,7 +99,7 @@ impl RedisHelper {
 
         if let Ok(data) = conn.get::<_, Vec<u8>>(key).await {
             if !data.is_empty() {
-                return rmp_serde::from_slice::<T>(&data).is_ok();
+                return deserialize_from_message_pack::<T>(&data).is_ok();
             }
         }
         false

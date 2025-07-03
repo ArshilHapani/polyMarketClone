@@ -11,3 +11,7 @@
 - ClickHouse - A fast open-source OLAP database management system.
 - Bloom filters - A space-efficient probabilistic data structure to test whether an element is a member of a set.
 - NATS - A high performance message queues
+
+# Notes
+
+NATS can produce multiple messages parallelly, it have multiple streams, each stream acts as separate queue, so we have to use different streams for different services

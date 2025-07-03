@@ -10,6 +10,8 @@ services:
       - "5432:5432"
     networks:
       - polyMarket_network
+    volumes:
+      - pgData:/var/lib/postgresql/data
 
   redis:
     image: redis:7.4.1-alpine
@@ -41,6 +43,7 @@ services:
       CLICKHOUSE_PASSWORD: polyMarket
     volumes:
       - ./queries/clickhouse_queries/create_base_tables.sql:/docker-entrypoint-initdb.d/init.sql
+      - clickhouse_data:/var/lib/clickhouse
 
   redpanda:
     image: redpandadata/redpanda:v24.3.14
@@ -86,3 +89,7 @@ services:
 networks:
   polyMarket_network:
     driver: bridge
+
+volumes:
+  pgData:
+  clickhouse_data:

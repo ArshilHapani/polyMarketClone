@@ -3,6 +3,7 @@ use std::str::FromStr;
 use db_service::schema::market::{self, Market as SchemaMarket};
 use sqlx::types::Uuid;
 use tonic::{Request, Response, Status};
+use utility_helpers::redis::keys::RedisKey;
 
 use crate::{
     generated::{
@@ -32,7 +33,7 @@ impl MarketService for MarketServiceStub {
         validate_numbers!(page_no);
         validate_numbers!(page_size);
 
-        let key = format!("markets:{}:{}", page_no, page_size);
+        let key = RedisKey::Markets(page_no, page_size);
         if page_no == 0 || page_size == 0 {
             return Err(Status::invalid_argument(
                 "Page number and size must be greater than 0",
@@ -42,7 +43,7 @@ impl MarketService for MarketServiceStub {
         let markets =
             self.state
                 .redis_helper
-                .get_or_set_cache(&key, || async {
+                .get_or_set_cache(key, || async {
                     Ok(SchemaMarket::get_all_markets_paginated(
                         &self.state.db_pool,
                         page_no,
@@ -75,12 +76,12 @@ impl MarketService for MarketServiceStub {
         let market_id = Uuid::from_str(&market_id)
             .map_err(|_| Status::invalid_argument("Invalid market id"))?;
 
-        let key = format!("market:{}", market_id);
+        let key = RedisKey::Market(market_id);
 
         let market = self
             .state
             .redis_helper
-            .get_or_set_cache(&key, || async {
+            .get_or_set_cache(key, || async {
                 Ok(market::Market::get_market_by_id(&self.state.db_pool, &market_id).await?)
             })
             .await
@@ -88,7 +89,6 @@ impl MarketService for MarketServiceStub {
 
         if let Some(market) = market {
             let response = Response::new(from_db_market(&market, 0.5, 0.5));
-
             return Ok(response);
         }
 

@@ -6,7 +6,6 @@ use db_service::schema::{
 };
 use rust_decimal::Decimal;
 use serde::{Deserialize, Serialize};
-use serde_json::json;
 use uuid::Uuid;
 
 #[derive(Default, Debug)]
@@ -31,8 +30,15 @@ pub(crate) struct OutcomeBook {
 
 #[derive(Serialize, Default, Deserialize)]
 pub(crate) struct OrderBookDataStruct {
-    pub bids: Vec<serde_json::Value>,
-    pub asks: Vec<serde_json::Value>,
+    pub bids: Vec<OrderLevel>,
+    pub asks: Vec<OrderLevel>,
+}
+
+#[derive(Serialize, Deserialize, Debug)]
+pub(crate) struct OrderLevel {
+    pub price: Decimal,
+    pub shares: Decimal,
+    pub users: usize,
 }
 
 #[derive(Debug)]
@@ -257,7 +263,7 @@ impl OutcomeBook {
         matches
     }
 
-    // Getters
+    // Getters ///
 
     pub(crate) fn get_order_book(&self) -> OrderBookDataStruct {
         let bids = &self.bids;
@@ -267,19 +273,19 @@ impl OutcomeBook {
         let mut asks_values = Vec::new();
 
         for (price, level) in bids {
-            let data = json!({
-                "price": price,
-                "shares": level.total_quantity,
-                "users": level.orders.len()
-            });
+            let data = OrderLevel {
+                price: *price,
+                shares: level.total_quantity,
+                users: level.orders.len(),
+            };
             bids_values.push(data);
         }
         for (price, level) in asks {
-            let data = json!({
-                "price": price,
-                "shares": level.total_quantity,
-                "users": level.orders.len()
-            });
+            let data = OrderLevel {
+                price: *price,
+                shares: level.total_quantity,
+                users: level.orders.len(),
+            };
             asks_values.push(data);
         }
 

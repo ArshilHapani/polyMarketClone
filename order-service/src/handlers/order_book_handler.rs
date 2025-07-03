@@ -14,9 +14,13 @@ use proto_defs::proto_types::ws_common_types::{
 };
 use rdkafka::producer::FutureRecord;
 use rust_decimal::Decimal;
-use serde_json::json;
 use tokio_tungstenite::tungstenite::Message as WsMessageType;
-use utility_helpers::{kafka_topics::KafkaTopics, log_error, log_info, log_warn};
+use utility_helpers::{
+    kafka_topics::KafkaTopics,
+    log_error, log_info, log_warn,
+    message_pack_helper::serialize_to_message_pack,
+    nats_helper::{NatsSubjects, types::OrderBookUpdateData},
+};
 use uuid::Uuid;
 
 use crate::{order_book::outcome_book::OrderBookDataStruct, state::AppState};
@@ -227,25 +231,33 @@ pub async fn order_book_handler(
         no_price
     );
 
-    // push the message to kafka if the market is subscribed
     if required_market_subs {
-        let combined_data = json!({
-            "yes_book": yes_orders_data,
-            "no_book": no_orders_data,
-            "market_id": market_id,
-            "timestamp": current_time.to_rfc3339(),
-        })
-        .to_string();
-        println!("Combined data: {}", combined_data);
-        let topic = KafkaTopics::MarketOrderBook(market_id.clone()).to_string();
-        let future_record: FutureRecord<'_, String, String> = FutureRecord::to(&topic)
-            .payload(&combined_data)
-            .key(&market_id);
+        let combined_data = OrderBookUpdateData {
+            yes_book: yes_orders_data,
+            no_book: no_orders_data,
+            market_id: order.market_id,
+            timestamp: current_time.to_rfc3339(),
+        };
+        let message_pack_encoded = serialize_to_message_pack(&combined_data)?;
 
-        if let Err(e) = producer.send(future_record, Duration::from_secs(0)).await {
-            log_error!("Failed to produce message {e:?}");
+        // pushing message to queue
+
+        let js_guard = app_state.jetstream.clone();
+
+        if let Err(e) = js_guard
+            .publish(
+                NatsSubjects::MarketBookUpdate(order.market_id).to_string(),
+                message_pack_encoded.into(),
+            )
+            .await
+        {
+            log_error!("Failed to publish order book update to JetStream: {:#?}", e);
+        } else {
+            log_info!(
+                "Order book update published to JetStream for market ID {}",
+                order.market_id
+            );
         }
-        log_info!("Message produced to topic: {}", topic);
     } else {
         log_warn!(
             "Market ID {} is not subscribed, skipping order book update",

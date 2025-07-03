@@ -10,7 +10,7 @@ use axum::{
 use db_service::schema::users::User;
 use serde_json::json;
 use sqlx::types::Uuid;
-use utility_helpers::log_error;
+use utility_helpers::{log_error, redis::keys::RedisKey};
 
 use crate::state::AppState;
 
@@ -29,10 +29,10 @@ pub async fn get_profile(
         )
     })?;
 
-    let user_key = format!("user:{}", user_id);
+    let user_key = RedisKey::User(user_id);
     let user = app_state
         .redis_helper
-        .get_or_set_cache(&user_key, || async {
+        .get_or_set_cache(user_key, || async {
             Ok(User::get_user_by_id(&app_state.pg_pool, user_id).await?)
         })
         .await

@@ -16,7 +16,7 @@ use rdkafka::{
 use tokio::{net::TcpStream, sync::RwLock as AsyncRwLock};
 use tokio_tungstenite::{
     MaybeTlsStream, WebSocketStream, connect_async, tungstenite::Message as WsMessageSentType,
-    tungstenite::Message as WsSendMessage, tungstenite::client::IntoClientRequest,
+    tungstenite::client::IntoClientRequest,
 };
 use utility_helpers::{log_error, log_info, types::EnvVarConfig};
 use uuid::Uuid;
@@ -26,9 +26,10 @@ use crate::order_book::global_book::GlobalMarketBook;
 pub struct AppState {
     // async states
     pub db_pool: sqlx::PgPool,
-    pub jetstream: AsyncRwLock<async_nats::jetstream::Context>, // it's already thread safe for async operations internally...
+    pub jetstream: async_nats::jetstream::Context, // it's already thread safe for async operations internally...
     pub producer: AsyncRwLock<FutureProducer>,
-    pub ws_tx: AsyncRwLock<SplitSink<WebSocketStream<MaybeTlsStream<TcpStream>>, WsSendMessage>>,
+    pub ws_tx:
+        AsyncRwLock<SplitSink<WebSocketStream<MaybeTlsStream<TcpStream>>, WsMessageSentType>>,
     pub ws_rx: AsyncRwLock<SplitStream<WebSocketStream<MaybeTlsStream<TcpStream>>>>,
     pub kafka_admin: AsyncRwLock<AdminClient<DefaultClientContext>>,
     pub topic_cache: AsyncRwLock<HashSet<String>>, // cache of topics to avoid creating them multiple times
@@ -103,7 +104,7 @@ impl AppState {
 
         Ok(AppState {
             db_pool,
-            jetstream: AsyncRwLock::new(jetstream),
+            jetstream,
             producer: AsyncRwLock::new(producer),
             kafka_admin: AsyncRwLock::new(kafka_admin),
             topic_cache: AsyncRwLock::new(HashSet::new()),
