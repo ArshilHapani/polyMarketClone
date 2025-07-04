@@ -9,6 +9,8 @@ pub struct GetMarketPrices {
     pub market_id: Uuid,
     #[serde(with = "clickhouse::serde::chrono::datetime")]
     pub ts: DateTime<Utc>,
+    #[serde(with = "clickhouse::serde::chrono::datetime")]
+    pub created_at: DateTime<Utc>,
 
     pub yes_price: f64,
     pub no_price: f64,

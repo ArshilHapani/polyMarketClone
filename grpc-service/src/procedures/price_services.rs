@@ -34,8 +34,9 @@ impl PriceService for PriceServiceStub {
         })?;
 
         let base_query = r#"
-            SELECT 
-                market_id, 
+            SELECT
+                market_id,
+                created_at,
                 toFloat64(yes_price) as yes_price, 
                 toFloat64(no_price) as no_price, 
                 ts 
@@ -98,6 +99,7 @@ mod test {
                 r#"
                  SELECT 
                     market_id, 
+                    created_at,
                     toFloat64(yes_price) as yes_price, 
                     toFloat64(no_price) as no_price, 
                     ts 

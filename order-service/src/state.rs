@@ -10,9 +10,7 @@ use prost::Message;
 use proto_defs::proto_types::ws_common_types::{
     Channel, OperationType, Payload, WsData, WsMessage,
 };
-use rdkafka::{
-    ClientConfig, admin::AdminClient, client::DefaultClientContext, producer::FutureProducer,
-};
+use rdkafka::{ClientConfig, producer::FutureProducer};
 use tokio::{net::TcpStream, sync::RwLock as AsyncRwLock};
 use tokio_tungstenite::{
     MaybeTlsStream, WebSocketStream, connect_async, tungstenite::Message as WsMessageSentType,
@@ -59,10 +57,6 @@ impl AppState {
             .set("bootstrap.servers", &env_var_config.kafka_url)
             .create::<FutureProducer>()
             .expect("Failed to create Kafka producer");
-        let kafka_admin: AdminClient<DefaultClientContext> = ClientConfig::new()
-            .set("bootstrap.servers", &env_var_config.kafka_url)
-            .create()
-            .expect("Failed to create Kafka AdminClient");
 
         log_info!("Connected to red panda (kafka)");
 
