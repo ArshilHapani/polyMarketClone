@@ -6060,6 +6060,7 @@ dependencies = [
  "deadpool-redis",
  "dotenv",
  "jsonwebtoken",
+ "proto-defs",
  "rmp-serde",
  "rust_decimal",
  "serde",
@@ -6236,10 +6237,12 @@ dependencies = [
 name = "websocket-service"
 version = "0.1.0"
 dependencies = [
+ "async-nats",
  "axum",
  "chrono",
  "dotenv",
  "futures",
+ "futures-util",
  "prost",
  "proto-defs",
  "serde",

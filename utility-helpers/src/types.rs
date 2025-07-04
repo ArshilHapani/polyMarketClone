@@ -1,3 +1,4 @@
+use rust_decimal::Decimal;
 use serde::{Deserialize, Serialize};
 use std::env::var;
 
@@ -76,4 +77,23 @@ impl EnvVarConfig {
             shared_secret,
         })
     }
+}
+
+/**
+ *
+ * Order book helper types
+ *
+*/
+
+#[derive(Serialize, Deserialize, Debug, Clone)]
+pub struct OrderLevel {
+    pub price: Decimal,
+    pub shares: Decimal,
+    pub users: usize,
+}
+
+#[derive(Serialize, Default, Deserialize, Clone, Debug)]
+pub struct OrderBookDataStruct {
+    pub bids: Vec<OrderLevel>,
+    pub asks: Vec<OrderLevel>,
 }

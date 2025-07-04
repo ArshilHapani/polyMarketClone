@@ -31,8 +31,6 @@ pub struct AppState {
     pub ws_tx:
         AsyncRwLock<SplitSink<WebSocketStream<MaybeTlsStream<TcpStream>>, WsMessageSentType>>,
     pub ws_rx: AsyncRwLock<SplitStream<WebSocketStream<MaybeTlsStream<TcpStream>>>>,
-    pub kafka_admin: AsyncRwLock<AdminClient<DefaultClientContext>>,
-    pub topic_cache: AsyncRwLock<HashSet<String>>, // cache of topics to avoid creating them multiple times
 
     // sync states
     // preferring RwLock rather than tokio's rwLock because the operations on orderbook are not async (to gain maximum performance)
@@ -106,8 +104,6 @@ impl AppState {
             db_pool,
             jetstream,
             producer: AsyncRwLock::new(producer),
-            kafka_admin: AsyncRwLock::new(kafka_admin),
-            topic_cache: AsyncRwLock::new(HashSet::new()),
             ws_rx: AsyncRwLock::new(rx),
             ws_tx: AsyncRwLock::new(tx),
             order_book,

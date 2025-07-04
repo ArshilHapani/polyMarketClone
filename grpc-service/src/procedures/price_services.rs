@@ -1,6 +1,3 @@
-use chrono::{DateTime, Utc};
-use clickhouse::Row;
-use serde::Deserialize;
 use sqlx::types::Uuid;
 use tonic::{Request, Response, Status};
 
@@ -10,21 +7,12 @@ use crate::{
         Timeframe, price_service_server::PriceService,
     },
     state::SafeState,
+    utils::clickhouse_schema::GetMarketPrices,
     validate_numbers, validate_strings,
 };
 
 pub struct PriceServiceStub {
     pub state: SafeState,
-}
-
-#[derive(Row, Deserialize, Debug)]
-struct ResponseFromMarket {
-    #[serde(with = "clickhouse::serde::uuid")]
-    pub market_id: Uuid,
-    pub yes_price: f64,
-    pub no_price: f64,
-    #[serde(with = "clickhouse::serde::chrono::datetime")]
-    pub ts: DateTime<Utc>,
 }
 
 #[tonic::async_trait]
@@ -47,10 +35,10 @@ impl PriceService for PriceServiceStub {
 
         let base_query = r#"
             SELECT 
-            market_id, 
-            toFloat64(yes_price) as yes_price, 
-            toFloat64(no_price) as no_price, 
-            ts 
+                market_id, 
+                toFloat64(yes_price) as yes_price, 
+                toFloat64(no_price) as no_price, 
+                ts 
             FROM market_price_data WHERE market_id = ?"#;
 
         let query = match time_range.get_start_time() {
@@ -65,7 +53,7 @@ impl PriceService for PriceServiceStub {
         let resp = client
             .query(&query)
             .bind(market_id)
-            .fetch_all::<ResponseFromMarket>()
+            .fetch_all::<GetMarketPrices>()
             .await
             .map_err(|e| Status::internal(format!("Database query failed: {}", e)))?;
 
@@ -94,9 +82,10 @@ impl PriceService for PriceServiceStub {
 #[cfg(test)]
 mod test {
 
-    use crate::procedures::price_services::ResponseFromMarket;
+    use crate::procedures::price_services::GetMarketPrices;
 
     #[tokio::test]
+    // #[ignore = "Skip"]
     async fn test_clickhouse_data() {
         let client = clickhouse::Client::default()
             .with_url("http://localhost:8123")
@@ -107,19 +96,17 @@ mod test {
         let another_query = client
             .query(
                 r#"
-                SELECT
+                 SELECT 
                     market_id, 
-                    CAST(yes_price AS Float64) as yes_price,
-                    CAST(no_price AS Float64) as no_price,
-                    ts,
-                    created_at
+                    toFloat64(yes_price) as yes_price, 
+                    toFloat64(no_price) as no_price, 
+                    ts 
                 FROM market_price_data
                 "#,
             )
-            .fetch_all::<ResponseFromMarket>()
-            .await
-            .unwrap();
+            .fetch_all::<GetMarketPrices>()
+            .await;
 
-        println!("Another Query Result: {:#?}", another_query);
+        assert!(another_query.is_ok(), "Query should succeed");
     }
 }

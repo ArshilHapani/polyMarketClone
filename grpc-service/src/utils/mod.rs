@@ -1,3 +1,4 @@
+pub mod clickhouse_schema;
 pub mod macros;
 pub mod timeframe;
 

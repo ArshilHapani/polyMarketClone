@@ -1,5 +1,4 @@
 use axum::extract::ws::{Message, Utf8Bytes};
-use futures::SinkExt;
 use serde_json::json;
 use utility_helpers::{
     log_error, log_info, log_warn,
@@ -59,8 +58,7 @@ pub async fn handle_text_message(
                         let tx = channel_manager_guard
                             .get_special_client(SpecialKindOfClients::OrderService);
                         if let Some(tx) = tx {
-                            let mut tx_guard = tx.lock().await;
-                            if let Err(e) = tx_guard.send(Message::Text(payload.into())).await {
+                            if let Err(e) = send_message(&tx, Message::Text(payload.into())).await {
                                 log_error!("Failed to send message to special service {e}");
                             }
                         } else {

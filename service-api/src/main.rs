@@ -12,7 +12,7 @@ pub mod bloom_f;
 
 const PORT: u16 = 8080;
 
-#[tokio::main]
+#[tokio::main(flavor = "multi_thread")]
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
     tracing_subscriber::fmt::init();
     let addr = format!("[::]:{}", PORT);

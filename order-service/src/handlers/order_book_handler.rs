@@ -17,13 +17,14 @@ use rust_decimal::Decimal;
 use tokio_tungstenite::tungstenite::Message as WsMessageType;
 use utility_helpers::{
     kafka_topics::KafkaTopics,
-    log_error, log_info, log_warn,
+    log_error, log_info,
     message_pack_helper::serialize_to_message_pack,
     nats_helper::{NatsSubjects, types::OrderBookUpdateData},
+    types::OrderBookDataStruct,
 };
 use uuid::Uuid;
 
-use crate::{order_book::outcome_book::OrderBookDataStruct, state::AppState};
+use crate::state::AppState;
 
 pub async fn order_book_handler(
     app_state: Arc<AppState>,
@@ -231,13 +232,13 @@ pub async fn order_book_handler(
         no_price
     );
 
+    let combined_data = OrderBookUpdateData {
+        yes_book: yes_orders_data.clone(),
+        no_book: no_orders_data.clone(),
+        market_id: order.market_id,
+        timestamp: current_time.to_rfc3339(),
+    };
     if required_market_subs {
-        let combined_data = OrderBookUpdateData {
-            yes_book: yes_orders_data,
-            no_book: no_orders_data,
-            market_id: order.market_id,
-            timestamp: current_time.to_rfc3339(),
-        };
         let message_pack_encoded = serialize_to_message_pack(&combined_data)?;
 
         // pushing message to queue
@@ -252,35 +253,49 @@ pub async fn order_book_handler(
             .await
         {
             log_error!("Failed to publish order book update to JetStream: {:#?}", e);
-        } else {
-            log_info!(
-                "Order book update published to JetStream for market ID {}",
-                order.market_id
-            );
         }
-    } else {
-        log_warn!(
-            "Market ID {} is not subscribed, skipping order book update",
-            order.market_id
-        );
     }
 
-    let data_to_publish = serde_json::json!({
+    ///// kafka processing /////
+
+    let ts = current_time.to_rfc3339();
+    let data_to_publish_for_price_update = serde_json::json!({
         "market_id": order.market_id.to_string(),
         "yes_price":yes_price.to_string(),
         "no_price": no_price.to_string(),
-        "ts": current_time.to_rfc3339().to_string(),
+        "ts": ts,
+    })
+    .to_string();
+
+    // let  =
+    //     combined_data.to_clickhouse_compatible_json().to_string();
+    let data_to_publish_for_order_book_update = serde_json::json!({
+        "market_id": order.market_id.to_string(),
+        "yes_asks": yes_orders_data.asks,
+        "yes_bids": yes_orders_data.bids,
+        "no_asks": no_orders_data.asks,
+        "no_bids": no_orders_data.bids,
+        "ts": ts,
     })
     .to_string();
 
     let price_update_topic = KafkaTopics::PriceUpdates.to_string();
-    let record = FutureRecord::to(&price_update_topic)
-        .payload(&data_to_publish)
+    let market_order_book_update_topic = KafkaTopics::MarketOrderBookUpdate.to_string();
+
+    let record_price_update = FutureRecord::to(&price_update_topic)
+        .payload(&data_to_publish_for_price_update)
+        .key(&market_id);
+    let record_order_book_update = FutureRecord::to(&market_order_book_update_topic)
+        .payload(&data_to_publish_for_order_book_update)
         .key(&market_id);
 
-    let send_producer_future = producer.send(record, Duration::from_secs(0));
+    let send_producer_future_price = producer.send(record_price_update, Duration::from_secs(0));
+    let send_producer_future_order_book =
+        producer.send(record_order_book_update, Duration::from_secs(0));
 
-    // sending message to websocket
+    /////////////////////////////////////////////////////////////////////////////////////
+
+    // sending message to websocket ///////
     let mut ws_publisher = app_state.ws_tx.write().await;
 
     let yes_price = f64::from_str(&yes_price.to_string())
@@ -311,10 +326,20 @@ pub async fn order_book_handler(
 
     let ws_broadcast_future = ws_publisher.send(WsMessageType::Binary(bin_data.into()));
 
-    let (send_producer_future_resp, ws_broadcast_future_result) =
-        tokio::join!(send_producer_future, ws_broadcast_future);
+    let (
+        send_producer_future_resp_price,
+        send_producer_future_resp_order_book,
+        ws_broadcast_future_result,
+    ) = tokio::join!(
+        send_producer_future_price,
+        send_producer_future_order_book,
+        ws_broadcast_future,
+    );
 
-    send_producer_future_resp.map_err(|e| format!("Failed to send record to Kafka: {:#?}", e))?;
+    send_producer_future_resp_price
+        .map_err(|e| format!("Failed to send record to Kafka: {:#?}", e))?;
+    send_producer_future_resp_order_book
+        .map_err(|e| format!("Failed to send record to Kafka: {:#?}", e))?;
 
     if let Err(e) = ws_broadcast_future_result {
         log_info!("Failed to send message to WebSocket: {:#?}", e);

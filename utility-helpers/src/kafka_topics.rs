@@ -1,13 +1,12 @@
 pub enum KafkaTopics {
     PriceUpdates,
-    MarketOrderBook(String),
+    MarketOrderBookUpdate,
 }
 
 impl KafkaTopics {
     pub fn from_str(topic: &str) -> Option<Self> {
-        if topic.starts_with("market-order-book-") {
-            let market_id = topic.trim_start_matches("market-order-book-").to_string();
-            Some(KafkaTopics::MarketOrderBook(market_id))
+        if topic == "order-book-updates" {
+            Some(KafkaTopics::MarketOrderBookUpdate)
         } else if topic == "price-updates" {
             Some(KafkaTopics::PriceUpdates)
         } else {
@@ -18,7 +17,7 @@ impl KafkaTopics {
     pub fn to_string(&self) -> String {
         match self {
             KafkaTopics::PriceUpdates => "price-updates".to_string(),
-            KafkaTopics::MarketOrderBook(market_id) => format!("market-order-book-{}", market_id),
+            KafkaTopics::MarketOrderBookUpdate => "order-book-updates".to_string(),
         }
     }
 }

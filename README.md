@@ -1,4 +1,4 @@
-![Architecture v2](./assets/architecture_v2_1.png)
+![Architecture v2](./assets/architecture_v3.png)
 
 ## Important rpk commands
 

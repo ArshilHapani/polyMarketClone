@@ -18,6 +18,7 @@ pub fn main() -> Result<(), Box<dyn std::error::Error>> {
         .compile_protos(
             &[
                 "proto/ws_server/market_price.proto",
+                "proto/ws_server/order_book.proto",
                 "proto/ws_server/common.proto",
             ],
             &["proto"],

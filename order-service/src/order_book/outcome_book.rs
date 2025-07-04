@@ -5,7 +5,7 @@ use db_service::schema::{
     orders::Order,
 };
 use rust_decimal::Decimal;
-use serde::{Deserialize, Serialize};
+use utility_helpers::types::{OrderBookDataStruct, OrderLevel};
 use uuid::Uuid;
 
 #[derive(Default, Debug)]
@@ -26,19 +26,6 @@ pub(crate) struct OrderBookEntry {
 pub(crate) struct OutcomeBook {
     pub(crate) bids: BTreeMap<Decimal, PriceLevel>, // buyers side
     pub(crate) asks: BTreeMap<Decimal, PriceLevel>, // sellers side
-}
-
-#[derive(Serialize, Default, Deserialize)]
-pub(crate) struct OrderBookDataStruct {
-    pub bids: Vec<OrderLevel>,
-    pub asks: Vec<OrderLevel>,
-}
-
-#[derive(Serialize, Deserialize, Debug)]
-pub(crate) struct OrderLevel {
-    pub price: Decimal,
-    pub shares: Decimal,
-    pub users: usize,
 }
 
 #[derive(Debug)]

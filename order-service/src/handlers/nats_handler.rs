@@ -21,7 +21,7 @@ pub async fn handle_nats_message(
 
     let consumer = stream
         .create_consumer(jetstream::consumer::pull::Config {
-            durable_name: Some("order".to_string()),
+            durable_name: Some("order_os".to_string()),
             ..Default::default()
         })
         .await?;
@@ -33,7 +33,6 @@ pub async fn handle_nats_message(
         let subject_str = subject.as_str();
         let subject = NatsSubjects::from_string(subject_str)
             .ok_or_else(|| format!("Invalid subject: {}", subject))?;
-        log_info!("Received message on subject: {}", subject);
 
         match subject {
             NatsSubjects::OrderCreate => {

@@ -15,7 +15,7 @@ use utility_helpers::log_info;
 
 const FILE_DESCRIPTOR_SET: &[u8] = include_bytes!("generated/descriptor.bin");
 
-#[tokio::main]
+#[tokio::main(flavor = "multi_thread")]
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
     // enabling tracer
     tracing_subscriber::fmt::init();
