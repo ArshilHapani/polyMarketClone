@@ -33,7 +33,7 @@ pub struct AppState {
     // sync states
     // preferring RwLock rather than tokio's rwLock because the operations on orderbook are not async (to gain maximum performance)
     pub order_book: Arc<RwLock<GlobalMarketBook>>,
-    pub market_subs: Arc<RwLock<HashSet<Uuid>>>, // market id subscribers
+    pub market_subs: Arc<RwLock<HashSet<Uuid>>>, // market id subscribers (for order book updates)
 }
 
 impl AppState {

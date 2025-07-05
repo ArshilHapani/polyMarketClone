@@ -61,7 +61,10 @@
                 "filled",
                 "cancelled",
                 "unspecified",
-                "expired"
+                "expired",
+                "pending_cancel",
+                "partial_fill",
+                "pending_update"
               ]
             }
           }

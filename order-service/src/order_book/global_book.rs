@@ -1,4 +1,7 @@
-use db_service::schema::{enums::Outcome, orders::Order};
+use db_service::schema::{
+    enums::{OrderSide, Outcome},
+    orders::Order,
+};
 use rust_decimal::Decimal;
 use std::collections::HashMap;
 use uuid::Uuid;
@@ -41,6 +44,21 @@ impl GlobalMarketBook {
         self.markets
             .get(market_id)
             .and_then(|market| market.get_order_book(outcome))
+    }
+
+    pub(crate) fn remove_order(
+        &mut self,
+        market_id: Uuid,
+        order_id: Uuid,
+        market_side: OrderSide,
+        outcome: Outcome,
+        price: Decimal,
+    ) -> bool {
+        if let Some(market_book) = self.markets.get_mut(&market_id) {
+            market_book.remove_order(order_id, market_side, outcome, price)
+        } else {
+            false
+        }
     }
 
     fn get_or_create_market(&mut self, market_id: Uuid, liquidity_b: Decimal) -> &mut MarketBook {

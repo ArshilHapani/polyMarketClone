@@ -4,7 +4,7 @@
 CREATE TYPE polymarket.market_status AS ENUM ('open', 'closed', 'settled');
 CREATE TYPE polymarket.outcome AS ENUM ('yes', 'no', 'unspecified');
 CREATE TYPE polymarket.order_side AS ENUM ('buy', 'sell');
-CREATE TYPE polymarket.order_status AS ENUM ('open', 'filled', 'cancelled', 'unspecified', 'expired');
+CREATE TYPE polymarket.order_status AS ENUM ('open', 'filled', 'cancelled', 'unspecified', 'expired', 'pending_cancel', 'partial_fill', 'pending_update');
 CREATE TYPE polymarket.user_transaction_type AS ENUM ('deposit', 'withdrawal', 'trade');
 CREATE TYPE polymarket.user_transaction_status AS ENUM ('pending', 'complete', 'failed');
 

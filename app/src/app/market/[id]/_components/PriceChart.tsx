@@ -19,7 +19,7 @@ import { ChartGetters } from "@/utils/interactions/dataGetter";
 import useSubscription from "@/hooks/useSubscription";
 
 import { Timeframe } from "@/generated/grpc_service_types/price";
-import { WsParamsPayload } from "@/generated/ws_service_types/market_price";
+import { WsParamsPayload } from "@/generated/service_types/ws_server/market_price";
 
 type Props = {
   market_id: string;
@@ -32,9 +32,13 @@ const PriceChart = ({ market_id }: Props) => {
   const [priceData, setPriceData] = useState<
     { yes: number; no: number; time: string }[]
   >([]);
+  const [labelsData, setLabelsData] = useState({
+    yes: 0,
+    no: 0,
+  });
 
   const { messages } = useSubscription<WsParamsPayload>(
-    "/proto/ws_server/market_price.proto",
+    "/proto/proto_defs/ws_server/market_price.proto",
     "ws_market_price.WsParamsPayload",
     {
       payload: {
@@ -44,6 +48,7 @@ const PriceChart = ({ market_id }: Props) => {
         },
       },
     },
+    false, // maintainPreviousMessages
   );
 
   const { data: resp } = useQuery({
@@ -68,20 +73,26 @@ const PriceChart = ({ market_id }: Props) => {
   }, [resp?.priceData]);
 
   useEffect(() => {
+    // set labeled data to the latest yes and no prices
+    if (priceData.length > 0) {
+      const latestData = priceData[priceData.length - 1];
+      setLabelsData({
+        yes: latestData.yes * 100, // convert to percentage
+        no: latestData.no * 100, // convert to percentage
+      });
+    }
+  }, [priceData]);
+
+  useEffect(() => {
     if (messages?.length) {
       const newData = messages.map((msg) => ({
         yes: msg?.yesPrice,
         no: msg?.noPrice,
         time: new Date(Number(msg?.timestamp) * 1000).toISOString(),
       }));
-      setPriceData((prevData) => [...newData, ...prevData]);
+      setPriceData((prevData) => [...prevData, ...newData]);
     }
   }, [messages]);
-
-  const [labelsData, setLabelsData] = useState({
-    yes: priceData.reduce((acc, item) => acc + item.yes, 0) / priceData.length,
-    no: priceData.reduce((acc, item) => acc + item.no, 0) / priceData.length,
-  });
 
   const chart = useChart({
     data: priceData,
@@ -172,20 +183,22 @@ const PriceChart = ({ market_id }: Props) => {
           <YAxis
             tickLine={false}
             axisLine={false}
-            tickFormatter={(value) => `${value * 100}%`}
+            tickFormatter={(value) => `${Math.round(value * 100)}%`}
             orientation="right"
+            domain={[0, 1]}
+            // ticks={[0.1, 0.25, 0.5, 0.6, 0.75, 1.0]}
           />
           {chart.series.map((item, idx) => {
             const lastIndex = chart.data.length - 1;
             return (
               <Line
-                key={(item?.name ?? "") + idx + item.stackId}
+                key={(item?.name ?? "") + idx + item.stackId + "RANDOM_LINE"}
                 isAnimationActive
                 dataKey={chart.key(item.name)}
                 fill={chart.color(item.color)}
                 stroke={chart.color(item.color)}
                 strokeWidth={2}
-                type="monotoneX"
+                type="natural"
                 dot={(props) => {
                   if (props.index !== lastIndex) return <></>;
                   return (

@@ -37,7 +37,9 @@ export default function useSubscription<T>(
             setMessages((prevMessages) => [decodedData, ...prevMessages]);
           else setMessages([decodedData]);
         } catch (error) {
-          console.error("Error decoding protobuf:", error);
+          if (!(error instanceof RangeError)) {
+            console.error("Error decoding protobuf:", error);
+          }
         }
       }
     },

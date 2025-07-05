@@ -79,10 +79,10 @@ const MarketPage = async ({ params }: Props) => {
               <Tabs.Trigger value="top_holders">Top holders</Tabs.Trigger>
             </Tabs.List>
             <Tabs.Content value="yes_book">
-              <OrderBook tradeType="yes" />
+              <OrderBook tradeType="yes" marketId={id} />
             </Tabs.Content>
             <Tabs.Content value="no_book">
-              <OrderBook tradeType="no" />
+              <OrderBook tradeType="no" marketId={id} />
             </Tabs.Content>
             <Tabs.Content value="my_orders">
               <MyOrders marketId={id} />

@@ -33,6 +33,19 @@ export class MarketGetters {
       return null;
     }
   }
+
+  static async getOrderBook(marketId: string, depth: number = 10) {
+    try {
+      const { response } = await marketServiceClient.getMarketBook({
+        depth,
+        marketId,
+      });
+      return response;
+    } catch (error: any) {
+      console.error("Failed to get order book: ", error);
+      return null;
+    }
+  }
 }
 
 export class UserGetters {

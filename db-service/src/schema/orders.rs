@@ -147,7 +147,10 @@ impl Order {
         Ok(order)
     }
 
-    pub async fn find_order_by_id(order_id: Uuid, pool: &PgPool) -> Result<Order, sqlx::Error> {
+    pub async fn find_order_by_id(
+        order_id: Uuid,
+        pool: &PgPool,
+    ) -> Result<Option<Order>, sqlx::Error> {
         let order = sqlx::query_as!(
             Order,
             r#"
@@ -163,10 +166,36 @@ impl Order {
             "#,
             order_id
         )
-        .fetch_one(pool)
+        .fetch_optional(pool)
         .await?;
 
-        log_info!("Order found - {:?}", order.id);
+        Ok(order)
+    }
+
+    pub async fn find_order_by_id_and_status(
+        order_id: Uuid,
+        status: OrderStatus,
+        pool: &PgPool,
+    ) -> Result<Option<Order>, sqlx::Error> {
+        let order = sqlx::query_as!(
+            Order,
+            r#"
+            SELECT 
+            id, user_id, market_id,
+            outcome as "outcome: Outcome",
+            price, quantity, filled_quantity,
+            status as "status: OrderStatus",
+            side as "side: OrderSide",
+            created_at, updated_at            
+            FROM polymarket.orders
+            WHERE id = $1 AND status = $2
+            "#,
+            order_id,
+            status as _
+        )
+        .fetch_optional(pool)
+        .await?;
+
         Ok(order)
     }
 

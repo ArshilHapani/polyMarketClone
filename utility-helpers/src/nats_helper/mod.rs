@@ -8,33 +8,24 @@ use uuid::Uuid;
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub enum NatsSubjects {
     OrderCreate,
-    OrderUpdate(Uuid),
     MarketBookUpdate(Uuid),
+    OrderCancel,
 }
 
 impl NatsSubjects {
     pub fn to_string(&self) -> String {
         match self {
             NatsSubjects::OrderCreate => "order.create".to_string(),
-            NatsSubjects::OrderUpdate(order_id) => {
-                format!("order.update.{}", order_id)
-            }
             NatsSubjects::MarketBookUpdate(market_id) => {
                 format!("order.market.book.update.{}", market_id)
             }
+            NatsSubjects::OrderCancel => "order.cancel".to_string(),
         }
     }
 
     pub fn from_string(queue: &str) -> Option<Self> {
         if queue == "order.create" {
             Some(NatsSubjects::OrderCreate)
-        } else if queue.starts_with("order.update.") {
-            let order_id_str = queue.trim_start_matches("order.update.");
-            let res_uuid = Uuid::parse_str(order_id_str);
-            match res_uuid {
-                Ok(order_id) => Some(NatsSubjects::OrderUpdate(order_id)),
-                Err(_) => None,
-            }
         } else if queue.starts_with("order.market.book.update.") {
             let market_id_str = queue.trim_start_matches("order.market.book.update.");
             let res_uuid = Uuid::parse_str(market_id_str);
@@ -42,6 +33,8 @@ impl NatsSubjects {
                 Ok(market_id) => Some(NatsSubjects::MarketBookUpdate(market_id)),
                 Err(_) => None,
             }
+        } else if queue == "order.cancel" {
+            Some(NatsSubjects::OrderCancel)
         } else {
             None
         }

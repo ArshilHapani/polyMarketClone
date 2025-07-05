@@ -1,19 +1,68 @@
+"use client";
+
+import React, { useEffect, useState } from "react";
 import { Box, Table, Badge, Text } from "@chakra-ui/react";
+import { useQuery } from "@tanstack/react-query";
+
+import { MarketGetters } from "@/utils/interactions/dataGetter";
+
+import {
+  GetMarketBookResponse,
+  OrderLevel,
+} from "@/generated/grpc_service_types/markets";
+import useSubscription from "@/hooks/useSubscription";
+import { MarketBook } from "@/generated/service_types/ws_server/order_book";
 
 type Props = {
   tradeType: "yes" | "no";
+  marketId: string;
 };
 
-const OrderBook = ({ tradeType }: Props) => {
-  const buyOrders = generateDummyOrderBookData(10, true);
-  const sellOrders = generateDummyOrderBookData(10);
+const OrderBook = ({ tradeType, marketId }: Props) => {
+  const { data } = useQuery({
+    queryKey: ["orderBookData", marketId],
+    queryFn: () => MarketGetters.getOrderBook(marketId),
+  });
+  const { messages } = useSubscription<MarketBook>(
+    "/proto/proto_defs/ws_server/order_book.proto",
+    "order_book.MarketBook",
+    {
+      payload: {
+        type: "Subscribe",
+        data: {
+          channel: `order_book_update:${marketId}`,
+        },
+      },
+    },
+    false, // maintainPreviousMessages
+  );
+  const [orders, setOrders] = useState<OrderBookLevel[]>([]);
 
-  const sortedBuyOrders = [...buyOrders].sort((a, b) => b.price - a.price);
-  const sortedSellOrders = [...sellOrders].sort((a, b) => a.price - b.price);
-  const firstBuyAndAfterThatSellOrdersInSortedAsPerPrice = [
-    ...sortedBuyOrders,
-    ...sortedSellOrders,
-  ];
+  useEffect(() => {
+    if (data) {
+      const allOrders = transformToOrderBookLevels(data, tradeType);
+      setOrders(allOrders);
+    }
+  }, [data]);
+
+  // websocket messages
+  useEffect(() => {
+    if (messages?.length) {
+      const newOrders = messages.map((msg) => {
+        return transformToOrderBookLevels(msg, tradeType);
+      });
+      setOrders(newOrders.flat());
+    }
+  }, [messages]);
+
+  const buyOrders = orders
+    .filter((o) => o.type === "buy")
+    .sort((a, b) => b.price - a.price);
+  const sellOrders = orders
+    .filter((o) => o.type === "sell")
+    .sort((a, b) => a.price - b.price);
+
+  const mergedOrders = [...buyOrders, ...sellOrders];
 
   const buyTotalUsers = buyOrders.reduce((acc, order) => acc + order.users, 0);
   const sellTotalUsers = sellOrders.reduce(
@@ -35,15 +84,15 @@ const OrderBook = ({ tradeType }: Props) => {
           </Table.Header>
 
           <Table.Body>
-            {firstBuyAndAfterThatSellOrdersInSortedAsPerPrice.map(
-              (order, idx) => {
-                let midContent: React.ReactNode = null;
-                if (idx === sortedBuyOrders.length) {
-                  const bestBuy = sortedBuyOrders[0]?.price ?? 0;
-                  const bestSell = sortedSellOrders[0]?.price ?? 0;
-                  const spread = (bestSell - bestBuy).toFixed(2);
+            {mergedOrders.map((order, idx) => {
+              const isSpreadRow = idx === buyOrders.length;
+              const bestBuy = buyOrders[0]?.price ?? 0;
+              const bestSell = sellOrders[0]?.price ?? 0;
+              const spread = (bestSell - bestBuy).toFixed(2);
 
-                  midContent = (
+              return (
+                <React.Fragment key={`${order.type}-${order.price}-${idx}`}>
+                  {isSpreadRow && (
                     <Table.Row key="spread-row" border="none">
                       <Table.Cell colSpan={4} textAlign="center" py={2}>
                         <Text fontWeight="bold" color="gray.600" fontSize="sm">
@@ -51,66 +100,54 @@ const OrderBook = ({ tradeType }: Props) => {
                         </Text>
                       </Table.Cell>
                     </Table.Row>
-                  );
-                }
-
-                return (
-                  <>
-                    {midContent}
-                    <Table.Row
-                      key={order.price + idx}
-                      border="none"
-                      _hover={{
-                        bg: order.type === "buy" ? "green.100/60" : "red.50/60",
-                      }}
-                    >
-                      <Table.Cell padding={0} position="relative" height="100%">
-                        <Box
-                          position="absolute"
-                          left={0}
-                          top={0}
-                          bottom={0}
-                          width={getBarPercentage(
-                            order.users,
-                            order.type === "buy"
-                              ? buyTotalUsers
-                              : sellTotalUsers,
-                          )}
-                          bg={
-                            order.type == "buy" ? "green.500/30" : "red.500/30"
-                          }
-                          height="100%"
-                          zIndex={0}
-                        />
-                        <Box
-                          position="relative"
-                          zIndex={1}
-                          display="flex"
-                          alignItems="center"
-                          height="25px"
-                        >
-                          {(idx === sortedBuyOrders.length - 1 ||
-                            idx === sortedBuyOrders.length) && (
-                            <Badge
-                              bg={
-                                order.type === "buy" ? "green.500" : "red.500"
-                              }
-                              color="white"
-                              ml={4}
-                            >
-                              {order.type === "buy" ? "Bids" : "Asks"}
-                            </Badge>
-                          )}
-                        </Box>
-                      </Table.Cell>
-                      <Table.Cell>{order.price}</Table.Cell>
-                      <Table.Cell>{order.shares}</Table.Cell>
-                      <Table.Cell>{order.total}</Table.Cell>
-                    </Table.Row>
-                  </>
-                );
-              },
-            )}
+                  )}
+                  <Table.Row
+                    border="none"
+                    _hover={{
+                      bg: order.type === "buy" ? "green.100/60" : "red.50/60",
+                    }}
+                  >
+                    <Table.Cell padding={0} position="relative" height="100%">
+                      <Box
+                        position="absolute"
+                        left={0}
+                        top={0}
+                        bottom={0}
+                        width={getBarPercentage(
+                          order.users,
+                          order.type === "buy" ? buyTotalUsers : sellTotalUsers,
+                        )}
+                        bg={
+                          order.type === "buy" ? "green.500/30" : "red.500/30"
+                        }
+                        height="100%"
+                        zIndex={0}
+                      />
+                      <Box
+                        position="relative"
+                        zIndex={1}
+                        display="flex"
+                        alignItems="center"
+                        height="25px"
+                      >
+                        {(idx === 0 || idx === buyOrders.length + 1) && (
+                          <Badge
+                            bg={order.type === "buy" ? "green.500" : "red.500"}
+                            color="white"
+                            ml={4}
+                          >
+                            {order.type === "buy" ? "Bids" : "Asks"}
+                          </Badge>
+                        )}
+                      </Box>
+                    </Table.Cell>
+                    <Table.Cell>{order.price}</Table.Cell>
+                    <Table.Cell>{order.shares}</Table.Cell>
+                    <Table.Cell>{order.total}</Table.Cell>
+                  </Table.Row>
+                </React.Fragment>
+              );
+            })}
           </Table.Body>
         </Table.Root>
       </Table.ScrollArea>
@@ -127,41 +164,37 @@ type OrderBookLevel = {
   users: number;
   type: "buy" | "sell";
 };
-function generateDummyOrderBookData(
-  levels: number = 5,
-  isBuy: boolean = false,
-): OrderBookLevel[] {
-  let data: OrderBookLevel[] = [];
-  let total = 0;
-
-  // Generate prices in sorted order (descending for buy, ascending for sell)
-  let prices = Array.from(
-    { length: levels },
-    () => +(Math.random() * 0.5 + 0.5).toFixed(2),
-  );
-  prices.sort((a, b) => (isBuy ? b - a : a - b));
-
-  for (let i = 0; i < levels; i++) {
-    const price = prices[i];
-    const shares = Math.floor(Math.random() * 100 + 1); // shares between 1 and 100
-    total += shares;
-
-    // Users: descending for buy (high price = more users), ascending for sell (low price = more users)
-    const maxUsers = 10;
-    const minUsers = 1;
-    let users: number;
-    if (isBuy) {
-      users = Math.round(maxUsers - ((maxUsers - minUsers) * i) / (levels - 1));
-    } else {
-      users = Math.round(minUsers + ((maxUsers - minUsers) * i) / (levels - 1));
-    }
-
-    data.push({ price, shares, total, users, type: isBuy ? "buy" : "sell" });
-  }
-  return data;
-}
 
 function getBarPercentage(users: number, totalUsers: number): string {
   if (totalUsers === 0) return "0%";
   return ((users / totalUsers) * 100).toFixed(2) + "%";
+}
+
+function transformToOrderBookLevels(
+  data?: GetMarketBookResponse | null,
+  tradeType: "yes" | "no" = "yes",
+): OrderBookLevel[] {
+  const result: OrderBookLevel[] = [];
+  if (!data) return result;
+
+  const book = tradeType === "yes" ? data.yesBook : data.noBook;
+
+  const processSide = (side: OrderLevel[], type: "buy" | "sell") => {
+    let cumulative = 0;
+    return side.map((entry) => {
+      cumulative += entry.shares;
+      return {
+        price: entry.price,
+        shares: entry.shares,
+        total: cumulative,
+        users: entry.users,
+        type,
+      };
+    });
+  };
+
+  result.push(...processSide(book?.bids || [], "buy"));
+  result.push(...processSide(book?.asks || [], "sell"));
+
+  return result;
 }

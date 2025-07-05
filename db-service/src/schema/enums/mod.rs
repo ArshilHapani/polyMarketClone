@@ -39,6 +39,12 @@ pub enum OrderStatus {
     CANCELLED,
     EXPIRED,
     UNSPECIFIED,
+    #[sqlx(rename = "partial_fill")]
+    PartialFill,
+    #[sqlx(rename = "pending_update")]
+    PendingUpdate,
+    #[sqlx(rename = "pending_cancel")]
+    PendingCancel,
 }
 
 #[derive(Debug, Serialize, Deserialize, sqlx::Type, Clone, PartialEq, Default, Copy)]
