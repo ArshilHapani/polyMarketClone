@@ -5,13 +5,15 @@ get-proto-files:
 	@echo "Proto files copied to public/proto directory."
 
 generate-service-types:
+	@cp -r  ../proto-defs/proto/* ./public/proto/proto_defs
 	@echo "Generating types make sure that all files are in public/proto directory"
 	@protoc -I=./public/proto/proto_defs \
 			-I=$(shell pkg-config --variable=prefix protobuf)/include \
 			--plugin=protoc-gen-ts=./node_modules/.bin/protoc-gen-ts \
 			--ts_out=./src/generated/service_types \
 			--ts_opt=generate_dependencies,long_type_number \
-			$(shell find ./public/proto/proto_defs -name '*.proto')
+			$(shell find ./public/proto/proto_defs/ws_server -name '*.proto')
+			$(shell find ./public/proto/proto_defs/api_service -name '*.proto')
 	@echo "Types generated successfully."
 
 

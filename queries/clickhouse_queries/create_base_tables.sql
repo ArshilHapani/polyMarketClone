@@ -5,7 +5,7 @@ USE polyMarket;
 -- Core table
 CREATE TABLE market_price_data (
     market_id UUID,
-    yes_price Decimal(20, 8),
+    yes_price Float64,
     no_price Decimal(20, 8),
     ts DateTime('UTC'),
     created_at DateTime('UTC') DEFAULT now(),

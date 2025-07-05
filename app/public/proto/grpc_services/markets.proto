@@ -6,12 +6,10 @@ package markets;
 
 service MarketService {
     rpc GetMarketData(common.PageRequest) returns (GetPaginatedMarketResponse);    
-    rpc GetMarketById(GetMarketByIdRequest) returns (Market);
+    rpc GetMarketById(RequestWithMarketId) returns (Market);
+    rpc GetMarketBook(RequestForMarketBook) returns (GetMarketBookResponse);
 }
 
-message GetMarketByIdRequest {
-    string market_id = 1;
-}
 
 enum MarketStatus {
     UNSPECIFIED_MARKET_STATUS = 0;
@@ -25,6 +23,32 @@ enum Outcome {
     YES = 1;
     NO = 2;
     UNSPECIFIED = 3;
+}
+
+message OrderLevel {
+    double price = 1; // Price of the order
+    double shares = 2; // Total quantity of shares at this price
+    uint32 users = 3; // Number of users at this price (histogram)
+}
+
+message OrderBook {
+    repeated OrderLevel bids = 1;
+    repeated OrderLevel asks = 2;
+}
+
+message GetMarketBookResponse {
+    string market_id = 1; // ID of the market
+    OrderBook yes_book = 2; // Order book for YES outcome
+    OrderBook no_book = 3; // Order book for NO outcome
+}
+
+message RequestWithMarketId {
+    string market_id = 1;
+}
+
+message RequestForMarketBook {
+    string market_id = 1;
+    uint32 depth = 2;
 }
 
 message Market {

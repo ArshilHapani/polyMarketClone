@@ -14,13 +14,73 @@ import { reflectionMergePartial } from "@protobuf-ts/runtime";
 import { MessageType } from "@protobuf-ts/runtime";
 import { PageInfo } from "./common";
 /**
- * @generated from protobuf message markets.GetMarketByIdRequest
+ * @generated from protobuf message markets.OrderLevel
  */
-export interface GetMarketByIdRequest {
+export interface OrderLevel {
+    /**
+     * @generated from protobuf field: double price = 1;
+     */
+    price: number; // Price of the order
+    /**
+     * @generated from protobuf field: double shares = 2;
+     */
+    shares: number; // Total quantity of shares at this price
+    /**
+     * @generated from protobuf field: uint32 users = 3;
+     */
+    users: number; // Number of users at this price (histogram)
+}
+/**
+ * @generated from protobuf message markets.OrderBook
+ */
+export interface OrderBook {
+    /**
+     * @generated from protobuf field: repeated markets.OrderLevel bids = 1;
+     */
+    bids: OrderLevel[];
+    /**
+     * @generated from protobuf field: repeated markets.OrderLevel asks = 2;
+     */
+    asks: OrderLevel[];
+}
+/**
+ * @generated from protobuf message markets.GetMarketBookResponse
+ */
+export interface GetMarketBookResponse {
+    /**
+     * @generated from protobuf field: string market_id = 1;
+     */
+    marketId: string; // ID of the market
+    /**
+     * @generated from protobuf field: markets.OrderBook yes_book = 2;
+     */
+    yesBook?: OrderBook; // Order book for YES outcome
+    /**
+     * @generated from protobuf field: markets.OrderBook no_book = 3;
+     */
+    noBook?: OrderBook; // Order book for NO outcome
+}
+/**
+ * @generated from protobuf message markets.RequestWithMarketId
+ */
+export interface RequestWithMarketId {
     /**
      * @generated from protobuf field: string market_id = 1;
      */
     marketId: string;
+}
+/**
+ * @generated from protobuf message markets.RequestForMarketBook
+ */
+export interface RequestForMarketBook {
+    /**
+     * @generated from protobuf field: string market_id = 1;
+     */
+    marketId: string;
+    /**
+     * @generated from protobuf field: uint32 depth = 2;
+     */
+    depth: number;
 }
 /**
  * @generated from protobuf message markets.Market
@@ -131,20 +191,199 @@ export enum Outcome {
     UNSPECIFIED = 3
 }
 // @generated message type with reflection information, may provide speed optimized methods
-class GetMarketByIdRequest$Type extends MessageType<GetMarketByIdRequest> {
+class OrderLevel$Type extends MessageType<OrderLevel> {
     constructor() {
-        super("markets.GetMarketByIdRequest", [
-            { no: 1, name: "market_id", kind: "scalar", T: 9 /*ScalarType.STRING*/ }
+        super("markets.OrderLevel", [
+            { no: 1, name: "price", kind: "scalar", T: 1 /*ScalarType.DOUBLE*/ },
+            { no: 2, name: "shares", kind: "scalar", T: 1 /*ScalarType.DOUBLE*/ },
+            { no: 3, name: "users", kind: "scalar", T: 13 /*ScalarType.UINT32*/ }
         ]);
     }
-    create(value?: PartialMessage<GetMarketByIdRequest>): GetMarketByIdRequest {
+    create(value?: PartialMessage<OrderLevel>): OrderLevel {
+        const message = globalThis.Object.create((this.messagePrototype!));
+        message.price = 0;
+        message.shares = 0;
+        message.users = 0;
+        if (value !== undefined)
+            reflectionMergePartial<OrderLevel>(this, message, value);
+        return message;
+    }
+    internalBinaryRead(reader: IBinaryReader, length: number, options: BinaryReadOptions, target?: OrderLevel): OrderLevel {
+        let message = target ?? this.create(), end = reader.pos + length;
+        while (reader.pos < end) {
+            let [fieldNo, wireType] = reader.tag();
+            switch (fieldNo) {
+                case /* double price */ 1:
+                    message.price = reader.double();
+                    break;
+                case /* double shares */ 2:
+                    message.shares = reader.double();
+                    break;
+                case /* uint32 users */ 3:
+                    message.users = reader.uint32();
+                    break;
+                default:
+                    let u = options.readUnknownField;
+                    if (u === "throw")
+                        throw new globalThis.Error(`Unknown field ${fieldNo} (wire type ${wireType}) for ${this.typeName}`);
+                    let d = reader.skip(wireType);
+                    if (u !== false)
+                        (u === true ? UnknownFieldHandler.onRead : u)(this.typeName, message, fieldNo, wireType, d);
+            }
+        }
+        return message;
+    }
+    internalBinaryWrite(message: OrderLevel, writer: IBinaryWriter, options: BinaryWriteOptions): IBinaryWriter {
+        /* double price = 1; */
+        if (message.price !== 0)
+            writer.tag(1, WireType.Bit64).double(message.price);
+        /* double shares = 2; */
+        if (message.shares !== 0)
+            writer.tag(2, WireType.Bit64).double(message.shares);
+        /* uint32 users = 3; */
+        if (message.users !== 0)
+            writer.tag(3, WireType.Varint).uint32(message.users);
+        let u = options.writeUnknownFields;
+        if (u !== false)
+            (u == true ? UnknownFieldHandler.onWrite : u)(this.typeName, message, writer);
+        return writer;
+    }
+}
+/**
+ * @generated MessageType for protobuf message markets.OrderLevel
+ */
+export const OrderLevel = new OrderLevel$Type();
+// @generated message type with reflection information, may provide speed optimized methods
+class OrderBook$Type extends MessageType<OrderBook> {
+    constructor() {
+        super("markets.OrderBook", [
+            { no: 1, name: "bids", kind: "message", repeat: 2 /*RepeatType.UNPACKED*/, T: () => OrderLevel },
+            { no: 2, name: "asks", kind: "message", repeat: 2 /*RepeatType.UNPACKED*/, T: () => OrderLevel }
+        ]);
+    }
+    create(value?: PartialMessage<OrderBook>): OrderBook {
+        const message = globalThis.Object.create((this.messagePrototype!));
+        message.bids = [];
+        message.asks = [];
+        if (value !== undefined)
+            reflectionMergePartial<OrderBook>(this, message, value);
+        return message;
+    }
+    internalBinaryRead(reader: IBinaryReader, length: number, options: BinaryReadOptions, target?: OrderBook): OrderBook {
+        let message = target ?? this.create(), end = reader.pos + length;
+        while (reader.pos < end) {
+            let [fieldNo, wireType] = reader.tag();
+            switch (fieldNo) {
+                case /* repeated markets.OrderLevel bids */ 1:
+                    message.bids.push(OrderLevel.internalBinaryRead(reader, reader.uint32(), options));
+                    break;
+                case /* repeated markets.OrderLevel asks */ 2:
+                    message.asks.push(OrderLevel.internalBinaryRead(reader, reader.uint32(), options));
+                    break;
+                default:
+                    let u = options.readUnknownField;
+                    if (u === "throw")
+                        throw new globalThis.Error(`Unknown field ${fieldNo} (wire type ${wireType}) for ${this.typeName}`);
+                    let d = reader.skip(wireType);
+                    if (u !== false)
+                        (u === true ? UnknownFieldHandler.onRead : u)(this.typeName, message, fieldNo, wireType, d);
+            }
+        }
+        return message;
+    }
+    internalBinaryWrite(message: OrderBook, writer: IBinaryWriter, options: BinaryWriteOptions): IBinaryWriter {
+        /* repeated markets.OrderLevel bids = 1; */
+        for (let i = 0; i < message.bids.length; i++)
+            OrderLevel.internalBinaryWrite(message.bids[i], writer.tag(1, WireType.LengthDelimited).fork(), options).join();
+        /* repeated markets.OrderLevel asks = 2; */
+        for (let i = 0; i < message.asks.length; i++)
+            OrderLevel.internalBinaryWrite(message.asks[i], writer.tag(2, WireType.LengthDelimited).fork(), options).join();
+        let u = options.writeUnknownFields;
+        if (u !== false)
+            (u == true ? UnknownFieldHandler.onWrite : u)(this.typeName, message, writer);
+        return writer;
+    }
+}
+/**
+ * @generated MessageType for protobuf message markets.OrderBook
+ */
+export const OrderBook = new OrderBook$Type();
+// @generated message type with reflection information, may provide speed optimized methods
+class GetMarketBookResponse$Type extends MessageType<GetMarketBookResponse> {
+    constructor() {
+        super("markets.GetMarketBookResponse", [
+            { no: 1, name: "market_id", kind: "scalar", T: 9 /*ScalarType.STRING*/ },
+            { no: 2, name: "yes_book", kind: "message", T: () => OrderBook },
+            { no: 3, name: "no_book", kind: "message", T: () => OrderBook }
+        ]);
+    }
+    create(value?: PartialMessage<GetMarketBookResponse>): GetMarketBookResponse {
         const message = globalThis.Object.create((this.messagePrototype!));
         message.marketId = "";
         if (value !== undefined)
-            reflectionMergePartial<GetMarketByIdRequest>(this, message, value);
+            reflectionMergePartial<GetMarketBookResponse>(this, message, value);
         return message;
     }
-    internalBinaryRead(reader: IBinaryReader, length: number, options: BinaryReadOptions, target?: GetMarketByIdRequest): GetMarketByIdRequest {
+    internalBinaryRead(reader: IBinaryReader, length: number, options: BinaryReadOptions, target?: GetMarketBookResponse): GetMarketBookResponse {
+        let message = target ?? this.create(), end = reader.pos + length;
+        while (reader.pos < end) {
+            let [fieldNo, wireType] = reader.tag();
+            switch (fieldNo) {
+                case /* string market_id */ 1:
+                    message.marketId = reader.string();
+                    break;
+                case /* markets.OrderBook yes_book */ 2:
+                    message.yesBook = OrderBook.internalBinaryRead(reader, reader.uint32(), options, message.yesBook);
+                    break;
+                case /* markets.OrderBook no_book */ 3:
+                    message.noBook = OrderBook.internalBinaryRead(reader, reader.uint32(), options, message.noBook);
+                    break;
+                default:
+                    let u = options.readUnknownField;
+                    if (u === "throw")
+                        throw new globalThis.Error(`Unknown field ${fieldNo} (wire type ${wireType}) for ${this.typeName}`);
+                    let d = reader.skip(wireType);
+                    if (u !== false)
+                        (u === true ? UnknownFieldHandler.onRead : u)(this.typeName, message, fieldNo, wireType, d);
+            }
+        }
+        return message;
+    }
+    internalBinaryWrite(message: GetMarketBookResponse, writer: IBinaryWriter, options: BinaryWriteOptions): IBinaryWriter {
+        /* string market_id = 1; */
+        if (message.marketId !== "")
+            writer.tag(1, WireType.LengthDelimited).string(message.marketId);
+        /* markets.OrderBook yes_book = 2; */
+        if (message.yesBook)
+            OrderBook.internalBinaryWrite(message.yesBook, writer.tag(2, WireType.LengthDelimited).fork(), options).join();
+        /* markets.OrderBook no_book = 3; */
+        if (message.noBook)
+            OrderBook.internalBinaryWrite(message.noBook, writer.tag(3, WireType.LengthDelimited).fork(), options).join();
+        let u = options.writeUnknownFields;
+        if (u !== false)
+            (u == true ? UnknownFieldHandler.onWrite : u)(this.typeName, message, writer);
+        return writer;
+    }
+}
+/**
+ * @generated MessageType for protobuf message markets.GetMarketBookResponse
+ */
+export const GetMarketBookResponse = new GetMarketBookResponse$Type();
+// @generated message type with reflection information, may provide speed optimized methods
+class RequestWithMarketId$Type extends MessageType<RequestWithMarketId> {
+    constructor() {
+        super("markets.RequestWithMarketId", [
+            { no: 1, name: "market_id", kind: "scalar", T: 9 /*ScalarType.STRING*/ }
+        ]);
+    }
+    create(value?: PartialMessage<RequestWithMarketId>): RequestWithMarketId {
+        const message = globalThis.Object.create((this.messagePrototype!));
+        message.marketId = "";
+        if (value !== undefined)
+            reflectionMergePartial<RequestWithMarketId>(this, message, value);
+        return message;
+    }
+    internalBinaryRead(reader: IBinaryReader, length: number, options: BinaryReadOptions, target?: RequestWithMarketId): RequestWithMarketId {
         let message = target ?? this.create(), end = reader.pos + length;
         while (reader.pos < end) {
             let [fieldNo, wireType] = reader.tag();
@@ -163,7 +402,7 @@ class GetMarketByIdRequest$Type extends MessageType<GetMarketByIdRequest> {
         }
         return message;
     }
-    internalBinaryWrite(message: GetMarketByIdRequest, writer: IBinaryWriter, options: BinaryWriteOptions): IBinaryWriter {
+    internalBinaryWrite(message: RequestWithMarketId, writer: IBinaryWriter, options: BinaryWriteOptions): IBinaryWriter {
         /* string market_id = 1; */
         if (message.marketId !== "")
             writer.tag(1, WireType.LengthDelimited).string(message.marketId);
@@ -174,9 +413,64 @@ class GetMarketByIdRequest$Type extends MessageType<GetMarketByIdRequest> {
     }
 }
 /**
- * @generated MessageType for protobuf message markets.GetMarketByIdRequest
+ * @generated MessageType for protobuf message markets.RequestWithMarketId
  */
-export const GetMarketByIdRequest = new GetMarketByIdRequest$Type();
+export const RequestWithMarketId = new RequestWithMarketId$Type();
+// @generated message type with reflection information, may provide speed optimized methods
+class RequestForMarketBook$Type extends MessageType<RequestForMarketBook> {
+    constructor() {
+        super("markets.RequestForMarketBook", [
+            { no: 1, name: "market_id", kind: "scalar", T: 9 /*ScalarType.STRING*/ },
+            { no: 2, name: "depth", kind: "scalar", T: 13 /*ScalarType.UINT32*/ }
+        ]);
+    }
+    create(value?: PartialMessage<RequestForMarketBook>): RequestForMarketBook {
+        const message = globalThis.Object.create((this.messagePrototype!));
+        message.marketId = "";
+        message.depth = 0;
+        if (value !== undefined)
+            reflectionMergePartial<RequestForMarketBook>(this, message, value);
+        return message;
+    }
+    internalBinaryRead(reader: IBinaryReader, length: number, options: BinaryReadOptions, target?: RequestForMarketBook): RequestForMarketBook {
+        let message = target ?? this.create(), end = reader.pos + length;
+        while (reader.pos < end) {
+            let [fieldNo, wireType] = reader.tag();
+            switch (fieldNo) {
+                case /* string market_id */ 1:
+                    message.marketId = reader.string();
+                    break;
+                case /* uint32 depth */ 2:
+                    message.depth = reader.uint32();
+                    break;
+                default:
+                    let u = options.readUnknownField;
+                    if (u === "throw")
+                        throw new globalThis.Error(`Unknown field ${fieldNo} (wire type ${wireType}) for ${this.typeName}`);
+                    let d = reader.skip(wireType);
+                    if (u !== false)
+                        (u === true ? UnknownFieldHandler.onRead : u)(this.typeName, message, fieldNo, wireType, d);
+            }
+        }
+        return message;
+    }
+    internalBinaryWrite(message: RequestForMarketBook, writer: IBinaryWriter, options: BinaryWriteOptions): IBinaryWriter {
+        /* string market_id = 1; */
+        if (message.marketId !== "")
+            writer.tag(1, WireType.LengthDelimited).string(message.marketId);
+        /* uint32 depth = 2; */
+        if (message.depth !== 0)
+            writer.tag(2, WireType.Varint).uint32(message.depth);
+        let u = options.writeUnknownFields;
+        if (u !== false)
+            (u == true ? UnknownFieldHandler.onWrite : u)(this.typeName, message, writer);
+        return writer;
+    }
+}
+/**
+ * @generated MessageType for protobuf message markets.RequestForMarketBook
+ */
+export const RequestForMarketBook = new RequestForMarketBook$Type();
 // @generated message type with reflection information, may provide speed optimized methods
 class Market$Type extends MessageType<Market> {
     constructor() {
@@ -371,5 +665,6 @@ export const GetPaginatedMarketResponse = new GetPaginatedMarketResponse$Type();
  */
 export const MarketService = new ServiceType("markets.MarketService", [
     { name: "GetMarketData", options: {}, I: PageRequest, O: GetPaginatedMarketResponse },
-    { name: "GetMarketById", options: {}, I: GetMarketByIdRequest, O: Market }
+    { name: "GetMarketById", options: {}, I: RequestWithMarketId, O: Market },
+    { name: "GetMarketBook", options: {}, I: RequestForMarketBook, O: GetMarketBookResponse }
 ]);
