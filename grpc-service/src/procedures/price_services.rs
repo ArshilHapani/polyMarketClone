@@ -64,6 +64,8 @@ impl PriceService for PriceServiceStub {
             Uuid::nil().to_string()
         };
 
+        // return Err(Status::unimplemented("This method is not implemented yet."));
+
         let response = GetMarketPriceDataWithinIntervalResponse {
             market_id,
             price_data: resp
@@ -100,14 +102,15 @@ mod test {
                  SELECT 
                     market_id, 
                     created_at,
-                    toFloat64(yes_price) as yes_price, 
-                    toFloat64(no_price) as no_price, 
+                    yes_price,
+                    no_price,
                     ts 
                 FROM market_price_data
                 "#,
             )
             .fetch_all::<GetMarketPrices>()
             .await;
+        println!("Another query response: {another_query:#?}");
 
         assert!(another_query.is_ok(), "Query should succeed");
     }
