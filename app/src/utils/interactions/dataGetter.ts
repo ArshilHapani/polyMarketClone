@@ -98,7 +98,7 @@ export class OrderGetters {
   ) {
     try {
       const { data } = await axios.get<GetUserOrdersPaginatedResponse>(
-        `${BASE_URL}/user/orders/get/${marketId}?page=${page}&page_size=${pageSize}`,
+        `${BASE_URL}/user/orders/get/${marketId}?page=${page}&page_size=${pageSize}&status=open`,
         {
           headers: {
             "Content-Type": "application/json",

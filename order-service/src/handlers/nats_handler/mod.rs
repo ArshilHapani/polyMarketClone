@@ -2,17 +2,23 @@ use std::sync::Arc;
 
 use async_nats::jetstream;
 use futures_util::StreamExt;
-use utility_helpers::{log_error, log_info, nats_helper::NatsSubjects};
+use utility_helpers::{
+    log_error, log_info,
+    message_pack_helper::deserialize_from_message_pack,
+    nats_helper::{NatsSubjects, types::UpdateOrderMessage},
+};
 
 use crate::{
     handlers::nats_handler::{
         cancel_order_handler::cancel_order_handler, create_order_handler::create_order_handler,
+        update_order_handler::update_order_handler,
     },
     state::AppState,
 };
 
 pub mod cancel_order_handler;
 pub mod create_order_handler;
+pub mod update_order_handler;
 
 pub async fn handle_nats_message(
     app_state: Arc<AppState>,
@@ -62,7 +68,19 @@ pub async fn handle_nats_message(
                         log_error!("Error occur while cancelling order {e}");
                     });
             }
-            NatsSubjects::MarketBookUpdate(_) => {}
+            NatsSubjects::OrderUpdate => {
+                let serialized_message = message.payload.to_vec();
+                let deserialized_message = deserialize_from_message_pack::<UpdateOrderMessage>(
+                    &serialized_message.as_slice(),
+                )?;
+
+                let _ = update_order_handler(app_state.clone(), deserialized_message)
+                    .await
+                    .map_err(|e| {
+                        log_error!("Error occur while updating order {e}");
+                    });
+            }
+            _ => {}
         }
 
         // sending ack in either case...

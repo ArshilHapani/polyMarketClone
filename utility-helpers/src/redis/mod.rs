@@ -55,6 +55,10 @@ impl RedisHelper {
         }
 
         let fresh_data = callback().await?;
+        if let Some(true) = is_empty_array(&fresh_data) {
+            log_info!("Data for key: {} is an empty array, skipping cache", key);
+            return Ok(fresh_data);
+        }
 
         match serialize_to_message_pack(&fresh_data) {
             Ok(encoded) => {
@@ -104,4 +108,19 @@ impl RedisHelper {
         }
         false
     }
+}
+
+fn is_empty_array<T: ?Sized>(data: &T) -> Option<bool>
+where
+    T: Serialize,
+{
+    let mut buf = Vec::new();
+    if serde_json::to_writer(&mut buf, data).is_ok() {
+        if let Ok(json) = serde_json::from_slice::<serde_json::Value>(&buf) {
+            if let serde_json::Value::Array(arr) = json {
+                return Some(arr.is_empty());
+            }
+        }
+    }
+    None
 }

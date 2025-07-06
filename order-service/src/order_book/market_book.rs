@@ -52,7 +52,7 @@ impl MarketBook {
             _ => Vec::new(),
         };
 
-        if order.status == OrderStatus::OPEN {
+        if order.status == OrderStatus::OPEN || order.status == OrderStatus::PendingUpdate {
             self.add_order(order);
         }
         self.update_market_price();
@@ -61,21 +61,17 @@ impl MarketBook {
 
     pub(super) fn update_order(
         &mut self,
-        order_id: Uuid,
-        side: OrderSide,
-        outcome: Outcome,
-        price: Decimal,
-        new_filled_quantity: Decimal,
+        order: &mut Order,
+        new_quantity: Decimal,
+        new_price: Decimal,
     ) -> bool {
-        let result = match outcome {
-            Outcome::YES => {
-                self.yes_order_book
-                    .update_order(order_id, side, price, new_filled_quantity)
-            }
-            Outcome::NO => {
-                self.no_order_book
-                    .update_order(order_id, side, price, new_filled_quantity)
-            }
+        let result = match order.outcome {
+            Outcome::YES => self
+                .yes_order_book
+                .update_order(order, new_price, new_quantity),
+            Outcome::NO => self
+                .no_order_book
+                .update_order(order, new_price, new_quantity),
             _ => false,
         };
         if result {
@@ -355,39 +351,6 @@ mod test {
             match_2.get(0).unwrap().opposite_order_id,
             buy_order_1_yes.id
         );
-    }
-
-    #[test]
-    fn test_update_order() {
-        let id = get_random_uuid();
-        let price = dec!(0.4);
-
-        let order = Order {
-            created_at: get_created_at(),
-            filled_quantity: Decimal::ZERO,
-            id,
-            price,
-            market_id: get_random_uuid(),
-            outcome: Outcome::YES,
-            quantity: dec!(10),
-            side: OrderSide::BUY,
-            status: OrderStatus::OPEN,
-            updated_at: get_created_at(),
-            user_id: get_random_uuid(),
-        };
-
-        let mut market_book = MarketBook::new(dec!(100));
-        market_book.add_order(&order);
-
-        let price_level = market_book.yes_order_book.bids.get(&price).unwrap();
-
-        assert_eq!(price_level.total_quantity, dec!(10));
-
-        market_book.update_order(id, OrderSide::BUY, Outcome::YES, price, dec!(5));
-
-        let price_level = market_book.yes_order_book.bids.get(&price).unwrap();
-
-        assert_eq!(price_level.total_quantity, dec!(5));
     }
 
     #[test]

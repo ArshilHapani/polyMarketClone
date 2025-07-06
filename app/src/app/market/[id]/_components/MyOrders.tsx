@@ -1,8 +1,13 @@
 "use client";
 
 import { useState } from "react";
-import { LucideChevronLeft, LucideChevronRight, Trash2 } from "lucide-react";
-import { useQuery } from "@tanstack/react-query";
+import {
+  LucideChevronLeft,
+  LucideChevronRight,
+  PenBoxIcon,
+  X,
+} from "lucide-react";
+import { useMutation, useQuery } from "@tanstack/react-query";
 import {
   Badge,
   ButtonGroup,
@@ -19,6 +24,11 @@ import {
 import EmptyStateCustom from "@/components/EmptyStateCustom";
 import { OrderGetters } from "@/utils/interactions/dataGetter";
 import { formatDate } from "@/utils";
+import UpdateOrderModal from "@/components/modals/UpdateOrderModal";
+import useModal from "@/hooks/useModal";
+import { MarketActions } from "@/utils/interactions/dataPosters";
+import { toaster } from "@/components/ui/toaster";
+import useRevalidation from "@/hooks/useRevalidate";
 
 type Props = {
   marketId: string;
@@ -27,6 +37,11 @@ type Props = {
 const MyOrders = ({ marketId }: Props) => {
   const [page, setPage] = useState(1);
   const [pageSize, setPageSize] = useState(["10"]);
+  const { open } = useModal();
+  const { mutateAsync } = useMutation({
+    mutationFn: MarketActions.cancelOrder,
+  });
+  const revalidate = useRevalidation();
   const { data } = useQuery({
     queryKey: ["marketOrders", marketId, page, Number(pageSize)],
     queryFn: () =>
@@ -45,6 +60,24 @@ const MyOrders = ({ marketId }: Props) => {
       />
     );
   }
+  function handleCancelOrder(orderId: string) {
+    const cnf = confirm(
+      "Are you sure you want to cancel this order? This action cannot be undone.",
+    );
+    if (!cnf) return;
+    toaster.promise(mutateAsync(orderId), {
+      loading: { title: "Cancelling order..." },
+      success: () => {
+        revalidate(["marketOrders"]);
+        return { title: "Order cancelled successfully!" };
+      },
+      error: (error) => ({
+        title: "Error cancelling order",
+        description: error instanceof Error ? error.message : "Unknown error",
+        closable: true,
+      }),
+    });
+  }
   return (
     <>
       <Stack width="full" gap="5">
@@ -57,7 +90,8 @@ const MyOrders = ({ marketId }: Props) => {
               <Table.ColumnHeader>Quantity</Table.ColumnHeader>
               <Table.ColumnHeader>Outcome</Table.ColumnHeader>
               <Table.ColumnHeader>Side</Table.ColumnHeader>
-              <Table.ColumnHeader>Delete</Table.ColumnHeader>
+              <Table.ColumnHeader>Update</Table.ColumnHeader>
+              <Table.ColumnHeader>Cancel</Table.ColumnHeader>
             </Table.Row>
           </Table.Header>
 
@@ -93,13 +127,28 @@ const MyOrders = ({ marketId }: Props) => {
                   <IconButton
                     variant="ghost"
                     rounded="full"
+                    colorPalette="blue"
+                    color="blue.500"
+                    onClick={() => open(`update-order-${item.id}`)}
+                  >
+                    <PenBoxIcon size={20} />
+                  </IconButton>
+                  <UpdateOrderModal
+                    quantity={item.quantity}
+                    filledQuantity={item.filled_quantity}
+                    orderId={item.id}
+                    price={item.price}
+                  />
+                </Table.Cell>
+                <Table.Cell>
+                  <IconButton
+                    variant="ghost"
+                    rounded="full"
                     colorPalette="red"
                     color="red.500"
-                    onClick={() => {
-                      console.log(`Delete order with id: ${item.id}`);
-                    }}
+                    onClick={() => handleCancelOrder(item.id)}
                   >
-                    <Trash2 size={20} />
+                    <X size={20} />
                   </IconButton>
                 </Table.Cell>
               </Table.Row>

@@ -40,41 +40,44 @@ pub async fn update_service_state(
 
     // market id validation and current market state
     let (yes_price, no_price, yes_orders_data, no_orders_data, required_market_subs) = {
-        let order_book = app_state.order_book.read();
+        // sync block
+        {
+            let order_book = app_state.order_book.read();
 
-        let yes_price = order_book
-            .get_market_price(&market_id, Outcome::YES)
-            .unwrap_or_else(|| Decimal::new(5, 1));
-        let no_price = order_book
-            .get_market_price(&market_id, Outcome::NO)
-            .unwrap_or_else(|| Decimal::new(5, 1));
+            let yes_price = order_book
+                .get_market_price(&market_id, Outcome::YES)
+                .unwrap_or_else(|| Decimal::new(5, 1));
+            let no_price = order_book
+                .get_market_price(&market_id, Outcome::NO)
+                .unwrap_or_else(|| Decimal::new(5, 1));
 
-        let yes_orders = order_book.get_orders(&market_id, Outcome::YES);
-        let no_orders = order_book.get_orders(&market_id, Outcome::NO);
+            let yes_orders = order_book.get_orders(&market_id, Outcome::YES);
+            let no_orders = order_book.get_orders(&market_id, Outcome::NO);
 
-        // processing yes orders
-        let yes_orders_data = if let Some(yes_orders) = yes_orders {
-            yes_orders.get_order_book()
-        } else {
-            OrderBookDataStruct::default()
-        };
-        // processing no orders
-        let no_orders_data = if let Some(no_orders) = no_orders {
-            no_orders.get_order_book()
-        } else {
-            OrderBookDataStruct::default()
-        };
-        let market_subs_guard = app_state.market_subs.read();
-        let required_market_subs = market_subs_guard.contains(&market_id);
+            // processing yes orders
+            let yes_orders_data = if let Some(yes_orders) = yes_orders {
+                yes_orders.get_order_book()
+            } else {
+                OrderBookDataStruct::default()
+            };
+            // processing no orders
+            let no_orders_data = if let Some(no_orders) = no_orders {
+                no_orders.get_order_book()
+            } else {
+                OrderBookDataStruct::default()
+            };
+            let market_subs_guard = app_state.market_subs.read();
+            let required_market_subs = market_subs_guard.contains(&market_id);
 
-        (
-            // passing states from sync codeblock to async code block....
-            yes_price,
-            no_price,
-            yes_orders_data,
-            no_orders_data,
-            required_market_subs,
-        )
+            (
+                // passing states from sync codeblock to async code block....
+                yes_price,
+                no_price,
+                yes_orders_data,
+                no_orders_data,
+                required_market_subs,
+            )
+        }
     };
 
     log_info!(
@@ -150,6 +153,7 @@ pub async fn update_service_state(
     }
 
     // sending message to websocket ///////
+
     let mut ws_publisher = app_state.ws_tx.write().await;
 
     let yes_price = f64::from_str(&yes_price.to_string())

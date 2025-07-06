@@ -115,7 +115,7 @@ pub async fn create_order(
         ));
     }
 
-    // asserting the channel exists
+    // asserting the channel exists (not publishing the message)
     app_state
         .jetstream
         .get_or_create_stream(jetstream::stream::Config {
@@ -140,18 +140,19 @@ pub async fn create_order(
     // if trade type is sell then check holdings, else check the user's balance
 
     if side == OrderSide::SELL {
-        let holdings = UserHoldings::get_user_holdings(&app_state.pg_pool, user_id, market_id)
-            .await
-            .map_err(|e| {
-                log_error!("Failed to get user holdings - {:?}", e);
-                (
-                    StatusCode::INTERNAL_SERVER_ERROR,
-                    Json(json!({
-                        "error": "Failed to get user holdings"
-                    }))
-                    .into_response(),
-                )
-            })?;
+        let holdings =
+            UserHoldings::get_user_holdings(&app_state.pg_pool, user_id, market_id, outcome_side)
+                .await
+                .map_err(|e| {
+                    log_error!("Failed to get user holdings - {:?}", e);
+                    (
+                        StatusCode::INTERNAL_SERVER_ERROR,
+                        Json(json!({
+                            "error": "Failed to get user holdings"
+                        }))
+                        .into_response(),
+                    )
+                })?;
 
         if holdings.shares <= Decimal::ZERO || holdings.shares < from_f64(payload.quantity) {
             return Err((

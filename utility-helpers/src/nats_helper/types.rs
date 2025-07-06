@@ -1,4 +1,9 @@
+/*
+ * This file contains types which are going to serialize using message pack pack and send to nats
+ */
+
 use proto_defs::proto_types::order_book::{MarketBook, OrderBook, OrderLevel};
+use rust_decimal::Decimal;
 use serde::{Deserialize, Serialize};
 use uuid::Uuid;
 
@@ -13,6 +18,13 @@ pub struct OrderBookUpdateData {
     pub no_book: OrderBookDataStruct,
     pub market_id: Uuid,
     pub timestamp: String,
+}
+
+#[derive(Debug, Serialize, Deserialize)]
+pub struct UpdateOrderMessage {
+    pub order_id: Uuid,
+    pub new_quantity: Decimal,
+    pub new_price: Decimal,
 }
 
 impl OrderBookUpdateData {

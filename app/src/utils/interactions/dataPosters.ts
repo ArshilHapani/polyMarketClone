@@ -46,4 +46,55 @@ export class MarketActions {
       throw new Error("Failed to create limit order");
     }
   }
+
+  static async updateOrder(payload: {
+    order_id: string;
+    new_quantity: number;
+    new_price: number;
+  }) {
+    try {
+      const { data } = await axios.patch(
+        `${BASE_URL}/user/orders/update`,
+        payload,
+        {
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${TOKEN}`,
+          },
+        },
+      );
+      return data;
+    } catch (error: any) {
+      console.error("Error updating order:", error);
+      if (error instanceof AxiosError) {
+        throw new Error(
+          error.response?.data?.error || "Failed to update order",
+        );
+      }
+      throw new Error("Failed to update order");
+    }
+  }
+
+  static async cancelOrder(orderId: string) {
+    try {
+      const { data } = await axios.delete(
+        `${BASE_URL}/user/orders/cancel/${orderId}`,
+        {
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${TOKEN}`,
+          },
+        },
+      );
+      return data;
+    } catch (error: any) {
+      console.error("Error canceling order:", error);
+      if (error instanceof AxiosError) {
+        throw new Error(
+          error.response?.data?.error || "Failed to cancel order",
+        );
+      }
+      throw new Error("Failed to cancel order");
+    }
+  }
 }

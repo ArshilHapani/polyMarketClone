@@ -77,10 +77,11 @@ CREATE TABLE IF NOT EXISTS polymarket.user_holdings (
     "user_id" uuid NOT NULL REFERENCES polymarket.users("id"),
     "market_id" uuid NOT NULL REFERENCES polymarket.markets("id"),    
     "shares" decimal NOT NULL DEFAULT 0,
+    "outcome" polymarket.outcome NOT NULL DEFAULT 'unspecified',
     "created_at" timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP,
     "updated_at" timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP,
 
-    UNIQUE (user_id, market_id)
+    UNIQUE (user_id, market_id, outcome)
 );
 
 -- user_transactions

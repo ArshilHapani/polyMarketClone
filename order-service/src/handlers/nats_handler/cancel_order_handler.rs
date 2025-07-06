@@ -3,7 +3,7 @@ use std::sync::Arc;
 use db_service::schema::{enums::OrderStatus, orders::Order};
 use utility_helpers::log_warn;
 
-use crate::{handlers::update_services::update_service_state, state::AppState};
+use crate::{state::AppState, utils::update_services::update_service_state};
 
 pub async fn cancel_order_handler(
     app_state: Arc<AppState>,
@@ -33,15 +33,18 @@ pub async fn cancel_order_handler(
 
     // remove order from the order book
     let update_flag = {
-        let mut order_book = app_state.order_book.write();
+        // sync block
+        {
+            let mut order_book = app_state.order_book.write();
 
-        order_book.remove_order(
-            order.market_id,
-            order_id,
-            order.side,
-            order.outcome,
-            order.price,
-        )
+            order_book.remove_order(
+                order.market_id,
+                order_id,
+                order.side,
+                order.outcome,
+                order.price,
+            )
+        }
     };
 
     // perform db ops
@@ -54,5 +57,5 @@ pub async fn cancel_order_handler(
     // ws publish remaining if required...
 
     // update market state
-    update_service_state(Arc::clone(&app_state), order.market_id).await
+    update_service_state(app_state.clone(), order.market_id).await
 }

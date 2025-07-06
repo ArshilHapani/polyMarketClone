@@ -32,6 +32,19 @@ impl GlobalMarketBook {
         market_book.process_order(order)
     }
 
+    pub(crate) fn process_order_without_liquidity(
+        &mut self,
+        order: &mut Order,
+    ) -> Option<Vec<OrderBookMatchedOutput>> {
+        let market_id = order.market_id;
+        if let Some(market_book) = self.markets.get_mut(&market_id) {
+            let matches = market_book.process_order(order);
+            Some(matches)
+        } else {
+            None
+        }
+    }
+
     pub(crate) fn get_market_price(&self, market_id: &Uuid, outcome: Outcome) -> Option<Decimal> {
         self.markets.get(market_id).map(|market| match outcome {
             Outcome::YES => market.current_yes_price,
@@ -56,6 +69,19 @@ impl GlobalMarketBook {
     ) -> bool {
         if let Some(market_book) = self.markets.get_mut(&market_id) {
             market_book.remove_order(order_id, market_side, outcome, price)
+        } else {
+            false
+        }
+    }
+
+    pub(crate) fn update_order(
+        &mut self,
+        order: &mut Order,
+        new_price: Decimal,
+        new_total_quantity: Decimal,
+    ) -> bool {
+        if let Some(market_book) = self.markets.get_mut(&order.market_id) {
+            market_book.update_order(order, new_total_quantity, new_price)
         } else {
             false
         }

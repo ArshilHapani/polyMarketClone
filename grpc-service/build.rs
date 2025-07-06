@@ -32,6 +32,7 @@ fn main() -> Result<(), Box<dyn Error>> {
             .trim_end_matches(".rs")
             .to_string();
         if module_name == "mod" {
+            // skip the mod.rs file itself
             continue;
         }
         writeln!(mod_rs, "pub mod {};", module_name)?;

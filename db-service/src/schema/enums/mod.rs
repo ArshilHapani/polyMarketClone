@@ -39,6 +39,7 @@ pub enum OrderStatus {
     CANCELLED,
     EXPIRED,
     UNSPECIFIED,
+    // NOT USED!!!! and DON'T USE IT
     #[sqlx(rename = "partial_fill")]
     PartialFill,
     #[sqlx(rename = "pending_update")]

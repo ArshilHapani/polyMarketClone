@@ -68,6 +68,7 @@ impl AppState {
             .await
             .expect("Failed to connect to WebSocket server");
         log_info!("Connected to WebSocket server");
+
         // handshaking with ws server
         let message = WsMessage {
             id: None,

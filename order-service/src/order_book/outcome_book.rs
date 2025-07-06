@@ -5,7 +5,10 @@ use db_service::schema::{
     orders::Order,
 };
 use rust_decimal::Decimal;
-use utility_helpers::types::{OrderBookDataStruct, OrderLevel};
+use utility_helpers::{
+    log_info,
+    types::{OrderBookDataStruct, OrderLevel},
+};
 use uuid::Uuid;
 
 #[derive(Default, Debug)]
@@ -92,7 +95,32 @@ impl OutcomeBook {
         false
     }
 
+    // returns matched orders if updated order is matched with some order
     pub(super) fn update_order(
+        &mut self,
+        order: &mut Order,
+        updated_price: Decimal,
+        new_quantity: Decimal,
+    ) -> bool {
+        if order.quantity == new_quantity && order.price == updated_price {
+            log_info!("No changes in order, nothing to update");
+            return true; // no changes
+        }
+        // removing order
+        if !self.remove_order(order.id, order.side, order.price) {
+            log_info!("Order not found in book, cannot update");
+            return false; // order not found
+        }
+        order.price = updated_price;
+        order.quantity = new_quantity;
+        order.status = OrderStatus::OPEN; // resetting status to open      
+
+        self.add_order(order);
+
+        true
+    }
+
+    pub(super) fn _update_order_filled_quantity(
         &mut self,
         order_id: Uuid,
         side: OrderSide,
@@ -407,7 +435,7 @@ mod test {
         assert_eq!(price_level.total_quantity, quantity);
 
         // updating order
-        outcome_book.update_order(id, OrderSide::BUY, price, Decimal::new(5, 0));
+        outcome_book._update_order_filled_quantity(id, OrderSide::BUY, price, Decimal::new(5, 0));
 
         let price_level = outcome_book.bids.get(&price).unwrap();
         assert_eq!(price_level.total_quantity, Decimal::new(5, 0));

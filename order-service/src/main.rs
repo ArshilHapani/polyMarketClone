@@ -8,6 +8,7 @@ use crate::handlers::{nats_handler::handle_nats_message, ws_handler::handle_ws_m
 mod handlers;
 mod order_book;
 mod state;
+mod utils;
 
 #[tokio::main(flavor = "multi_thread")]
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
@@ -17,14 +18,14 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     let nats_app_state = Arc::clone(&app_state);
     let ws_app_state = Arc::clone(&app_state);
 
-    let nats_handler_join = tokio::spawn(async move {
-        if let Err(e) = handle_nats_message(nats_app_state).await {
-            log_error!("Error in NATS handler: {}", e);
-        }
-    });
     let ws_handler_join = tokio::spawn(async move {
         if let Err(e) = handle_ws_messages(ws_app_state).await {
             log_error!("Error in WS handler: {}", e);
+        }
+    });
+    let nats_handler_join = tokio::spawn(async move {
+        if let Err(e) = handle_nats_message(nats_app_state).await {
+            log_error!("Error in NATS handler: {}", e);
         }
     });
 
@@ -36,7 +37,15 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 async fn initialize_app() -> Result<Arc<AppState>, Box<dyn std::error::Error>> {
     let app_state = Arc::new(AppState::new().await?);
 
-    let open_orders = Order::get_all_open_or_unspecified_orders(&app_state.db_pool).await?;
+    let open_orders_future = Order::get_order_by_status(&app_state.db_pool, OrderStatus::OPEN);
+    let partially_updated_orders_future =
+        Order::get_order_by_status(&app_state.db_pool, OrderStatus::PendingUpdate);
+
+    let (mut open_orders, mut partially_updated_orders) =
+        tokio::try_join!(open_orders_future, partially_updated_orders_future)?;
+
+    // combine open and partially updated orders
+    open_orders.append(&mut partially_updated_orders);
 
     // synchronous block, to prevent guard from being blocked
     {
@@ -45,9 +54,6 @@ async fn initialize_app() -> Result<Arc<AppState>, Box<dyn std::error::Error>> {
         let mut order_ctn = 0;
         // iterate over open orders
         for db_order in open_orders {
-            if db_order.status != OrderStatus::OPEN {
-                continue;
-            }
             let liquidity_b = db_order.liquidity_b.clone();
             let mut order: Order = db_order.into();
             global_book.process_order(&mut order, liquidity_b);

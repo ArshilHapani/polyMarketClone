@@ -272,6 +272,32 @@ impl Order {
         Ok(orders)
     }
 
+    pub async fn get_order_by_status(
+        pool: &PgPool,
+        status: OrderStatus,
+    ) -> Result<Vec<OrderWithMarket>, sqlx::Error> {
+        let orders = sqlx::query_as!(
+            OrderWithMarket,
+            r#"
+            SELECT 
+            o.id, o.user_id, o.market_id,
+            o.outcome as "outcome: Outcome",
+            o.price, o.quantity, o.filled_quantity,
+            o.status as "status: OrderStatus",
+            o.side as "side: OrderSide",
+            o.created_at, o.updated_at, m.liquidity_b
+            FROM polymarket.orders o
+            JOIN polymarket.markets m ON o.market_id = m.id                
+            WHERE o.status = $1
+            "#,
+            status as _
+        )
+        .fetch_all(pool)
+        .await?;
+
+        Ok(orders)
+    }
+
     pub async fn update(&self, pool: &PgPool) -> Result<Order, sqlx::Error> {
         let order = sqlx::query_as!(
             Order,
@@ -369,6 +395,7 @@ impl Order {
     pub async fn get_user_orders_by_paginated(
         pool: &PgPool,
         user_id: Uuid,
+        status: OrderStatus,
         page: u32,
         page_size: u32,
     ) -> Result<Vec<Order>, sqlx::Error> {
@@ -385,11 +412,12 @@ impl Order {
             side as "side: OrderSide",
             created_at, updated_at
             FROM polymarket.orders
-            WHERE user_id = $1
+            WHERE user_id = $1 AND status = $2
             ORDER BY created_at DESC
-            LIMIT $2 OFFSET $3
+            LIMIT $3 OFFSET $4
             "#,
             user_id,
+            status as _,
             page_size as i64,
             offset as i64
         )
@@ -432,6 +460,37 @@ impl Order {
         .await?;
 
         Ok(orders)
+    }
+
+    pub async fn update_order_status_and_quantity(
+        pool: &PgPool,
+        order_id: Uuid,
+        order_status: OrderStatus,
+        new_quantity: Decimal,
+    ) -> Result<Order, sqlx::Error> {
+        let order = sqlx::query_as!(
+            Order,
+            r#"
+            UPDATE polymarket.orders
+            SET status = $1, quantity = $2
+            WHERE id = $3
+            RETURNING 
+            id, user_id, market_id,
+            outcome as "outcome: Outcome",
+            price, quantity, filled_quantity,
+            status as "status: OrderStatus",
+            side as "side: OrderSide",
+            created_at, updated_at
+            "#,
+            order_status as _,
+            new_quantity,
+            order_id
+        )
+        .fetch_one(pool)
+        .await?;
+
+        log_info!("Order updated - {:?}", order.id);
+        Ok(order)
     }
 }
 
