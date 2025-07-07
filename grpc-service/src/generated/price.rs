@@ -4,7 +4,7 @@
 pub struct GetPriceDataWithinIntervalRequest {
     #[prost(string, tag = "1")]
     pub market_id: ::prost::alloc::string::String,
-    #[prost(enumeration = "Timeframe", tag = "2")]
+    #[prost(enumeration = "super::common::Timeframe", tag = "2")]
     pub timeframe: i32,
 }
 #[derive(serde::Serialize, serde::Deserialize)]
@@ -24,48 +24,6 @@ pub struct GetMarketPriceDataWithinIntervalResponse {
     pub price_data: ::prost::alloc::vec::Vec<PriceData>,
     #[prost(string, tag = "2")]
     pub market_id: ::prost::alloc::string::String,
-}
-#[derive(serde::Serialize, serde::Deserialize)]
-#[derive(Clone, Copy, Debug, PartialEq, Eq, Hash, PartialOrd, Ord, ::prost::Enumeration)]
-#[repr(i32)]
-pub enum Timeframe {
-    Unspecified = 0,
-    OneHour = 1,
-    SixHour = 2,
-    OneDay = 3,
-    OneWeek = 4,
-    OneMonth = 5,
-    All = 6,
-}
-impl Timeframe {
-    /// String value of the enum field names used in the ProtoBuf definition.
-    ///
-    /// The values are not transformed in any way and thus are considered stable
-    /// (if the ProtoBuf definition does not change) and safe for programmatic use.
-    pub fn as_str_name(&self) -> &'static str {
-        match self {
-            Self::Unspecified => "TIMEFRAME_UNSPECIFIED",
-            Self::OneHour => "TIMEFRAME_ONE_HOUR",
-            Self::SixHour => "TIMEFRAME_SIX_HOUR",
-            Self::OneDay => "TIMEFRAME_ONE_DAY",
-            Self::OneWeek => "TIMEFRAME_ONE_WEEK",
-            Self::OneMonth => "TIMEFRAME_ONE_MONTH",
-            Self::All => "TIMEFRAME_ALL",
-        }
-    }
-    /// Creates an enum from field names used in the ProtoBuf definition.
-    pub fn from_str_name(value: &str) -> ::core::option::Option<Self> {
-        match value {
-            "TIMEFRAME_UNSPECIFIED" => Some(Self::Unspecified),
-            "TIMEFRAME_ONE_HOUR" => Some(Self::OneHour),
-            "TIMEFRAME_SIX_HOUR" => Some(Self::SixHour),
-            "TIMEFRAME_ONE_DAY" => Some(Self::OneDay),
-            "TIMEFRAME_ONE_WEEK" => Some(Self::OneWeek),
-            "TIMEFRAME_ONE_MONTH" => Some(Self::OneMonth),
-            "TIMEFRAME_ALL" => Some(Self::All),
-            _ => None,
-        }
-    }
 }
 /// Generated server implementations.
 pub mod price_service_server {

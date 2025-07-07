@@ -130,7 +130,8 @@ const OrderBook = ({ tradeType, marketId }: Props) => {
                         alignItems="center"
                         height="25px"
                       >
-                        {(idx === 0 || idx === buyOrders.length + 1) && (
+                        {(idx === buyOrders.length - 1 ||
+                          idx === buyOrders.length) && (
                           <Badge
                             bg={order.type === "buy" ? "green.500" : "red.500"}
                             color="white"

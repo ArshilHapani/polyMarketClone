@@ -1,6 +1,6 @@
 use chrono::{DateTime, Duration, Utc};
 
-use crate::generated::price::Timeframe;
+use crate::generated::common::Timeframe;
 
 impl Timeframe {
     /// Get the duration for the time range
@@ -13,6 +13,17 @@ impl Timeframe {
             Timeframe::OneMonth => Some(Duration::days(30)), // Approximate month
             Timeframe::All => None,                          // No time limit
             Timeframe::Unspecified => None,                  // Unspecified timeframe
+        }
+    }
+    pub fn as_db_interval_str(&self) -> &str {
+        match self {
+            Self::All => "100 years",
+            Self::Unspecified => "100 years",
+            Self::OneHour => "1 hour",
+            Self::SixHour => "6 hours",
+            Self::OneDay => "1 day",
+            Self::OneWeek => "1 week",
+            Self::OneMonth => "1 month",
         }
     }
 

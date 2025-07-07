@@ -1,5 +1,7 @@
 -- truncate table polymarket.user_holdings;
 
+-- delete from  polymarket.user_holdings where id != '8c848e79-c2d2-46e5-bdac-f6af89e59afb'::uuid;
+
 
 -- INSERT INTO polymarket.user_holdings (user_id, market_id, shares)
 --             VALUES ('24fa20ac-822f-49e9-9cb6-e25e940ad608'::uuid, 'bd609b17-d3d3-4f70-a5e2-0a3f3aa2160c'::uuid, -10)

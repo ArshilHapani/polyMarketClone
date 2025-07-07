@@ -2,7 +2,7 @@ use async_nats::{connect, jetstream};
 use tokio::sync::RwLock;
 use utility_helpers::{log_info, types::EnvVarConfig};
 
-use crate::utils::client_manager::SubscriptionAndClientManager;
+use crate::core::client_manager::SubscriptionAndClientManager;
 
 #[derive(Debug)]
 pub struct WebSocketAppState {

@@ -2,7 +2,7 @@ use axum::extract::ws::Message as WsMessage;
 use prost::Message;
 use utility_helpers::{log_info, nats_helper::types::OrderBookUpdateData, ws::types::ChannelType};
 
-use crate::{SafeAppState, utils::send_message};
+use crate::{SafeAppState, core::send_message};
 
 pub async fn handle_market_book_update(
     state: SafeAppState,

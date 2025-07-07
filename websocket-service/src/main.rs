@@ -8,13 +8,13 @@ use tracing_subscriber;
 use utility_helpers::{log_error, log_info};
 
 use crate::{
-    nats_handler::nats_handler, state::WebSocketAppState,
-    utils::handle_connection::handle_connection,
+    core::handle_connection::handle_connection, nats_handler::nats_handler,
+    state::WebSocketAppState,
 };
 
+mod core;
 mod nats_handler;
 mod state;
-mod utils;
 
 pub type SafeAppState = Arc<WebSocketAppState>;
 

@@ -2,9 +2,12 @@ use sqlx::types::Uuid;
 use tonic::{Request, Response, Status};
 
 use crate::{
-    generated::price::{
-        GetMarketPriceDataWithinIntervalResponse, GetPriceDataWithinIntervalRequest, PriceData,
-        Timeframe, price_service_server::PriceService,
+    generated::{
+        common::Timeframe,
+        price::{
+            GetMarketPriceDataWithinIntervalResponse, GetPriceDataWithinIntervalRequest, PriceData,
+            price_service_server::PriceService,
+        },
     },
     state::SafeState,
     utils::clickhouse_schema::GetMarketPrices,

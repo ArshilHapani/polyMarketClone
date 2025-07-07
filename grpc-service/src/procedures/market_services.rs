@@ -88,6 +88,8 @@ impl MarketService for MarketServiceStub {
             .await
             .map_err(|e| Status::internal(format!("Failed to get market id {e}")))?;
 
+        // fetch volume from clickhouse
+
         if let Some(market) = market {
             let response = Response::new(from_db_market(&market, 0.5, 0.5));
             return Ok(response);
@@ -110,7 +112,9 @@ impl MarketService for MarketServiceStub {
         let market_id = Uuid::from_str(&market_id)
             .map_err(|_| Status::invalid_argument("Invalid market id"))?;
 
-        let order_book_initials = self.state.clickhouse_client
+        let order_book_initials = self
+            .state
+            .clickhouse_client
             .query(
                 r#"
                 SELECT
@@ -118,23 +122,31 @@ impl MarketService for MarketServiceStub {
                     ts,
                     created_at,
 
-                    CAST(arraySlice(yes_bids, 1, ?) AS Array(Tuple(price Float64, shares Float64, users UInt32))) AS yes_bids,
-                    CAST(arraySlice(yes_asks, 1, ?) AS Array(Tuple(price Float64, shares Float64, users UInt32))) AS yes_asks,
-                    CAST(arraySlice(no_bids, 1, ?) AS Array(Tuple(price Float64, shares Float64, users UInt32))) AS no_bids,
-                    CAST(arraySlice(no_asks, 1, ?) AS Array(Tuple(price Float64, shares Float64, users UInt32))) AS no_asks
+                    CAST(arraySlice(
+                        arrayFilter(x -> x.2 > 0, yes_bids), 1, ?
+                        ) AS Array(Tuple(price Float64, shares Float64, users UInt32))) AS yes_bids,
+                    CAST(arraySlice(
+                        arrayFilter(x -> x.2 > 0, yes_asks), 1, ?
+                        ) AS Array(Tuple(price Float64, shares Float64, users UInt32))) AS yes_asks,
+                    CAST(arraySlice(
+                        arrayFilter(x -> x.2 > 0, no_bids), 1, ?
+                        ) AS Array(Tuple(price Float64, shares Float64, users UInt32))) AS no_bids,
+                    CAST(arraySlice(
+                        arrayFilter(x -> x.2 > 0, no_asks), 1, ?
+                        ) AS Array(Tuple(price Float64, shares Float64, users UInt32))) AS no_asks
                 FROM market_order_book WHERE market_id = ?
                 ORDER BY ts DESC
                 LIMIT 1
-            "#,)
+            "#,
+            )
             .bind(depth)
             .bind(depth)
             .bind(depth)
             .bind(depth)
             .bind(market_id)
             .fetch_optional::<GetOrderBook>()
-            .await.map_err(|e| {
-                Status::internal(format!("Failed to fetch market book: {}", e))
-            })?;
+            .await
+            .map_err(|e| Status::internal(format!("Failed to fetch market book: {}", e)))?;
 
         if order_book_initials.is_none() {
             return Err(Status::not_found(format!(
@@ -211,25 +223,34 @@ mod tests {
             .with_database("polyMarket")
             .with_user("polyMarket")
             .with_password("polyMarket");
-        let market_id = Uuid::from_str("8864de6c-4db8-49ba-a811-a5fe2b95f241").unwrap();
+        let market_id = Uuid::from_str("91afed7f-6004-4968-984f-cdc968ae6013").unwrap();
         let depth = 10;
 
         let resp = client
             .query(
                 r#"
-                SELECT
+                 SELECT
                     market_id,
                     ts,
                     created_at,
 
-                    CAST(arraySlice(yes_bids, 1, ?) AS Array(Tuple(price Float64, shares Float64, users UInt32))) AS yes_bids,
-                    CAST(arraySlice(yes_asks, 1, ?) AS Array(Tuple(price Float64, shares Float64, users UInt32))) AS yes_asks,
-                    CAST(arraySlice(no_bids, 1, ?) AS Array(Tuple(price Float64, shares Float64, users UInt32))) AS no_bids,
-                    CAST(arraySlice(no_asks, 1, ?) AS Array(Tuple(price Float64, shares Float64, users UInt32))) AS no_asks
+                    CAST(arraySlice(
+                        arrayFilter(x -> x.2 > 0, yes_bids), 1, ?
+                        ) AS Array(Tuple(price Float64, shares Float64, users UInt32))) AS yes_bids,
+                    CAST(arraySlice(
+                        arrayFilter(x -> x.2 > 0, yes_asks), 1, ?
+                        ) AS Array(Tuple(price Float64, shares Float64, users UInt32))) AS yes_asks,
+                    CAST(arraySlice(
+                        arrayFilter(x -> x.2 > 0, no_bids), 1, ?
+                        ) AS Array(Tuple(price Float64, shares Float64, users UInt32))) AS no_bids,
+                    CAST(arraySlice(
+                        arrayFilter(x -> x.2 > 0, no_asks), 1, ?
+                        ) AS Array(Tuple(price Float64, shares Float64, users UInt32))) AS no_asks
                 FROM market_order_book WHERE market_id = ?
                 ORDER BY ts DESC
                 LIMIT 1
-            "#,)
+            "#,
+            )
             .bind(depth)
             .bind(depth)
             .bind(depth)
@@ -239,7 +260,8 @@ mod tests {
             .await
             .inspect_err(|e| {
                 println!("Error fetching market data: {}", e);
-            }).unwrap();
+            })
+            .unwrap();
 
         assert!(resp.is_some(), "Response should not be empty");
     }

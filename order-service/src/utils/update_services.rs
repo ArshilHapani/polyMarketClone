@@ -8,7 +8,10 @@
 
 use std::{str::FromStr, sync::Arc, time::Duration};
 
-use db_service::schema::enums::Outcome;
+use db_service::schema::{
+    enums::{OrderStatus, Outcome},
+    orders::Order,
+};
 use futures_util::SinkExt;
 use prost::Message;
 use proto_defs::proto_types::ws_common_types::{
@@ -24,19 +27,27 @@ use utility_helpers::{
     nats_helper::{NatsSubjects, types::OrderBookUpdateData},
     types::OrderBookDataStruct,
 };
-use uuid::Uuid;
 
 use crate::state::AppState;
 
 pub async fn update_service_state(
     app_state: Arc<AppState>,
-    market_id: Uuid,
+    order: &Order,
 ) -> Result<(), Box<dyn std::error::Error>> {
     // variable declarations....
     let current_time = chrono::Utc::now();
-    let producer = app_state.producer.read().await;
+    let market_id = order.market_id;
 
-    ///// Sync code block star /////
+    let producer_lock_future = app_state.producer.read();
+    let ws_publisher_lock_future = app_state.ws_tx.write();
+
+    let (producer, mut ws_publisher) = tokio::join!(producer_lock_future, ws_publisher_lock_future);
+
+    let js_guard = app_state.jetstream.clone();
+
+    ////////////////////////////////////////////////////////////////////////////////////////////////////////
+    ////////////////////////////////////// Sync code block star ///////////////////////////////////////
+    ////////////////////////////////////////////////////////////////////////////////////////////////////////
 
     // market id validation and current market state
     let (yes_price, no_price, yes_orders_data, no_orders_data, required_market_subs) = {
@@ -86,16 +97,13 @@ pub async fn update_service_state(
         no_price
     );
 
-    //// Sync code block end /////
+    //////////////////////////////////////////////////////////////////////////////////////////////////////
+    ////////////////////////////////////// Sync code block end ///////////////////////////////////////
+    //////////////////////////////////////////////////////////////////////////////////////////////////////
 
-    let combined_data = OrderBookUpdateData {
-        yes_book: yes_orders_data.clone(),
-        no_book: no_orders_data.clone(),
-        market_id: market_id,
-        timestamp: current_time.to_rfc3339(),
-    };
-
-    ///// kafka processing /////
+    ////////////////////////////////////////////////////////////////////////////////////////////////////////
+    ////////////////////////////////////// kafka preparation //////////////////////////////////////////
+    /////////////////////////////////////////////////////////////////////////////////////////////////////////
 
     let ts = current_time.to_rfc3339();
     let data_to_publish_for_price_update = serde_json::json!({
@@ -116,45 +124,84 @@ pub async fn update_service_state(
     })
     .to_string();
 
+    let data_to_publish_for_volume_update = serde_json::json!({
+        "market_id": market_id,
+        "order_id": order.id,
+        "ts": ts,
+        "side": order.side,
+        "outcome": order.outcome,
+        "price": order.price,
+        "quantity": order.quantity,
+    })
+    .to_string();
+
     let price_update_topic = KafkaTopics::PriceUpdates.to_string();
     let market_order_book_update_topic = KafkaTopics::MarketOrderBookUpdate.to_string();
+    let volume_update_topic = KafkaTopics::VolumeUpdates.to_string();
 
     let market_id_str = market_id.to_string();
 
-    let record_price_update = FutureRecord::to(&price_update_topic)
+    let mut kafka_futures = vec![];
+    let mut nats_futures = vec![];
+
+    let record_price_update = FutureRecord::to(price_update_topic)
         .payload(&data_to_publish_for_price_update)
         .key(&market_id_str);
-    let record_order_book_update = FutureRecord::to(&market_order_book_update_topic)
+    let record_order_book_update = FutureRecord::to(market_order_book_update_topic)
         .payload(&data_to_publish_for_order_book_update)
+        .key(&market_id_str);
+    let record_volume_update = FutureRecord::to(volume_update_topic)
+        .payload(&data_to_publish_for_volume_update)
         .key(&market_id_str);
 
     let send_producer_future_price = producer.send(record_price_update, Duration::from_secs(0));
     let send_producer_future_order_book =
         producer.send(record_order_book_update, Duration::from_secs(0));
 
-    /////////////////////////////////////////////////////////////////////////////////////
+    kafka_futures.push(send_producer_future_price);
+    kafka_futures.push(send_producer_future_order_book);
 
-    //// NATS processing ////
+    if order.status == OrderStatus::FILLED {
+        let send_producer_future_volume =
+            producer.send(record_volume_update, Duration::from_secs(0));
+        kafka_futures.push(send_producer_future_volume);
+    }
+
+    ////////////////////////////////////////////////////////////////////////////////////////////////////////
+    ///////////////////////////////////////////////////////////////////////////////////////////////////////
+    ////////////////////////////////////////////////////////////////////////////////////////////////////////
+
+    //////////////////////////////////////////////////////////////////////////////////////////////////////////
+    ////////////////////////////////////////// NATS processing //////////////////////////////////////////
+    /////////////////////////////////////////////////////////////////////////////////////////////////////////
+
+    let combined_data = OrderBookUpdateData {
+        yes_book: yes_orders_data.clone(),
+        no_book: no_orders_data.clone(),
+        market_id: market_id,
+        timestamp: current_time.to_rfc3339(),
+    };
+
     if required_market_subs {
         let message_pack_encoded = serialize_to_message_pack(&combined_data)?;
 
         // pushing message to queue
-        let js_guard = app_state.jetstream.clone();
 
-        if let Err(e) = js_guard
-            .publish(
-                NatsSubjects::MarketBookUpdate(market_id).to_string(),
-                message_pack_encoded.into(),
-            )
-            .await
-        {
-            log_error!("Failed to publish order book update to JetStream: {:#?}", e);
-        }
+        let publish_msg_future = js_guard.publish(
+            NatsSubjects::MarketBookUpdate(market_id).to_string(),
+            message_pack_encoded.into(),
+        );
+
+        nats_futures.push(publish_msg_future);
     }
 
-    // sending message to websocket ///////
+    ////////////////////////////////////////////////////////////////////////////////////////////////////////
+    /////////////////////////////////////////////////////////////////////////////////////////////////////////
+    /////////////////////////////////////////////////////////////////////////////////////////////////////////
 
-    let mut ws_publisher = app_state.ws_tx.write().await;
+    /////////////////////////////////////////////////////////////////////////////////////////////////////////
+    ///////////////////////////// sending message to websocket ////////////////////////////////////////////
+    /////////////////////////////////////////////////////////////////////////////////////////////////////
 
     let yes_price = f64::from_str(&yes_price.to_string())
         .map_err(|_| "Failed to parse yes price to f64".to_string())?;
@@ -184,23 +231,31 @@ pub async fn update_service_state(
 
     let ws_broadcast_future = ws_publisher.send(WsMessageType::Binary(bin_data.into()));
 
-    let (
-        send_producer_future_resp_price,
-        send_producer_future_resp_order_book,
-        ws_broadcast_future_result,
-    ) = tokio::join!(
-        send_producer_future_price,
-        send_producer_future_order_book,
-        ws_broadcast_future,
+    ////////////////////////////////////////////////////////////////////////////////////////////////////////
+    ////////////////////////////////////////////////////////////////////////////////////////////////////////
+    ///////////////////////////////////////////////////////////////////////////////////////////////////////
+
+    let result = tokio::join!(
+        futures_util::future::join_all(kafka_futures),
+        futures_util::future::join_all(nats_futures),
+        ws_broadcast_future
     );
+    for res in result.0 {
+        match res {
+            Ok(_) => log_info!("Kafka message sent successfully"),
+            Err(e) => log_error!("Failed to send Kafka message: {:#?}", e),
+        }
+    }
+    for res in result.1 {
+        match res {
+            Ok(_) => log_info!("NATS message sent successfully"),
+            Err(e) => log_error!("Failed to send NATS message: {:#?}", e),
+        }
+    }
 
-    send_producer_future_resp_price
-        .map_err(|e| format!("Failed to send record to Kafka: {:#?}", e))?;
-    send_producer_future_resp_order_book
-        .map_err(|e| format!("Failed to send record to Kafka: {:#?}", e))?;
-
-    if let Err(e) = ws_broadcast_future_result {
-        log_info!("Failed to send message to WebSocket: {:#?}", e);
+    match result.2 {
+        Ok(_) => log_info!("WebSocket message sent successfully"),
+        Err(e) => log_error!("Failed to send WebSocket message: {:#?}", e),
     }
 
     Ok(())

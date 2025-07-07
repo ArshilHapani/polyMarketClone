@@ -5,7 +5,7 @@ use uuid::Uuid;
 
 use crate::{
     SafeAppState,
-    utils::{
+    core::{
         SafeSender,
         message_handlers::{
             handle_binary_message::handle_binary_message, handle_text_message::handle_text_message,

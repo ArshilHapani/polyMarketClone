@@ -5,9 +5,9 @@
 
 -- select price, status from polymarket.orders where status in ('open'::polymarket.order_status, 'pending_update'::polymarket.order_status) group by price, status;
 
-select * from polymarket.orders
-	where id = '4bcb302a-ab5f-476b-9593-c4a4bc3e06bc'
-order by created_at DESC;
+-- delete from polymarket.orders where outcome = 'no'::polymarket.outcome CASCADE;
+
+select * from polymarket.orders order by created_at DESC;
 
 -- select * from polymarket.orders where status = 'open'::polymarket.order_status ORDER BY created_at DESC;
 

@@ -6,7 +6,7 @@ use proto_defs::proto_types::{ws_common_types::WsData, ws_market_price::WsParams
 use utility_helpers::{log_error, log_info, ws::types::ChannelType};
 use uuid::Uuid;
 
-use crate::{SafeAppState, utils::send_message};
+use crate::{SafeAppState, core::send_message};
 
 pub async fn price_poster_handler_bin(
     data: &WsData,

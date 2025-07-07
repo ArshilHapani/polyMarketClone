@@ -1,14 +1,14 @@
 use axum::extract::ws::{Message, Utf8Bytes};
 use serde_json::json;
 use utility_helpers::{
-    log_error, log_info, log_warn,
+    log_error, log_warn,
     ws::types::{ChannelType, ClientMessage, MessagePayload},
 };
 use uuid::Uuid;
 
 use crate::{
     SafeAppState,
-    utils::{SafeSender, client_manager::SpecialKindOfClients, send_message},
+    core::{SafeSender, client_manager::SpecialKindOfClients, send_message},
 };
 
 pub async fn handle_text_message(
@@ -20,8 +20,6 @@ pub async fn handle_text_message(
     match serde_json::from_str::<ClientMessage>(message) {
         Ok(client_message) => match client_message.payload {
             MessagePayload::Subscribe { channel } => {
-                log_info!("Client {client_id} subscribed to channel: {channel}");
-
                 let deserialized_channel = ChannelType::from_str(&channel);
 
                 let channel_type = match deserialized_channel {
@@ -68,7 +66,7 @@ pub async fn handle_text_message(
                     _ => {}
                 }
 
-                channel_manager_guard.add_client(channel_type.clone(), *client_id, tx.clone());
+                channel_manager_guard.add_client(channel_type, *client_id, tx.clone());
 
                 let message = json!({
                     "type": "subscribed",
@@ -82,8 +80,6 @@ pub async fn handle_text_message(
                 }
             }
             MessagePayload::Unsubscribe { channel } => {
-                log_info!("Client {client_id} unsubscribed from channel: {channel}");
-
                 let deserialized_channel = ChannelType::from_str(&channel);
 
                 let channel_type = match deserialized_channel {

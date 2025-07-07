@@ -1,6 +1,6 @@
 {
   "db_name": "PostgreSQL",
-  "query": "\n            INSERT INTO polymarket.user_holdings (user_id, market_id, shares)\n            VALUES ($1, $2, $3)\n            ON CONFLICT (user_id, market_id)\n            DO UPDATE SET shares = polymarket.user_holdings.shares + $3,\n            updated_at = NOW()\n            RETURNING id, user_id, market_id, shares, created_at, updated_at;\n            ",
+  "query": "\n            SELECT id, user_id, market_id, shares, created_at, updated_at, outcome as \"outcome: Outcome\"\n            FROM polymarket.user_holdings\n            WHERE user_id = $1 AND market_id = $2\n            ",
   "describe": {
     "columns": [
       {
@@ -32,13 +32,28 @@
         "ordinal": 5,
         "name": "updated_at",
         "type_info": "Timestamp"
+      },
+      {
+        "ordinal": 6,
+        "name": "outcome: Outcome",
+        "type_info": {
+          "Custom": {
+            "name": "polymarket.outcome",
+            "kind": {
+              "Enum": [
+                "yes",
+                "no",
+                "unspecified"
+              ]
+            }
+          }
+        }
       }
     ],
     "parameters": {
       "Left": [
         "Uuid",
-        "Uuid",
-        "Numeric"
+        "Uuid"
       ]
     },
     "nullable": [
@@ -47,8 +62,9 @@
       false,
       false,
       false,
+      false,
       false
     ]
   },
-  "hash": "a70acc6dfbecc1bbc77f29739c2781477d3d395e73b5ff5949e9c9328deabebd"
+  "hash": "87509857401e65de9da78f71b98113f91b612df227665c2c739a00b1b729c889"
 }

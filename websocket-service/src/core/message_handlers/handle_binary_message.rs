@@ -6,7 +6,7 @@ use uuid::Uuid;
 
 use crate::{
     SafeAppState,
-    utils::{
+    core::{
         SafeSender, client_manager::SpecialKindOfClients,
         message_handlers::channel_handlers::price_posters::price_poster_handler_bin,
     },
@@ -38,6 +38,7 @@ pub async fn handle_binary_message(
                             let channel = data.channel();
                             match channel {
                                 Channel::Priceposter => {
+                                    // we don't need to do queue based data handling just like order-book update as we know that there must be some subscriber for price poster channel when they are creating order
                                     price_poster_handler_bin(&data, state, client_id).await;
                                 }
                                 _ => {}

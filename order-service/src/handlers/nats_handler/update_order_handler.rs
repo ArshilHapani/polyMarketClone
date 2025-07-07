@@ -56,6 +56,6 @@ pub async fn update_order_handler(
         update_matched_orders(matches, app_state.clone(), &order).await?;
     }
 
-    update_service_state(app_state.clone(), order.market_id).await?;
+    update_service_state(app_state.clone(), &order).await?;
     Ok(())
 }

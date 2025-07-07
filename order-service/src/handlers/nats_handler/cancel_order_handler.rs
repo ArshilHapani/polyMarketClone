@@ -57,5 +57,5 @@ pub async fn cancel_order_handler(
     // ws publish remaining if required...
 
     // update market state
-    update_service_state(app_state.clone(), order.market_id).await
+    update_service_state(app_state.clone(), &order).await
 }

@@ -14,9 +14,12 @@ pub enum MarketStatus {
 #[sqlx(type_name = "\"polymarket\".\"outcome\"")]
 #[sqlx(rename_all = "lowercase")]
 pub enum Outcome {
+    #[serde(rename = "yes")]
     YES,
+    #[serde(rename = "no")]
     NO,
     #[default]
+    #[serde(rename = "unspecified")]
     UNSPECIFIED,
 }
 
@@ -25,7 +28,9 @@ pub enum Outcome {
 #[sqlx(rename_all = "lowercase")]
 pub enum OrderSide {
     #[default]
+    #[serde(rename = "buy")]
     BUY, // bids
+    #[serde(rename = "sell")]
     SELL, // asks
 }
 

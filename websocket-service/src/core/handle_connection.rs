@@ -8,7 +8,7 @@ use uuid::Uuid;
 
 use crate::{
     SafeAppState,
-    utils::{SafeSender, message_handlers::handle_message, send_message},
+    core::{SafeSender, message_handlers::handle_message, send_message},
 };
 
 pub async fn handle_connection(stream: WebSocket, state: SafeAppState) {

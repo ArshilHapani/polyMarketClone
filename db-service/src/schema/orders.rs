@@ -280,12 +280,12 @@ impl Order {
             OrderWithMarket,
             r#"
             SELECT 
-            o.id, o.user_id, o.market_id,
-            o.outcome as "outcome: Outcome",
-            o.price, o.quantity, o.filled_quantity,
-            o.status as "status: OrderStatus",
-            o.side as "side: OrderSide",
-            o.created_at, o.updated_at, m.liquidity_b
+                o.id, o.user_id, o.market_id,
+                o.outcome as "outcome: Outcome",
+                o.price, o.quantity, o.filled_quantity,
+                o.status as "status: OrderStatus",
+                o.side as "side: OrderSide",
+                o.created_at, o.updated_at, m.liquidity_b
             FROM polymarket.orders o
             JOIN polymarket.markets m ON o.market_id = m.id                
             WHERE o.status = $1
@@ -361,6 +361,20 @@ impl Order {
         Ok((order[0].user_id, order[1].user_id))
     }
 
+    pub async fn get_order_user_id(pool: &PgPool, order_id: Uuid) -> Result<Uuid, sqlx::Error> {
+        let user_id = sqlx::query!(
+            r#"
+            SELECT user_id FROM polymarket.orders
+            WHERE id = $1
+            "#,
+            order_id
+        )
+        .fetch_one(pool)
+        .await?;
+
+        Ok(user_id.user_id)
+    }
+
     pub async fn update_order_status_and_filled_quantity(
         pool: &PgPool,
         order_id: Uuid,
@@ -405,12 +419,17 @@ impl Order {
             Order,
             r#"
             SELECT
-            id, user_id, market_id,
-            outcome as "outcome: Outcome",
-            price, quantity, filled_quantity,
-            status as "status: OrderStatus",
-            side as "side: OrderSide",
-            created_at, updated_at
+                id,
+                user_id,
+                market_id,
+                outcome as "outcome: Outcome",
+                price,
+                quantity,
+                filled_quantity,
+                status as "status: OrderStatus",
+                side as "side: OrderSide",
+                created_at,
+                updated_at
             FROM polymarket.orders
             WHERE user_id = $1 AND status = $2
             ORDER BY created_at DESC
@@ -433,6 +452,7 @@ impl Order {
         market_id: Uuid,
         page: u32,
         page_size: u32,
+        status: OrderStatus,
     ) -> Result<Vec<Order>, sqlx::Error> {
         let offset = (page - 1) * page_size;
 
@@ -447,12 +467,13 @@ impl Order {
             side as "side: OrderSide",
             created_at, updated_at
             FROM polymarket.orders
-            WHERE user_id = $1 AND market_id = $2
+            WHERE user_id = $1 AND market_id = $2 AND status = $3
             ORDER BY created_at DESC
-            LIMIT $3 OFFSET $4
+            LIMIT $4 OFFSET $5
             "#,
             user_id,
             market_id,
+            status as _,
             page_size as i64,
             offset as i64
         )

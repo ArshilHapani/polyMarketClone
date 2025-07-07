@@ -293,6 +293,9 @@ impl OutcomeBook {
                 shares: level.total_quantity,
                 users: level.orders.len(),
             };
+            if level.orders.is_empty() {
+                continue; // skip empty levels
+            }
             bids_values.push(data);
         }
         for (price, level) in asks {
@@ -301,6 +304,9 @@ impl OutcomeBook {
                 shares: level.total_quantity,
                 users: level.orders.len(),
             };
+            if level.orders.is_empty() {
+                continue; // skip empty levels
+            }
             asks_values.push(data);
         }
 

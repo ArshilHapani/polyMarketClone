@@ -2,6 +2,10 @@ CREATE DATABASE IF NOT EXISTS polyMarket;
 
 USE polyMarket;
 
+-- ############################################
+
+-- market price data ----
+
 -- Core table
 CREATE TABLE market_price_data (
     market_id UUID,
@@ -38,7 +42,7 @@ SELECT
 FROM market_price_data_kafka;
 
 
-
+-- ##################################################################################################
 -- for order book data
 
 --CORE TABLE
@@ -84,3 +88,56 @@ SELECT
     no_bids,
     no_asks
 FROM market_order_book_kafka;
+
+
+-- #############################################################################
+-- ----------- --------- ---for volume data -----------------------
+
+-- CORE TABLE
+CREATE TABLE market_volume_data (
+    market_id UUID,
+    order_id UUID,
+    ts DateTime('UTC'),
+
+    created_at DateTime('UTC') DEFAULT now(),
+    side Enum8('buy' = 1, 'sell' = 2), -- buy or sell side of the order
+    outcome Enum8('yes' = 1, 'no' = 2), -- yes or no outcome
+
+    price Float64,
+    quantity Float64,
+    -- price * quantity is the total
+    amount Decimal(20, 8) DEFAULT (price * quantity), -- total amount in USD    
+) ENGINE = MergeTree
+PARTITION BY toYYYYMM(ts)
+ORDER BY (market_id, ts);
+
+-- KAFKA ENGINE TABLE
+CREATE TABLE market_volume_data_kafka (
+    market_id UUID,
+    order_id UUID,
+    ts String,
+    side Enum8('buy' = 1, 'sell' = 2),
+    outcome Enum8('yes' = 1, 'no' = 2),
+    price Float64,
+    quantity Float64
+) ENGINE = Kafka(
+    'redpanda:9092', -- broker (red panda)
+    'volume-updates', -- topic
+    'consumer-group-volume-updates', -- consumer group
+    'JSONEachRow' -- format
+);
+
+
+-- materialized view to copy data from kafka to core table
+DROP TABLE IF EXISTS market_volume_data_mv;
+CREATE MATERIALIZED VIEW market_volume_data_mv
+TO market_volume_data AS
+SELECT
+    market_id,
+    order_id,
+    parseDateTimeBestEffort(ts) AS ts,
+    side,
+    outcome,
+    price,
+    quantity
+FROM market_volume_data_kafka;

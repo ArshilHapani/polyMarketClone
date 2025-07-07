@@ -22,13 +22,13 @@ import {
 } from "@chakra-ui/react";
 
 import EmptyStateCustom from "@/components/EmptyStateCustom";
-import { OrderGetters } from "@/utils/interactions/dataGetter";
-import { formatDate } from "@/utils";
 import UpdateOrderModal from "@/components/modals/UpdateOrderModal";
-import useModal from "@/hooks/useModal";
-import { MarketActions } from "@/utils/interactions/dataPosters";
 import { toaster } from "@/components/ui/toaster";
+import useModal from "@/hooks/useModal";
 import useRevalidation from "@/hooks/useRevalidate";
+import { OrderGetters } from "@/utils/interactions/dataGetter";
+import { MarketActions } from "@/utils/interactions/dataPosters";
+import { formatDate } from "@/utils";
 
 type Props = {
   marketId: string;
@@ -90,6 +90,7 @@ const MyOrders = ({ marketId }: Props) => {
               <Table.ColumnHeader>Quantity</Table.ColumnHeader>
               <Table.ColumnHeader>Outcome</Table.ColumnHeader>
               <Table.ColumnHeader>Side</Table.ColumnHeader>
+              <Table.ColumnHeader>Status</Table.ColumnHeader>
               <Table.ColumnHeader>Update</Table.ColumnHeader>
               <Table.ColumnHeader>Cancel</Table.ColumnHeader>
             </Table.Row>
@@ -121,6 +122,16 @@ const MyOrders = ({ marketId }: Props) => {
                     variant="solid"
                   >
                     {item.side}
+                  </Badge>
+                </Table.Cell>
+                <Table.Cell>
+                  <Badge
+                    backgroundColor={
+                      item.status === "OPEN" ? "blue.600" : "gray.600"
+                    }
+                    variant="solid"
+                  >
+                    {item.status}
                   </Badge>
                 </Table.Cell>
                 <Table.Cell>
@@ -208,7 +219,7 @@ const MyOrders = ({ marketId }: Props) => {
               <Pagination.NextTrigger asChild>
                 <IconButton
                   onClick={() => setPage((prev) => prev + 1)}
-                  disabled={data.page === data.page_size}
+                  disabled={data.orders.length < data.page_size}
                 >
                   <LucideChevronRight />
                 </IconButton>

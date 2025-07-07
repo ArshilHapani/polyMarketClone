@@ -28,6 +28,7 @@ pub async fn update_matched_orders(
             OrderStatus::OPEN
         };
 
+        // need to update current order when it's get mutated from matching engine
         Order::update_order_status_and_filled_quantity(
             &app_state.db_pool,
             opposite_order_id,
@@ -37,22 +38,17 @@ pub async fn update_matched_orders(
         .await
         .map_err(|e| format!("Failed to update opposite order: {:#?}", e))?;
 
-        let (current_order_user_id, opposite_order_user_id) = match order.side {
-            OrderSide::BUY => Order::get_buyer_and_seller_user_id(
-                &app_state.db_pool,
-                current_order_id,
-                opposite_order_id,
-            )
-            .await
-            .map_err(|e| format!("Failed to get buyer and seller id: {:#?}", e))?,
-            OrderSide::SELL => Order::get_buyer_and_seller_user_id(
-                &app_state.db_pool,
-                opposite_order_id,
-                current_order_id,
-            )
-            .await
-            .map_err(|e| format!("Failed to get buyer and seller id for SELL side: {:#?}", e))?,
-        };
+        // fetching user ids of current and opposite orders for updating user trades and holdings
+        let get_current_order_user_id_future =
+            Order::get_order_user_id(&app_state.db_pool, current_order_id);
+        let get_opposite_order_user_id_future =
+            Order::get_order_user_id(&app_state.db_pool, opposite_order_id);
+
+        // we want both id, so try_join instead of join
+        let (current_order_user_id, opposite_order_user_id) = tokio::try_join!(
+            get_current_order_user_id_future,
+            get_opposite_order_user_id_future
+        )?;
 
         /////// Database Transaction start ////////
 
@@ -94,6 +90,7 @@ pub async fn update_matched_orders(
             current_order_user_id,
             order.market_id,
             current_order_user_updated_holding,
+            order.outcome,
         )
         .await?;
 
@@ -102,6 +99,7 @@ pub async fn update_matched_orders(
             opposite_order_user_id,
             order.market_id,
             opposite_order_user_updated_holdings,
+            order.outcome,
         )
         .await?;
 

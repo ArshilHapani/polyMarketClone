@@ -3,7 +3,7 @@ use std::{collections::HashMap, sync::Arc};
 use utility_helpers::ws::types::ChannelType;
 use uuid::Uuid;
 
-use crate::utils::SafeSender;
+use crate::core::SafeSender;
 
 type ClientData = SafeSender;
 
@@ -65,6 +65,7 @@ impl SubscriptionAndClientManager {
         kind: SpecialKindOfClients,
     ) {
         if !self.is_client_id_exist(&client_id) {
+            // adding client as normal client
             self.add_client(channel, client_id, sender);
         }
         self.special_clients.insert(kind, client_id);
