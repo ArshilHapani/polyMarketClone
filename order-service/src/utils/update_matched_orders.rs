@@ -8,13 +8,15 @@ use db_service::schema::{
     users::User,
 };
 
-use crate::{order_book::outcome_book::OrderBookMatchedOutput, state::AppState};
+use crate::{
+    order_book::outcome_book::OrderBookMatchedOutput, state::AppState, utils::OrderServiceError,
+};
 
 pub async fn update_matched_orders(
     matched_order: Vec<OrderBookMatchedOutput>,
     app_state: Arc<AppState>,
     order: &Order,
-) -> Result<(), Box<dyn std::error::Error>> {
+) -> Result<(), OrderServiceError> {
     for match_item in matched_order {
         // update the opposite order's filled quantity
         let current_order_id = match_item.order_id;

@@ -25,4 +25,8 @@ export interface GetUserOrdersPaginatedResponse {
   orders: Order[];
   page: number;
   page_size: number;
+  holdings: {
+    no: string;
+    yes: string;
+  };
 }

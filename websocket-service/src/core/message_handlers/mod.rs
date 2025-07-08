@@ -32,7 +32,6 @@ pub async fn handle_message(
                 }
                 Message::Binary(bin) => {
                     // protobuf
-                    // we are getting bin msgs always from server, so we don't need to send them feedback (as of now). So we are not going to pass `tx` to this function
                     handle_binary_message(&bin, client_id, tx, state).await;
                 }
                 Message::Pong(_) => {

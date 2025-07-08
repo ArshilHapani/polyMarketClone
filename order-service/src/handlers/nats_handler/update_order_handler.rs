@@ -5,13 +5,16 @@ use utility_helpers::{log_error, nats_helper::types::UpdateOrderMessage};
 
 use crate::{
     state::AppState,
-    utils::{update_matched_orders::update_matched_orders, update_services::update_service_state},
+    utils::{
+        OrderServiceError, update_matched_orders::update_matched_orders,
+        update_services::update_service_state,
+    },
 };
 
 pub async fn update_order_handler(
     app_state: Arc<AppState>,
     data: UpdateOrderMessage,
-) -> Result<(), Box<dyn std::error::Error>> {
+) -> Result<(), OrderServiceError> {
     let order = Order::find_order_by_id(data.order_id, &app_state.db_pool)
         .await
         .map_err(|e| {
@@ -40,10 +43,11 @@ pub async fn update_order_handler(
         let mut order_book = app_state.order_book.write();
 
         let flg = order_book.update_order(&mut order, data.new_price, data.new_quantity);
+
         if flg {
             order_book.process_order_without_liquidity(&mut order)
         } else {
-            None
+            Vec::new()
         }
     };
 
@@ -52,10 +56,10 @@ pub async fn update_order_handler(
         .await
         .map_err(|e| format!("Failed to update order: {e:#?}"))?;
 
-    if let Some(matches) = matches {
-        update_matched_orders(matches, app_state.clone(), &order).await?;
-    }
+    tokio::try_join!(
+        update_matched_orders(matches, app_state.clone(), &order),
+        update_service_state(app_state.clone(), &order)
+    )?;
 
-    update_service_state(app_state.clone(), &order).await?;
     Ok(())
 }

@@ -11,6 +11,7 @@ pub enum NatsSubjects {
     MarketBookUpdate(Uuid),
     OrderCancel,
     OrderUpdate,
+    MarketOrderCreate,
 }
 
 impl NatsSubjects {
@@ -22,6 +23,7 @@ impl NatsSubjects {
             }
             NatsSubjects::OrderCancel => "order.cancel".to_string(),
             NatsSubjects::OrderUpdate => "order.update".to_string(),
+            NatsSubjects::MarketOrderCreate => "order.market_order_create".to_string(),
         }
     }
 
@@ -39,6 +41,8 @@ impl NatsSubjects {
             Some(NatsSubjects::OrderCancel)
         } else if queue == "order.update" {
             Some(NatsSubjects::OrderUpdate)
+        } else if queue == "order.market_order_create" {
+            Some(NatsSubjects::MarketOrderCreate)
         } else {
             None
         }

@@ -1,6 +1,6 @@
 use std::str::FromStr;
 
-use db_service::schema::market::{self, Market as SchemaMarket};
+use db_service::schema::market::Market as SchemaMarket;
 use sqlx::types::Uuid;
 use tonic::{Request, Response, Status};
 use utility_helpers::redis::keys::RedisKey;
@@ -9,13 +9,18 @@ use crate::{
     generated::{
         common::PageRequest,
         markets::{
-            GetMarketBookResponse, GetPaginatedMarketResponse, Market, OrderBook, OrderLevel,
+            GetMarketBookResponse, GetMarketByIdResponse, GetPaginatedMarketResponse,
             RequestForMarketBook, RequestWithMarketId, market_service_server::MarketService,
         },
     },
-    procedures::from_db_market,
+    procedures::{from_db_market, to_resp_for_market_book},
     state::SafeState,
-    utils::clickhouse_schema::GetOrderBook,
+    utils::{
+        clickhouse_queries::{
+            MARKET_LATEST_PRICE_QUERY, MARKET_VOLUME_BASE_QUERY, ORDER_BOOK_INITIALS,
+        },
+        clickhouse_schema::{GetOrderBook, MarketPriceResponse, VolumeData},
+    },
     validate_numbers, validate_strings,
 };
 
@@ -70,7 +75,7 @@ impl MarketService for MarketServiceStub {
     async fn get_market_by_id(
         &self,
         req: Request<RequestWithMarketId>,
-    ) -> Result<Response<Market>, Status> {
+    ) -> Result<Response<GetMarketByIdResponse>, Status> {
         let market_id = req.into_inner().market_id;
         validate_strings!(market_id);
 
@@ -83,16 +88,47 @@ impl MarketService for MarketServiceStub {
             .state
             .redis_helper
             .get_or_set_cache(key, || async {
-                Ok(market::Market::get_market_by_id(&self.state.db_pool, &market_id).await?)
+                Ok(SchemaMarket::get_market_by_id(&self.state.db_pool, &market_id).await?)
             })
             .await
             .map_err(|e| Status::internal(format!("Failed to get market id {e}")))?;
 
-        // fetch volume from clickhouse
-
         if let Some(market) = market {
-            let response = Response::new(from_db_market(&market, 0.5, 0.5));
-            return Ok(response);
+            let market = from_db_market(&market, 0.5, 0.5);
+
+            // we are not caching the volume info in Redis, as it changes frequently
+
+            let get_volume_info_future = self
+                .state
+                .clickhouse_client
+                .query(MARKET_VOLUME_BASE_QUERY)
+                .bind(market_id)
+                .bind("1 DAY") // Assuming we want the last 24 hours of volume data
+                .fetch_optional::<VolumeData>();
+            let get_market_price_future = self
+                .state
+                .clickhouse_client
+                .query(MARKET_LATEST_PRICE_QUERY)
+                .bind(market_id)
+                .fetch_optional::<MarketPriceResponse>();
+
+            let (volume_info, market_price) =
+                tokio::try_join!(get_volume_info_future, get_market_price_future)
+                    .map_err(|e| Status::internal(format!("Failed to fetch market data: {}", e)))?;
+
+            let (volume_info_resp, market_price_resp) =
+                if let (Some(volume_info), Some(market_price)) = (volume_info, market_price) {
+                    (volume_info, market_price)
+                } else {
+                    (VolumeData::default(), MarketPriceResponse::default())
+                };
+
+            let response = GetMarketByIdResponse {
+                market: Some(market),
+                volume_info: Some(volume_info_resp.into()),
+                market_price: Some(market_price_resp.into()),
+            };
+            return Ok(Response::new(response));
         }
 
         Err(Status::not_found(format!(
@@ -115,30 +151,7 @@ impl MarketService for MarketServiceStub {
         let order_book_initials = self
             .state
             .clickhouse_client
-            .query(
-                r#"
-                SELECT
-                    market_id,
-                    ts,
-                    created_at,
-
-                    CAST(arraySlice(
-                        arrayFilter(x -> x.2 > 0, yes_bids), 1, ?
-                        ) AS Array(Tuple(price Float64, shares Float64, users UInt32))) AS yes_bids,
-                    CAST(arraySlice(
-                        arrayFilter(x -> x.2 > 0, yes_asks), 1, ?
-                        ) AS Array(Tuple(price Float64, shares Float64, users UInt32))) AS yes_asks,
-                    CAST(arraySlice(
-                        arrayFilter(x -> x.2 > 0, no_bids), 1, ?
-                        ) AS Array(Tuple(price Float64, shares Float64, users UInt32))) AS no_bids,
-                    CAST(arraySlice(
-                        arrayFilter(x -> x.2 > 0, no_asks), 1, ?
-                        ) AS Array(Tuple(price Float64, shares Float64, users UInt32))) AS no_asks
-                FROM market_order_book WHERE market_id = ?
-                ORDER BY ts DESC
-                LIMIT 1
-            "#,
-            )
+            .query(ORDER_BOOK_INITIALS)
             .bind(depth)
             .bind(depth)
             .bind(depth)
@@ -154,56 +167,10 @@ impl MarketService for MarketServiceStub {
             )));
         }
 
-        let order_book = to_resp(order_book_initials.unwrap());
+        let order_book = to_resp_for_market_book(order_book_initials.unwrap());
         let response = Response::new(order_book);
 
         Ok(response)
-    }
-}
-
-fn to_resp(data: GetOrderBook) -> GetMarketBookResponse {
-    GetMarketBookResponse {
-        market_id: data.market_id.to_string(),
-        yes_book: Some(OrderBook {
-            bids: data
-                .yes_bids
-                .into_iter()
-                .map(|(price, shares, users)| OrderLevel {
-                    price,
-                    shares,
-                    users,
-                })
-                .collect(),
-            asks: data
-                .yes_asks
-                .into_iter()
-                .map(|(price, shares, users)| OrderLevel {
-                    price,
-                    shares,
-                    users,
-                })
-                .collect(),
-        }),
-        no_book: Some(OrderBook {
-            bids: data
-                .no_bids
-                .into_iter()
-                .map(|(price, shares, users)| OrderLevel {
-                    price,
-                    shares,
-                    users,
-                })
-                .collect(),
-            asks: data
-                .no_asks
-                .into_iter()
-                .map(|(price, shares, users)| OrderLevel {
-                    price,
-                    shares,
-                    users,
-                })
-                .collect(),
-        }),
     }
 }
 
@@ -213,7 +180,7 @@ mod tests {
 
     use sqlx::types::Uuid;
 
-    use crate::utils::clickhouse_schema::GetOrderBook;
+    use crate::utils::clickhouse_schema::{GetOrderBook, MarketPriceResponse, VolumeData};
 
     #[tokio::test]
     #[ignore = "Requires market id"]
@@ -264,5 +231,93 @@ mod tests {
             .unwrap();
 
         assert!(resp.is_some(), "Response should not be empty");
+    }
+
+    #[tokio::test]
+    #[ignore = "Requires market id"]
+    async fn test_get_market_volume() {
+        let client = clickhouse::Client::default()
+            .with_url("http://localhost:8123")
+            .with_database("polyMarket")
+            .with_user("polyMarket")
+            .with_password("polyMarket");
+
+        let market_id = Uuid::from_str("91afed7f-6004-4968-984f-cdc968ae6013").unwrap();
+
+        let result = client
+            .query(
+                r#"
+                   SELECT
+                        market_id,
+
+                        -- YES - BUY
+                        toFloat64(SUM(if(outcome = 'yes' AND side = 'buy', quantity, 0))) AS yes_buy_qty,
+                        toFloat64(SUM(if(outcome = 'yes' AND side = 'buy', amount, 0))) AS yes_buy_usd,
+
+                        -- YES - SELL
+                        toFloat64(SUM(if(outcome = 'yes' AND side = 'sell', quantity, 0))) AS yes_sell_qty,
+                        toFloat64(SUM(if(outcome = 'yes' AND side = 'sell', amount, 0))) AS yes_sell_usd,
+
+                        -- NO - BUY
+                        toFloat64(SUM(if(outcome = 'no' AND side = 'buy', quantity, 0))) AS no_buy_qty,
+                        toFloat64(SUM(if(outcome = 'no' AND side = 'buy', amount, 0))) AS no_buy_usd,
+
+                        -- NO - SELL
+                        toFloat64(SUM(if(outcome = 'no' AND side = 'sell', quantity, 0))) AS no_sell_qty,
+                        toFloat64(SUM(if(outcome = 'no' AND side = 'sell', amount, 0))) AS no_sell_usd
+
+                    FROM market_volume_data
+                    WHERE
+                        market_id = ? AND
+                        ts >= now() - INTERVAL ?
+                    GROUP BY market_id
+                "#,
+            )
+            .bind(market_id)
+            .bind("1 DAY") 
+            .fetch_one::<VolumeData>()
+            .await;
+
+        let result = result
+            .inspect_err(|e| {
+                println!("Error fetching market volume data: {}", e);
+            })
+            .unwrap();
+        println!("Market Volume Data: {:#?}", result);
+        assert_eq!(result.market_id, market_id);
+    }
+
+    #[tokio::test]
+    async fn test_get_latest_market_price() {
+        let client = clickhouse::Client::default()
+            .with_url("http://localhost:8123")
+            .with_database("polyMarket")
+            .with_user("polyMarket")
+            .with_password("polyMarket");
+
+        let market_id = Uuid::from_str("91afed7f-6004-4968-984f-cdc968ae6013").unwrap();
+
+        let result = client
+            .query(
+                r#"
+                SELECT
+                    market_id,
+                    toFloat64(argMax(yes_price, ts)) AS latest_yes_price,
+                    toFloat64(argMax(no_price, ts)) AS latest_no_price
+                FROM market_price_data
+                WHERE market_id = ?
+                GROUP BY market_id
+                "#,
+            )
+            .bind(market_id)
+            .fetch_optional::<MarketPriceResponse>()
+            .await;
+
+        let result = result
+            .inspect_err(|e| {
+                println!("Error fetching latest market price: {}", e);
+            })
+            .unwrap();
+        println!("Latest Market Price: {:#?}", result);
     }
 }

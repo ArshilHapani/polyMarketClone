@@ -10,3 +10,12 @@ export function formatDate<T extends string | number>(date: T): string {
 
   return dt;
 }
+
+export function formatPriceString(price: number): string {
+  return price.toLocaleString("en-US", {
+    style: "currency",
+    currency: "USD",
+    minimumFractionDigits: 2,
+    maximumFractionDigits: 2,
+  });
+}

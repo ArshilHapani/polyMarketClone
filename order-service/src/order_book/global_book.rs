@@ -35,13 +35,13 @@ impl GlobalMarketBook {
     pub(crate) fn process_order_without_liquidity(
         &mut self,
         order: &mut Order,
-    ) -> Option<Vec<OrderBookMatchedOutput>> {
+    ) -> Vec<OrderBookMatchedOutput> {
         let market_id = order.market_id;
         if let Some(market_book) = self.markets.get_mut(&market_id) {
             let matches = market_book.process_order(order);
-            Some(matches)
+            matches
         } else {
-            None
+            Vec::new()
         }
     }
 
@@ -57,6 +57,18 @@ impl GlobalMarketBook {
         self.markets
             .get(market_id)
             .and_then(|market| market.get_order_book(outcome))
+    }
+
+    pub(crate) fn create_market_order(
+        &mut self,
+        market_id: &Uuid,
+        order: &mut Order,
+    ) -> Vec<OrderBookMatchedOutput> {
+        if let Some(market_book) = self.markets.get_mut(market_id) {
+            market_book.create_market_order(order)
+        } else {
+            Vec::new()
+        }
     }
 
     pub(crate) fn remove_order(

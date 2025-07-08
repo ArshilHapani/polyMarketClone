@@ -10,6 +10,7 @@ import {
 import { useMutation, useQuery } from "@tanstack/react-query";
 import {
   Badge,
+  Button,
   ButtonGroup,
   createListCollection,
   Flex,
@@ -29,6 +30,7 @@ import useRevalidation from "@/hooks/useRevalidate";
 import { OrderGetters } from "@/utils/interactions/dataGetter";
 import { MarketActions } from "@/utils/interactions/dataPosters";
 import { formatDate } from "@/utils";
+import { OrderType } from "@/utils/types";
 
 type Props = {
   marketId: string;
@@ -42,21 +44,39 @@ const MyOrders = ({ marketId }: Props) => {
     mutationFn: MarketActions.cancelOrder,
   });
   const revalidate = useRevalidation();
+  const [filter, setFilter] = useState<OrderType>("open");
+
   const { data } = useQuery({
-    queryKey: ["marketOrders", marketId, page, Number(pageSize)],
+    queryKey: ["marketOrders", marketId, page, Number(pageSize), filter],
     queryFn: () =>
       OrderGetters.getUserOrdersByMarket(
         marketId,
         page,
         Number(pageSize[0] || 10),
+        filter,
       ),
   });
+  const clearFilterButton = (
+    <Button
+      variant="outline"
+      rounded="full"
+      onClick={() => {
+        setFilter("open");
+        setPage(1);
+        setPageSize(["10"]);
+      }}
+      colorPalette="blue"
+    >
+      Clear filter
+    </Button>
+  );
 
   if (!data?.orders || data?.orders.length === 0) {
     return (
       <EmptyStateCustom
         title="No orders found"
         description="You have not placed any orders in this market yet."
+        actionButton={clearFilterButton}
       />
     );
   }
@@ -81,6 +101,37 @@ const MyOrders = ({ marketId }: Props) => {
   return (
     <>
       <Stack width="full" gap="5">
+        <Flex gap={3} alignItems="center" justifyContent="space-between">
+          <Select.Root
+            collection={orderFilters}
+            size="sm"
+            width="320px"
+            onValueChange={(value) => setFilter(value.value[0] as OrderType)}
+          >
+            <Select.HiddenSelect />
+            <Select.Control>
+              <Select.Trigger>
+                <Select.ValueText placeholder="Select order type" />
+              </Select.Trigger>
+              <Select.IndicatorGroup>
+                <Select.Indicator />
+              </Select.IndicatorGroup>
+            </Select.Control>
+            <Portal>
+              <Select.Positioner>
+                <Select.Content>
+                  {orderFilters.items.map((filter) => (
+                    <Select.Item item={filter} key={filter.value}>
+                      {filter.label}
+                      <Select.ItemIndicator />
+                    </Select.Item>
+                  ))}
+                </Select.Content>
+              </Select.Positioner>
+            </Portal>
+          </Select.Root>
+          {filter !== "open" && clearFilterButton}
+        </Flex>
         <Table.Root size="md" stickyHeader>
           <Table.Header>
             <Table.Row bg="bg.subtle">
@@ -91,8 +142,12 @@ const MyOrders = ({ marketId }: Props) => {
               <Table.ColumnHeader>Outcome</Table.ColumnHeader>
               <Table.ColumnHeader>Side</Table.ColumnHeader>
               <Table.ColumnHeader>Status</Table.ColumnHeader>
-              <Table.ColumnHeader>Update</Table.ColumnHeader>
-              <Table.ColumnHeader>Cancel</Table.ColumnHeader>
+              {filter === "open" && (
+                <>
+                  <Table.ColumnHeader>Update</Table.ColumnHeader>
+                  <Table.ColumnHeader>Cancel</Table.ColumnHeader>
+                </>
+              )}
             </Table.Row>
           </Table.Header>
 
@@ -107,7 +162,7 @@ const MyOrders = ({ marketId }: Props) => {
                 <Table.Cell>
                   <Badge
                     backgroundColor={
-                      item.outcome === "YES" ? "green.600" : "red.600"
+                      item.outcome === "yes" ? "green.600" : "red.600"
                     }
                     variant="solid"
                   >
@@ -117,7 +172,7 @@ const MyOrders = ({ marketId }: Props) => {
                 <Table.Cell>
                   <Badge
                     backgroundColor={
-                      item.side === "BUY" ? "green.600" : "red.600"
+                      item.side === "buy" ? "green.600" : "red.600"
                     }
                     variant="solid"
                   >
@@ -134,34 +189,38 @@ const MyOrders = ({ marketId }: Props) => {
                     {item.status}
                   </Badge>
                 </Table.Cell>
-                <Table.Cell>
-                  <IconButton
-                    variant="ghost"
-                    rounded="full"
-                    colorPalette="blue"
-                    color="blue.500"
-                    onClick={() => open(`update-order-${item.id}`)}
-                  >
-                    <PenBoxIcon size={20} />
-                  </IconButton>
-                  <UpdateOrderModal
-                    quantity={item.quantity}
-                    filledQuantity={item.filled_quantity}
-                    orderId={item.id}
-                    price={item.price}
-                  />
-                </Table.Cell>
-                <Table.Cell>
-                  <IconButton
-                    variant="ghost"
-                    rounded="full"
-                    colorPalette="red"
-                    color="red.500"
-                    onClick={() => handleCancelOrder(item.id)}
-                  >
-                    <X size={20} />
-                  </IconButton>
-                </Table.Cell>
+                {filter === "open" && (
+                  <>
+                    <Table.Cell>
+                      <IconButton
+                        variant="ghost"
+                        rounded="full"
+                        colorPalette="blue"
+                        color="blue.500"
+                        onClick={() => open(`update-order-${item.id}`)}
+                      >
+                        <PenBoxIcon size={20} />
+                      </IconButton>
+                      <UpdateOrderModal
+                        quantity={item.quantity}
+                        filledQuantity={item.filled_quantity}
+                        orderId={item.id}
+                        price={item.price}
+                      />
+                    </Table.Cell>
+                    <Table.Cell>
+                      <IconButton
+                        variant="ghost"
+                        rounded="full"
+                        colorPalette="red"
+                        color="red.500"
+                        onClick={() => handleCancelOrder(item.id)}
+                      >
+                        <X size={20} />
+                      </IconButton>
+                    </Table.Cell>
+                  </>
+                )}
               </Table.Row>
             ))}
           </Table.Body>
@@ -240,4 +299,36 @@ const sizes = createListCollection({
     { label: 50, value: 50 },
     { label: 100, value: 100 },
   ],
+});
+
+const orderFilters = createListCollection({
+  items: [
+    {
+      label: "Open",
+      value: "open",
+    },
+    {
+      label: "Cancelled",
+      value: "cancelled",
+    },
+    {
+      label: "Filled",
+      value: "filled",
+    },
+    {
+      label: "Expired",
+      value: "expired",
+    },
+    {
+      label: "Pending Update",
+      value: "pending_update",
+    },
+    {
+      label: "Pending Cancel",
+      value: "pending_cancel",
+    },
+  ] as Readonly<{
+    label: string;
+    value: OrderType;
+  }>[],
 });

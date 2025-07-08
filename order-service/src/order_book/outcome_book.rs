@@ -182,6 +182,14 @@ impl OutcomeBook {
             return matches; // only open orders can be matched
         }
 
+        if order.quantity == Decimal::ZERO {
+            order.status = OrderStatus::FILLED; // if quantity is zero, we consider it as filled
+            order.filled_quantity = Decimal::ZERO; // no quantity to match
+
+            log_info!("Order quantity is zero, nothing to match");
+            return matches; // no quantity to match
+        }
+
         let (book, is_buy) = match order.side {
             OrderSide::BUY => (&mut self.asks, true), // inverse matching
             OrderSide::SELL => (&mut self.bids, false),
@@ -202,8 +210,11 @@ impl OutcomeBook {
         }
 
         for price in keys {
-            if (is_buy && price > order.price) || (!is_buy && price < order.price) {
-                continue;
+            // case of market order
+            if order.price != Decimal::ZERO {
+                if (is_buy && price > order.price) || (!is_buy && price < order.price) {
+                    continue;
+                }
             }
 
             if let Some(price_level) = book.get_mut(&price) {
@@ -250,11 +261,14 @@ impl OutcomeBook {
                 }
 
                 // removing orders
-                for i in orders_to_remove {
-                    if i < price_level.orders.len() {
-                        price_level.orders.remove(i);
-                    }
-                }
+                // for i in orders_to_remove {
+                //     if i < price_level.orders.len() {
+                //         price_level.orders.remove(i);
+                //     }
+                // }
+                price_level
+                    .orders
+                    .retain(|o| o.filled_quantity < o.total_quantity);
 
                 price_level.total_quantity = price_level
                     .orders
@@ -276,6 +290,14 @@ impl OutcomeBook {
         }
 
         matches
+    }
+
+    pub(crate) fn create_market_order(&mut self, order: &mut Order) -> Vec<OrderBookMatchedOutput> {
+        // This function is used to create a market order, which will match with the best available orders in the book
+        // It will not check the price of the order, but will match with the best available orders until the quantity is filled or no more orders are available
+        // TODO: How to determine the order quantity depending on the incoming order price....
+        order.price = Decimal::ZERO; // market orders do not have a price
+        self.match_order(order)
     }
 
     // Getters ///
@@ -870,5 +892,519 @@ mod test {
         assert_eq!(matches.len(), 1);
         let price_level = outcome_book.bids.get(&dec!(0.61)).unwrap();
         assert_eq!(price_level.orders.len(), 2); // matched 1 order so 3 - 1 = 2
+    }
+
+    #[test]
+    fn test_market_order_buy_basic() {
+        let market_id = get_random_uuid();
+        let mut outcome_book = OutcomeBook::default();
+
+        // Add sell orders
+        let sell_order_1 = Order {
+            created_at: get_created_at(),
+            filled_quantity: dec!(0),
+            id: get_random_uuid(),
+            market_id,
+            outcome: Outcome::YES,
+            price: dec!(0.25),
+            quantity: dec!(5),
+            side: OrderSide::SELL,
+            status: OrderStatus::OPEN,
+            updated_at: get_created_at(),
+            user_id: get_random_uuid(),
+        };
+
+        outcome_book.add_order(&sell_order_1);
+
+        let mut market_buy_order = Order {
+            created_at: get_created_at(),
+            filled_quantity: dec!(0),
+            id: get_random_uuid(),
+            market_id,
+            outcome: Outcome::YES,
+            price: dec!(1.0), // Will be set to 0 by market order
+            quantity: dec!(3),
+            side: OrderSide::BUY,
+            status: OrderStatus::OPEN,
+            updated_at: get_created_at(),
+            user_id: get_random_uuid(),
+        };
+
+        let matches = outcome_book.create_market_order(&mut market_buy_order);
+
+        assert_eq!(market_buy_order.price, dec!(0)); // Price set to 0 for market order
+        assert_eq!(matches.len(), 1);
+        assert_eq!(market_buy_order.filled_quantity, dec!(3));
+        assert_eq!(market_buy_order.status, OrderStatus::FILLED);
+        assert_eq!(matches[0].matched_quantity, dec!(3));
+        assert_eq!(matches[0].price, dec!(0.25)); // Matched at ask price
+    }
+
+    #[test]
+    fn test_market_order_sell_basic() {
+        let market_id = get_random_uuid();
+        let mut outcome_book = OutcomeBook::default();
+
+        // Add buy orders
+        let buy_order_1 = Order {
+            created_at: get_created_at(),
+            filled_quantity: dec!(0),
+            id: get_random_uuid(),
+            market_id,
+            outcome: Outcome::YES,
+            price: dec!(0.75),
+            quantity: dec!(10),
+            side: OrderSide::BUY,
+            status: OrderStatus::OPEN,
+            updated_at: get_created_at(),
+            user_id: get_random_uuid(),
+        };
+
+        outcome_book.add_order(&buy_order_1);
+
+        let mut market_sell_order = Order {
+            created_at: get_created_at(),
+            filled_quantity: dec!(0),
+            id: get_random_uuid(),
+            market_id,
+            outcome: Outcome::YES,
+            price: dec!(0.50), // Will be set to 0 by market order
+            quantity: dec!(5),
+            side: OrderSide::SELL,
+            status: OrderStatus::OPEN,
+            updated_at: get_created_at(),
+            user_id: get_random_uuid(),
+        };
+
+        let matches = outcome_book.create_market_order(&mut market_sell_order);
+
+        assert_eq!(market_sell_order.price, dec!(0)); // Price set to 0 for market order
+        assert_eq!(matches.len(), 1);
+        assert_eq!(market_sell_order.filled_quantity, dec!(5));
+        assert_eq!(market_sell_order.status, OrderStatus::FILLED);
+        assert_eq!(matches[0].matched_quantity, dec!(5));
+        assert_eq!(matches[0].price, dec!(0.75)); // Matched at bid price
+    }
+
+    #[test]
+    fn test_market_order_multiple_price_levels() {
+        let market_id = get_random_uuid();
+        let mut outcome_book = OutcomeBook::default();
+
+        // Add multiple sell orders at different prices
+        let sell_order_1 = Order {
+            created_at: get_created_at(),
+            filled_quantity: dec!(0),
+            id: get_random_uuid(),
+            market_id,
+            outcome: Outcome::YES,
+            price: dec!(0.20),
+            quantity: dec!(3),
+            side: OrderSide::SELL,
+            status: OrderStatus::OPEN,
+            updated_at: get_created_at(),
+            user_id: get_random_uuid(),
+        };
+
+        let sell_order_2 = Order {
+            created_at: get_created_at(),
+            filled_quantity: dec!(0),
+            id: get_random_uuid(),
+            market_id,
+            outcome: Outcome::YES,
+            price: dec!(0.25),
+            quantity: dec!(5),
+            side: OrderSide::SELL,
+            status: OrderStatus::OPEN,
+            updated_at: get_created_at(),
+            user_id: get_random_uuid(),
+        };
+
+        let sell_order_3 = Order {
+            created_at: get_created_at(),
+            filled_quantity: dec!(0),
+            id: get_random_uuid(),
+            market_id,
+            outcome: Outcome::YES,
+            price: dec!(0.30),
+            quantity: dec!(2),
+            side: OrderSide::SELL,
+            status: OrderStatus::OPEN,
+            updated_at: get_created_at(),
+            user_id: get_random_uuid(),
+        };
+
+        outcome_book.add_order(&sell_order_1);
+        outcome_book.add_order(&sell_order_2);
+        outcome_book.add_order(&sell_order_3);
+
+        let mut market_buy_order = Order {
+            created_at: get_created_at(),
+            filled_quantity: dec!(0),
+            id: get_random_uuid(),
+            market_id,
+            outcome: Outcome::YES,
+            price: dec!(1.0),
+            quantity: dec!(8), // Will match across multiple price levels
+            side: OrderSide::BUY,
+            status: OrderStatus::OPEN,
+            updated_at: get_created_at(),
+            user_id: get_random_uuid(),
+        };
+
+        let matches = outcome_book.create_market_order(&mut market_buy_order);
+
+        assert_eq!(market_buy_order.price, dec!(0));
+        assert_eq!(matches.len(), 2); // Should match first two orders
+        assert_eq!(market_buy_order.filled_quantity, dec!(8));
+        assert_eq!(market_buy_order.status, OrderStatus::FILLED);
+
+        // Verify matches happened at best prices first
+        assert_eq!(matches[0].price, dec!(0.20)); // Best ask first
+        assert_eq!(matches[0].matched_quantity, dec!(3));
+        assert_eq!(matches[1].price, dec!(0.25)); // Second best ask
+        assert_eq!(matches[1].matched_quantity, dec!(5));
+    }
+
+    #[test]
+    fn test_market_order_partial_fill() {
+        let market_id = get_random_uuid();
+        let mut outcome_book = OutcomeBook::default();
+
+        // Add limited liquidity
+        let sell_order = Order {
+            created_at: get_created_at(),
+            filled_quantity: dec!(0),
+            id: get_random_uuid(),
+            market_id,
+            outcome: Outcome::YES,
+            price: dec!(0.50),
+            quantity: dec!(3),
+            side: OrderSide::SELL,
+            status: OrderStatus::OPEN,
+            updated_at: get_created_at(),
+            user_id: get_random_uuid(),
+        };
+
+        outcome_book.add_order(&sell_order);
+
+        let mut market_buy_order = Order {
+            created_at: get_created_at(),
+            filled_quantity: dec!(0),
+            id: get_random_uuid(),
+            market_id,
+            outcome: Outcome::YES,
+            price: dec!(1.0),
+            quantity: dec!(10), // More than available liquidity
+            side: OrderSide::BUY,
+            status: OrderStatus::OPEN,
+            updated_at: get_created_at(),
+            user_id: get_random_uuid(),
+        };
+
+        let matches = outcome_book.create_market_order(&mut market_buy_order);
+
+        assert_eq!(market_buy_order.price, dec!(0));
+        assert_eq!(matches.len(), 1);
+        assert_eq!(market_buy_order.filled_quantity, dec!(3)); // Partially filled
+        assert_eq!(market_buy_order.status, OrderStatus::OPEN); // Still open
+        assert_eq!(matches[0].matched_quantity, dec!(3));
+    }
+
+    #[test]
+    fn test_market_order_empty_book() {
+        let market_id = get_random_uuid();
+        let mut outcome_book = OutcomeBook::default();
+
+        let mut market_buy_order = Order {
+            created_at: get_created_at(),
+            filled_quantity: dec!(0),
+            id: get_random_uuid(),
+            market_id,
+            outcome: Outcome::YES,
+            price: dec!(1.0),
+            quantity: dec!(5),
+            side: OrderSide::BUY,
+            status: OrderStatus::OPEN,
+            updated_at: get_created_at(),
+            user_id: get_random_uuid(),
+        };
+
+        let matches = outcome_book.create_market_order(&mut market_buy_order);
+
+        assert_eq!(market_buy_order.price, dec!(0));
+        assert_eq!(matches.len(), 0);
+        assert_eq!(market_buy_order.filled_quantity, dec!(0));
+        assert_eq!(market_buy_order.status, OrderStatus::OPEN);
+    }
+
+    #[test]
+    fn test_market_order_with_already_filled_quantity() {
+        let market_id = get_random_uuid();
+        let mut outcome_book = OutcomeBook::default();
+
+        let sell_order = Order {
+            created_at: get_created_at(),
+            filled_quantity: dec!(0),
+            id: get_random_uuid(),
+            market_id,
+            outcome: Outcome::YES,
+            price: dec!(0.60),
+            quantity: dec!(10),
+            side: OrderSide::SELL,
+            status: OrderStatus::OPEN,
+            updated_at: get_created_at(),
+            user_id: get_random_uuid(),
+        };
+
+        outcome_book.add_order(&sell_order);
+
+        let mut market_buy_order = Order {
+            created_at: get_created_at(),
+            filled_quantity: dec!(3), // Already partially filled
+            id: get_random_uuid(),
+            market_id,
+            outcome: Outcome::YES,
+            price: dec!(1.0),
+            quantity: dec!(8),
+            side: OrderSide::BUY,
+            status: OrderStatus::OPEN,
+            updated_at: get_created_at(),
+            user_id: get_random_uuid(),
+        };
+
+        let matches = outcome_book.create_market_order(&mut market_buy_order);
+
+        assert_eq!(market_buy_order.price, dec!(0));
+        assert_eq!(matches.len(), 1);
+        assert_eq!(market_buy_order.filled_quantity, dec!(8)); // 3 + 5 = 8 (fully filled)
+        assert_eq!(market_buy_order.status, OrderStatus::FILLED);
+        assert_eq!(matches[0].matched_quantity, dec!(5)); // Only 5 more needed
+    }
+
+    #[test]
+    fn test_market_order_self_trade_prevention() {
+        let market_id = get_random_uuid();
+        let user_id = get_random_uuid();
+        let mut outcome_book = OutcomeBook::default();
+
+        // Add sell order from same user
+        let sell_order = Order {
+            created_at: get_created_at(),
+            filled_quantity: dec!(0),
+            id: get_random_uuid(),
+            market_id,
+            outcome: Outcome::YES,
+            price: dec!(0.40),
+            quantity: dec!(5),
+            side: OrderSide::SELL,
+            status: OrderStatus::OPEN,
+            updated_at: get_created_at(),
+            user_id, // Same user
+        };
+
+        outcome_book.add_order(&sell_order);
+
+        let mut market_buy_order = Order {
+            created_at: get_created_at(),
+            filled_quantity: dec!(0),
+            id: get_random_uuid(),
+            market_id,
+            outcome: Outcome::YES,
+            price: dec!(1.0),
+            quantity: dec!(3),
+            side: OrderSide::BUY,
+            status: OrderStatus::OPEN,
+            updated_at: get_created_at(),
+            user_id, // Same user - should not match
+        };
+
+        let matches = outcome_book.create_market_order(&mut market_buy_order);
+
+        assert_eq!(market_buy_order.price, dec!(0));
+        assert_eq!(matches.len(), 0); // No matches due to self-trade prevention
+        assert_eq!(market_buy_order.filled_quantity, dec!(0));
+        assert_eq!(market_buy_order.status, OrderStatus::OPEN);
+    }
+
+    #[test]
+    fn test_market_order_large_quantity() {
+        let market_id = get_random_uuid();
+        let mut outcome_book = OutcomeBook::default();
+
+        // Add multiple orders with varying quantities
+        for i in 1..=10 {
+            let sell_order = Order {
+                created_at: get_created_at(),
+                filled_quantity: dec!(0),
+                id: get_random_uuid(),
+                market_id,
+                outcome: Outcome::YES,
+                price: Decimal::new(i * 10, 2), // 0.10, 0.20, ..., 1.00
+                quantity: dec!(100),
+                side: OrderSide::SELL,
+                status: OrderStatus::OPEN,
+                updated_at: get_created_at(),
+                user_id: get_random_uuid(),
+            };
+            outcome_book.add_order(&sell_order);
+        }
+
+        let mut market_buy_order = Order {
+            created_at: get_created_at(),
+            filled_quantity: dec!(0),
+            id: get_random_uuid(),
+            market_id,
+            outcome: Outcome::YES,
+            price: dec!(1.0),
+            quantity: dec!(550), // Will match 5.5 orders
+            side: OrderSide::BUY,
+            status: OrderStatus::OPEN,
+            updated_at: get_created_at(),
+            user_id: get_random_uuid(),
+        };
+
+        let matches = outcome_book.create_market_order(&mut market_buy_order);
+
+        assert_eq!(market_buy_order.price, dec!(0));
+        assert_eq!(matches.len(), 6); // Should match 5 full orders + 1 partial
+        assert_eq!(market_buy_order.filled_quantity, dec!(550));
+        assert_eq!(market_buy_order.status, OrderStatus::FILLED);
+    }
+
+    #[test]
+    fn test_market_order_with_closed_status() {
+        let market_id = get_random_uuid();
+        let mut outcome_book = OutcomeBook::default();
+
+        let sell_order = Order {
+            created_at: get_created_at(),
+            filled_quantity: dec!(0),
+            id: get_random_uuid(),
+            market_id,
+            outcome: Outcome::YES,
+            price: dec!(0.50),
+            quantity: dec!(10),
+            side: OrderSide::SELL,
+            status: OrderStatus::OPEN,
+            updated_at: get_created_at(),
+            user_id: get_random_uuid(),
+        };
+
+        outcome_book.add_order(&sell_order);
+
+        let mut market_buy_order = Order {
+            created_at: get_created_at(),
+            filled_quantity: dec!(0),
+            id: get_random_uuid(),
+            market_id,
+            outcome: Outcome::YES,
+            price: dec!(1.0),
+            quantity: dec!(5),
+            side: OrderSide::BUY,
+            status: OrderStatus::CANCELLED, // Not OPEN
+            updated_at: get_created_at(),
+            user_id: get_random_uuid(),
+        };
+
+        let matches = outcome_book.create_market_order(&mut market_buy_order);
+
+        assert_eq!(market_buy_order.price, dec!(0));
+        assert_eq!(matches.len(), 0); // No matches for non-open orders
+        assert_eq!(market_buy_order.filled_quantity, dec!(0));
+    }
+
+    #[test]
+    fn test_market_order_zero_quantity() {
+        let market_id = get_random_uuid();
+        let mut outcome_book = OutcomeBook::default();
+
+        let sell_order = Order {
+            created_at: get_created_at(),
+            filled_quantity: dec!(0),
+            id: get_random_uuid(),
+            market_id,
+            outcome: Outcome::YES,
+            price: dec!(0.50),
+            quantity: dec!(10),
+            side: OrderSide::SELL,
+            status: OrderStatus::OPEN,
+            updated_at: get_created_at(),
+            user_id: get_random_uuid(),
+        };
+
+        outcome_book.add_order(&sell_order);
+
+        let mut market_buy_order = Order {
+            created_at: get_created_at(),
+            filled_quantity: dec!(0),
+            id: get_random_uuid(),
+            market_id,
+            outcome: Outcome::YES,
+            price: dec!(1.0),
+            quantity: dec!(0), // Zero quantity
+            side: OrderSide::BUY,
+            status: OrderStatus::OPEN,
+            updated_at: get_created_at(),
+            user_id: get_random_uuid(),
+        };
+
+        let matches = outcome_book.create_market_order(&mut market_buy_order);
+
+        assert_eq!(market_buy_order.price, dec!(0));
+        assert_eq!(matches.len(), 0);
+        assert_eq!(market_buy_order.filled_quantity, dec!(0));
+        assert_eq!(market_buy_order.status, OrderStatus::FILLED); // Zero quantity = filled
+    }
+
+    #[test]
+    fn test_market_order_buy_against_multiple_sells_same_price() {
+        let market_id = get_random_uuid();
+        let mut outcome_book = OutcomeBook::default();
+        let price = dec!(0.45);
+
+        // Add multiple sell orders at same price
+        for i in 1..=5 {
+            let sell_order = Order {
+                created_at: get_created_at(),
+                filled_quantity: dec!(0),
+                id: get_random_uuid(),
+                market_id,
+                outcome: Outcome::YES,
+                price,
+                quantity: dec!(2),
+                side: OrderSide::SELL,
+                status: OrderStatus::OPEN,
+                updated_at: get_created_at(),
+                user_id: get_random_uuid(),
+            };
+            outcome_book.add_order(&sell_order);
+        }
+
+        let mut market_buy_order = Order {
+            created_at: get_created_at(),
+            filled_quantity: dec!(0),
+            id: get_random_uuid(),
+            market_id,
+            outcome: Outcome::YES,
+            price: dec!(1.0),
+            quantity: dec!(7), // Will match 3.5 orders
+            side: OrderSide::BUY,
+            status: OrderStatus::OPEN,
+            updated_at: get_created_at(),
+            user_id: get_random_uuid(),
+        };
+
+        let matches = outcome_book.create_market_order(&mut market_buy_order);
+
+        assert_eq!(market_buy_order.price, dec!(0));
+        assert_eq!(matches.len(), 4); // 3 full + 1 partial
+        assert_eq!(market_buy_order.filled_quantity, dec!(7));
+        assert_eq!(market_buy_order.status, OrderStatus::FILLED);
+
+        // Verify all matches at same price
+        for m in &matches {
+            assert_eq!(m.price, price);
+        }
     }
 }

@@ -10,7 +10,7 @@ use crate::{
         },
     },
     state::SafeState,
-    utils::clickhouse_schema::GetMarketPrices,
+    utils::{clickhouse_queries::MARKET_PRICE_BASE_QUERY, clickhouse_schema::GetMarketPrices},
     validate_numbers, validate_strings,
 };
 
@@ -36,14 +36,7 @@ impl PriceService for PriceServiceStub {
             Status::invalid_argument("Invalid timeframe provided. Must be a valid Timeframe enum.")
         })?;
 
-        let base_query = r#"
-            SELECT
-                market_id,
-                toFloat64(yes_price) as yes_price, 
-                toFloat64(no_price) as no_price, 
-                ts,
-                created_at
-            FROM market_price_data WHERE market_id = ?"#;
+        let base_query = MARKET_PRICE_BASE_QUERY;
 
         let query = match time_range.get_start_time() {
             Some(start_time) => format!(
@@ -89,7 +82,7 @@ mod test {
     use crate::procedures::price_services::GetMarketPrices;
 
     #[tokio::test]
-    // #[ignore = "Skip"]
+    #[ignore = "Skip"]
     async fn test_clickhouse_data() {
         let client = clickhouse::Client::default()
             .with_url("http://localhost:8123")

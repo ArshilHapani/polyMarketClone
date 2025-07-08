@@ -11,6 +11,7 @@ import { UnknownFieldHandler } from "@protobuf-ts/runtime";
 import type { PartialMessage } from "@protobuf-ts/runtime";
 import { reflectionMergePartial } from "@protobuf-ts/runtime";
 import { MessageType } from "@protobuf-ts/runtime";
+import { Timeframe } from "./common";
 /**
  * @generated from protobuf message price.GetPriceDataWithinIntervalRequest
  */
@@ -20,7 +21,7 @@ export interface GetPriceDataWithinIntervalRequest {
      */
     marketId: string;
     /**
-     * @generated from protobuf field: price.Timeframe timeframe = 2;
+     * @generated from protobuf field: common.Timeframe timeframe = 2;
      */
     timeframe: Timeframe;
 }
@@ -54,45 +55,12 @@ export interface GetMarketPriceDataWithinIntervalResponse {
      */
     marketId: string;
 }
-/**
- * @generated from protobuf enum price.Timeframe
- */
-export enum Timeframe {
-    /**
-     * @generated from protobuf enum value: TIMEFRAME_UNSPECIFIED = 0;
-     */
-    UNSPECIFIED = 0,
-    /**
-     * @generated from protobuf enum value: TIMEFRAME_ONE_HOUR = 1;
-     */
-    ONE_HOUR = 1,
-    /**
-     * @generated from protobuf enum value: TIMEFRAME_SIX_HOUR = 2;
-     */
-    SIX_HOUR = 2,
-    /**
-     * @generated from protobuf enum value: TIMEFRAME_ONE_DAY = 3;
-     */
-    ONE_DAY = 3,
-    /**
-     * @generated from protobuf enum value: TIMEFRAME_ONE_WEEK = 4;
-     */
-    ONE_WEEK = 4,
-    /**
-     * @generated from protobuf enum value: TIMEFRAME_ONE_MONTH = 5;
-     */
-    ONE_MONTH = 5,
-    /**
-     * @generated from protobuf enum value: TIMEFRAME_ALL = 6;
-     */
-    ALL = 6
-}
 // @generated message type with reflection information, may provide speed optimized methods
 class GetPriceDataWithinIntervalRequest$Type extends MessageType<GetPriceDataWithinIntervalRequest> {
     constructor() {
         super("price.GetPriceDataWithinIntervalRequest", [
             { no: 1, name: "market_id", kind: "scalar", T: 9 /*ScalarType.STRING*/ },
-            { no: 2, name: "timeframe", kind: "enum", T: () => ["price.Timeframe", Timeframe, "TIMEFRAME_"] }
+            { no: 2, name: "timeframe", kind: "enum", T: () => ["common.Timeframe", Timeframe, "TIMEFRAME_"] }
         ]);
     }
     create(value?: PartialMessage<GetPriceDataWithinIntervalRequest>): GetPriceDataWithinIntervalRequest {
@@ -111,7 +79,7 @@ class GetPriceDataWithinIntervalRequest$Type extends MessageType<GetPriceDataWit
                 case /* string market_id */ 1:
                     message.marketId = reader.string();
                     break;
-                case /* price.Timeframe timeframe */ 2:
+                case /* common.Timeframe timeframe */ 2:
                     message.timeframe = reader.int32();
                     break;
                 default:
@@ -129,7 +97,7 @@ class GetPriceDataWithinIntervalRequest$Type extends MessageType<GetPriceDataWit
         /* string market_id = 1; */
         if (message.marketId !== "")
             writer.tag(1, WireType.LengthDelimited).string(message.marketId);
-        /* price.Timeframe timeframe = 2; */
+        /* common.Timeframe timeframe = 2; */
         if (message.timeframe !== 0)
             writer.tag(2, WireType.Varint).int32(message.timeframe);
         let u = options.writeUnknownFields;

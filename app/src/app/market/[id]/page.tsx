@@ -8,6 +8,8 @@ import PriceChart from "./_components/PriceChart";
 import PurchaseNowActionBar from "./_components/PurchaseNowActionBar";
 import OrderBook from "./_components/OrderBook";
 import MyOrders from "./_components/MyOrders";
+import VolumeInfoCard from "./_components/VolumeInfoCard";
+import HoldingsInfoClient from "./_components/HoldingsInfoClient";
 
 type Props = {
   params: Promise<{
@@ -17,9 +19,14 @@ type Props = {
 
 const MarketPage = async ({ params }: Props) => {
   const id = (await params).id;
-  const market = await MarketGetters.getMarketById(id);
+  const marketWithVolume = await MarketGetters.getMarketById(id);
 
-  if (!market) {
+  if (
+    !marketWithVolume ||
+    !marketWithVolume.market ||
+    !marketWithVolume.volumeInfo ||
+    !marketWithVolume.marketPrice
+  ) {
     return (
       <EmptyStateCustom
         title="Market not found"
@@ -27,27 +34,37 @@ const MarketPage = async ({ params }: Props) => {
       />
     );
   }
+  const market = marketWithVolume.market;
+  const volumeInfo = marketWithVolume.volumeInfo;
+  const marketPrice = marketWithVolume.marketPrice;
+
   return (
     <Container my={10}>
       <Box mb={20}>
         {/* avatar and title flex */}
-        <Flex alignItems="center" gap={3}>
-          <Avatar.Root size="2xl" shape="rounded">
-            <Avatar.Image src={market.logo} />
-            <Avatar.Fallback name={market.name} />
-          </Avatar.Root>
-          <Text fontSize="2xl" fontWeight="semibold">
-            {market.name}
-          </Text>
+        <Flex
+          alignItems="center"
+          justifyContent="space-between"
+          mb={6}
+          flexWrap="wrap"
+        >
+          <Flex alignItems="center" gap={3}>
+            <Avatar.Root size="2xl" shape="rounded">
+              <Avatar.Image src={market.logo} />
+              <Avatar.Fallback name={market.name} />
+            </Avatar.Root>
+            <Text fontSize="2xl" fontWeight="semibold">
+              {market.name}
+            </Text>
+          </Flex>
+
+          <HoldingsInfoClient marketId={id} />
         </Flex>
         {/* volume and links */}
-        <Flex mt={4} justifyContent="space-between">
+        <Flex mt={4} justifyContent="space-between" width="full">
           <Flex alignItems="center" gap={2}>
-            <Text color="gray.600" fontSize="sm">
-              $84,424 Vol.
-            </Text>
+            <VolumeInfoCard volumeInfo={volumeInfo} />
             <Flex color="gray.600" fontSize="sm" alignItems={"center"} gap={1}>
-              <Clock5 size={14} />
               <Text>
                 {new Date(market.marketExpiry).toLocaleDateString("en-US", {
                   year: "numeric",
@@ -55,6 +72,7 @@ const MarketPage = async ({ params }: Props) => {
                   day: "numeric",
                 })}
               </Text>
+              <Clock5 size={14} />
             </Flex>
           </Flex>
           <Flex alignItems="center" gap={3} color="gray.800">
@@ -67,7 +85,14 @@ const MarketPage = async ({ params }: Props) => {
         <PriceChart market_id={id} />
 
         {/*  action bar for purchasing now  */}
-        <PurchaseNowActionBar market_id={id} />
+        <PurchaseNowActionBar
+          market_id={id}
+          marketPrice={{
+            latestNoPrice: marketPrice.latestNoPrice,
+            latestYesPrice: marketPrice.latestYesPrice,
+            marketId: market.id,
+          }}
+        />
 
         {/* order book */}
         <Box mt={10}>

@@ -18,8 +18,8 @@ import {
 import { ChartGetters } from "@/utils/interactions/dataGetter";
 import useSubscription from "@/hooks/useSubscription";
 
-import { Timeframe } from "@/generated/grpc_service_types/price";
 import { WsParamsPayload } from "@/generated/service_types/ws_server/market_price";
+import { Timeframe } from "@/generated/grpc_service_types/common";
 
 type Props = {
   market_id: string;
@@ -246,7 +246,7 @@ const PriceChart = ({ market_id }: Props) => {
       </Chart.Root>
 
       {/* timeline buttons */}
-      <Flex mt={4} alignItems="center" justifyContent="space-between">
+      <Flex mt={4} alignItems="start" justifyContent="space-between">
         <ButtonGroup variant="subtle" size="sm" gap={0}>
           {PAST_DAYS_FILTERS.map((filter) => (
             <Button
@@ -263,10 +263,6 @@ const PriceChart = ({ market_id }: Props) => {
             </Button>
           ))}
         </ButtonGroup>
-        <Flex fontSize="sm" color="gray.500" alignItems="center" gap={2}>
-          <FileUp size={18} />
-          <Settings size={18} />
-        </Flex>
       </Flex>
     </Box>
   );

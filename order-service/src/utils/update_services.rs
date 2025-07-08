@@ -1,9 +1,9 @@
 /*
  * This file is ued to update the state of services
  *
- * - Pushes the price data into clickhouse via kafka
- * - Updates the order book into clickhouse via kafka
+ * - Pushes the price into clickhouse via kafka
  * - Send the data to the websocket which serves the users
+ * - Publishes the data to NATS for other services to consume
  */
 
 use std::{str::FromStr, sync::Arc, time::Duration};
@@ -28,12 +28,12 @@ use utility_helpers::{
     types::OrderBookDataStruct,
 };
 
-use crate::state::AppState;
+use crate::{state::AppState, utils::OrderServiceError};
 
 pub async fn update_service_state(
     app_state: Arc<AppState>,
     order: &Order,
-) -> Result<(), Box<dyn std::error::Error>> {
+) -> Result<(), OrderServiceError> {
     // variable declarations....
     let current_time = chrono::Utc::now();
     let market_id = order.market_id;

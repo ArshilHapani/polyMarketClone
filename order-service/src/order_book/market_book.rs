@@ -59,6 +59,20 @@ impl MarketBook {
         matches
     }
 
+    pub(super) fn create_market_order(&mut self, order: &mut Order) -> Vec<OrderBookMatchedOutput> {
+        let matches = match order.outcome {
+            Outcome::YES => self.yes_order_book.create_market_order(order),
+            Outcome::NO => self.no_order_book.create_market_order(order),
+            _ => Vec::new(),
+        };
+
+        if order.status == OrderStatus::OPEN || order.status == OrderStatus::PendingUpdate {
+            self.add_order(order);
+        }
+        self.update_market_price();
+        matches
+    }
+
     pub(super) fn update_order(
         &mut self,
         order: &mut Order,

@@ -77,6 +77,48 @@ pub struct Market {
 }
 #[derive(serde::Serialize, serde::Deserialize)]
 #[derive(Clone, PartialEq, ::prost::Message)]
+pub struct VolumeInfo {
+    #[prost(string, tag = "1")]
+    pub market_id: ::prost::alloc::string::String,
+    #[prost(double, tag = "2")]
+    pub yes_buy_qty: f64,
+    #[prost(double, tag = "3")]
+    pub yes_buy_usd: f64,
+    #[prost(double, tag = "4")]
+    pub yes_sell_qty: f64,
+    #[prost(double, tag = "5")]
+    pub yes_sell_usd: f64,
+    #[prost(double, tag = "6")]
+    pub no_buy_qty: f64,
+    #[prost(double, tag = "7")]
+    pub no_buy_usd: f64,
+    #[prost(double, tag = "8")]
+    pub no_sell_qty: f64,
+    #[prost(double, tag = "9")]
+    pub no_sell_usd: f64,
+}
+#[derive(serde::Serialize, serde::Deserialize)]
+#[derive(Clone, PartialEq, ::prost::Message)]
+pub struct MarketPrice {
+    #[prost(string, tag = "1")]
+    pub market_id: ::prost::alloc::string::String,
+    #[prost(double, tag = "2")]
+    pub latest_yes_price: f64,
+    #[prost(double, tag = "3")]
+    pub latest_no_price: f64,
+}
+#[derive(serde::Serialize, serde::Deserialize)]
+#[derive(Clone, PartialEq, ::prost::Message)]
+pub struct GetMarketByIdResponse {
+    #[prost(message, optional, tag = "1")]
+    pub market: ::core::option::Option<Market>,
+    #[prost(message, optional, tag = "2")]
+    pub volume_info: ::core::option::Option<VolumeInfo>,
+    #[prost(message, optional, tag = "3")]
+    pub market_price: ::core::option::Option<MarketPrice>,
+}
+#[derive(serde::Serialize, serde::Deserialize)]
+#[derive(Clone, PartialEq, ::prost::Message)]
 pub struct GetPaginatedMarketResponse {
     #[prost(message, repeated, tag = "1")]
     pub markets: ::prost::alloc::vec::Vec<Market>,
@@ -172,7 +214,10 @@ pub mod market_service_server {
         async fn get_market_by_id(
             &self,
             request: tonic::Request<super::RequestWithMarketId>,
-        ) -> std::result::Result<tonic::Response<super::Market>, tonic::Status>;
+        ) -> std::result::Result<
+            tonic::Response<super::GetMarketByIdResponse>,
+            tonic::Status,
+        >;
         async fn get_market_book(
             &self,
             request: tonic::Request<super::RequestForMarketBook>,
@@ -309,7 +354,7 @@ pub mod market_service_server {
                         T: MarketService,
                     > tonic::server::UnaryService<super::RequestWithMarketId>
                     for GetMarketByIdSvc<T> {
-                        type Response = super::Market;
+                        type Response = super::GetMarketByIdResponse;
                         type Future = BoxFuture<
                             tonic::Response<Self::Response>,
                             tonic::Status,

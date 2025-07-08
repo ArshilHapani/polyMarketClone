@@ -14,15 +14,14 @@ use crate::{
         update_order_handler::update_order_handler,
     },
     state::AppState,
+    utils::OrderServiceError,
 };
 
 pub mod cancel_order_handler;
 pub mod create_order_handler;
 pub mod update_order_handler;
 
-pub async fn handle_nats_message(
-    app_state: Arc<AppState>,
-) -> Result<(), Box<dyn std::error::Error>> {
+pub async fn handle_nats_message(app_state: Arc<AppState>) -> Result<(), OrderServiceError> {
     let stream_guard = app_state.jetstream.clone();
     let stream = stream_guard
         .get_or_create_stream(jetstream::stream::Config {
@@ -53,7 +52,7 @@ pub async fn handle_nats_message(
                 let order_id = String::from_utf8(message.payload.to_vec())
                     .map_err(|_| "Failed to convert payload to string".to_string())?;
                 log_info!("Received order ID: {}", order_id);
-                let _ = create_order_handler(Arc::clone(&app_state), order_id)
+                let _ = create_order_handler(Arc::clone(&app_state), order_id, false)
                     .await
                     .map_err(|e| {
                         log_error!("Error occur while adding order in book {e}");
@@ -78,6 +77,15 @@ pub async fn handle_nats_message(
                     .await
                     .map_err(|e| {
                         log_error!("Error occur while updating order {e}");
+                    });
+            }
+            NatsSubjects::MarketOrderCreate => {
+                let order_id = String::from_utf8(message.payload.to_vec())
+                    .map_err(|_| "Failed to convert payload to string".to_string())?;
+                let _ = create_order_handler(app_state.clone(), order_id, true)
+                    .await
+                    .map_err(|e| {
+                        log_error!("Error occur while adding market order in book {e}");
                     });
             }
             _ => {}

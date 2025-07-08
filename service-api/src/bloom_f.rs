@@ -10,7 +10,7 @@ use uuid::Uuid;
 pub struct BloomFilterWrapper {
     /// A thread-safe wrapper around a Bloom filter.
     ///
-    /// **NOTE:** Direct DB update are not update the filter, so it is critical to prevent direct db updates for user
+    /// **NOTE:** Direct DB update does not update the filter, so it is critical to prevent direct db updates for user
     filter: Arc<RwLock<BloomFilter>>,
 }
 

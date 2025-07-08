@@ -1,8 +1,11 @@
 use db_service::{pagination::PageInfo as DbPageInfo, schema::market::Market as DbMarket};
 
 use crate::{
-    generated::{common::PageInfo, markets::Market},
-    utils::to_f64,
+    generated::{
+        common::PageInfo,
+        markets::{GetMarketBookResponse, Market, OrderBook, OrderLevel},
+    },
+    utils::{clickhouse_schema::GetOrderBook, to_f64},
 };
 
 pub mod market_services;
@@ -35,5 +38,51 @@ impl From<DbPageInfo> for PageInfo {
             total_items: value.total_items,
             total_pages: value.total_pages,
         }
+    }
+}
+
+pub fn to_resp_for_market_book(data: GetOrderBook) -> GetMarketBookResponse {
+    GetMarketBookResponse {
+        market_id: data.market_id.to_string(),
+        yes_book: Some(OrderBook {
+            bids: data
+                .yes_bids
+                .into_iter()
+                .map(|(price, shares, users)| OrderLevel {
+                    price,
+                    shares,
+                    users,
+                })
+                .collect(),
+            asks: data
+                .yes_asks
+                .into_iter()
+                .map(|(price, shares, users)| OrderLevel {
+                    price,
+                    shares,
+                    users,
+                })
+                .collect(),
+        }),
+        no_book: Some(OrderBook {
+            bids: data
+                .no_bids
+                .into_iter()
+                .map(|(price, shares, users)| OrderLevel {
+                    price,
+                    shares,
+                    users,
+                })
+                .collect(),
+            asks: data
+                .no_asks
+                .into_iter()
+                .map(|(price, shares, users)| OrderLevel {
+                    price,
+                    shares,
+                    users,
+                })
+                .collect(),
+        }),
     }
 }

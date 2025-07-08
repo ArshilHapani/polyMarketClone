@@ -3,7 +3,8 @@ import jsCookies from "js-cookie";
 
 import { marketServiceClient, priceServiceClient } from "../grpc/clients";
 import { GetUserOrdersPaginatedResponse, GetUserResponse } from "../types/api";
-import { Timeframe } from "@/generated/grpc_service_types/price";
+import { OrderType } from "../types";
+import { Timeframe } from "@/generated/grpc_service_types/common";
 
 const TOKEN = jsCookies.get("polymarketAuthToken") || "";
 const BASE_URL = process.env.NEXT_PUBLIC_SERVICE_API_URL || "";
@@ -95,10 +96,11 @@ export class OrderGetters {
     marketId: string,
     page: number,
     pageSize: number,
+    orderType: OrderType = "open",
   ) {
     try {
       const { data } = await axios.get<GetUserOrdersPaginatedResponse>(
-        `${BASE_URL}/user/orders/get/${marketId}?page=${page}&page_size=${pageSize}&status=open`,
+        `${BASE_URL}/user/orders/get/${marketId}?page=${page}&page_size=${pageSize}&status=${orderType}`,
         {
           headers: {
             "Content-Type": "application/json",
@@ -110,7 +112,12 @@ export class OrderGetters {
       return data;
     } catch (error: any) {
       console.error("Failed to get orders ", error);
-      return { orders: [], page: 0, page_size: 0 };
+      return {
+        orders: [],
+        page: 0,
+        page_size: 0,
+        holdings: { no: "0", yes: "0" },
+      };
     }
   }
 }

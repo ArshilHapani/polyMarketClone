@@ -3,12 +3,15 @@ use std::sync::Arc;
 use db_service::schema::{enums::OrderStatus, orders::Order};
 use utility_helpers::log_warn;
 
-use crate::{state::AppState, utils::update_services::update_service_state};
+use crate::{
+    state::AppState,
+    utils::{OrderServiceError, update_services::update_service_state},
+};
 
 pub async fn cancel_order_handler(
     app_state: Arc<AppState>,
     order_id: String,
-) -> Result<(), Box<dyn std::error::Error>> {
+) -> Result<(), OrderServiceError> {
     let order_id =
         uuid::Uuid::parse_str(&order_id).map_err(|_| "Invalid order ID format".to_string())?;
     let order = Order::find_order_by_id(order_id, &app_state.db_pool)

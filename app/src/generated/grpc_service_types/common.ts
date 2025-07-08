@@ -44,6 +44,39 @@ export interface PageRequest {
      */
     pageSize: number;
 }
+/**
+ * @generated from protobuf enum common.Timeframe
+ */
+export enum Timeframe {
+    /**
+     * @generated from protobuf enum value: TIMEFRAME_UNSPECIFIED = 0;
+     */
+    UNSPECIFIED = 0,
+    /**
+     * @generated from protobuf enum value: TIMEFRAME_ONE_HOUR = 1;
+     */
+    ONE_HOUR = 1,
+    /**
+     * @generated from protobuf enum value: TIMEFRAME_SIX_HOUR = 2;
+     */
+    SIX_HOUR = 2,
+    /**
+     * @generated from protobuf enum value: TIMEFRAME_ONE_DAY = 3;
+     */
+    ONE_DAY = 3,
+    /**
+     * @generated from protobuf enum value: TIMEFRAME_ONE_WEEK = 4;
+     */
+    ONE_WEEK = 4,
+    /**
+     * @generated from protobuf enum value: TIMEFRAME_ONE_MONTH = 5;
+     */
+    ONE_MONTH = 5,
+    /**
+     * @generated from protobuf enum value: TIMEFRAME_ALL = 6;
+     */
+    ALL = 6
+}
 // @generated message type with reflection information, may provide speed optimized methods
 class PageInfo$Type extends MessageType<PageInfo> {
     constructor() {

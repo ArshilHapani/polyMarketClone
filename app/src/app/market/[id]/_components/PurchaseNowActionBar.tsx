@@ -14,8 +14,14 @@ import {
 } from "@chakra-ui/react";
 
 import TradeForm from "./TradeForm";
+import { MarketPrice } from "@/generated/grpc_service_types/markets";
 
-const PurchaseNowActionBar = ({ market_id }: { market_id: string }) => {
+type Props = {
+  market_id: string;
+  marketPrice: MarketPrice;
+};
+
+const PurchaseNowActionBar = ({ market_id, marketPrice }: Props) => {
   const { open: isOpen, onToggle } = useDisclosure();
   const [orderType, setOrderType] = useState<"market" | "limit">("market");
 
@@ -124,6 +130,7 @@ const PurchaseNowActionBar = ({ market_id }: { market_id: string }) => {
                 mode="buy"
                 orderType={orderType}
                 market_id={market_id}
+                marketPrice={marketPrice}
               />
             </Tabs.Content>
             <Tabs.Content value="sell">
@@ -131,6 +138,7 @@ const PurchaseNowActionBar = ({ market_id }: { market_id: string }) => {
                 mode="sell"
                 orderType={orderType}
                 market_id={market_id}
+                marketPrice={marketPrice}
               />
             </Tabs.Content>
           </Tabs.Root>

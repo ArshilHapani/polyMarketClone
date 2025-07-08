@@ -6,13 +6,17 @@ use uuid::Uuid;
 
 use crate::{
     state::AppState,
-    utils::{update_matched_orders::update_matched_orders, update_services::update_service_state},
+    utils::{
+        OrderServiceError, update_matched_orders::update_matched_orders,
+        update_services::update_service_state,
+    },
 };
 
 pub async fn create_order_handler(
     app_state: Arc<AppState>,
     order_id: String,
-) -> Result<(), Box<dyn std::error::Error>> {
+    is_market_order: bool,
+) -> Result<(), OrderServiceError> {
     let order_id = Uuid::from_str(&order_id).map_err(|_| "Invalid order ID format".to_string())?;
     let order = Order::find_order_by_id_with_market(order_id, &app_state.db_pool)
         .await
@@ -43,7 +47,11 @@ pub async fn create_order_handler(
             };
 
             let mut order_book = app_state.order_book.write();
-            let matches = order_book.process_order(&mut order_raw, order.liquidity_b);
+            let matches = if is_market_order {
+                order_book.create_market_order(&order.market_id, &mut order_raw)
+            } else {
+                order_book.process_order(&mut order_raw, order.liquidity_b)
+            };
 
             // updating current order filled quantity and status
             (matches, order_raw)
@@ -54,20 +62,20 @@ pub async fn create_order_handler(
         .await
         .map_err(|e| format!("Failed to update order: {:#?}", e))?;
 
-    update_matched_orders(matched_order, app_state.clone(), &updated_raw_order).await?;
-    update_service_state(app_state.clone(), &updated_raw_order).await?;
+    // update_matched_orders(matched_order, app_state.clone(), &updated_raw_order).await?;
+    // update_service_state(app_state.clone(), &updated_raw_order).await?;
 
-    // let update_matched_order_future =
-    //     update_matched_orders(matched_order, app_state.clone(), &updated_raw_order);
+    let update_matched_order_future =
+        update_matched_orders(matched_order, app_state.clone(), &updated_raw_order);
 
-    // let update_service_state_future = update_service_state(app_state.clone(), order.market_id);
+    let update_service_state_future = update_service_state(app_state.clone(), &updated_raw_order);
 
-    // let (update_matched_orders_result, update_service_state_result) =
-    //     tokio::join!(update_matched_order_future, update_service_state_future);
+    let (update_matched_orders_result, update_service_state_result) =
+        tokio::join!(update_matched_order_future, update_service_state_future);
 
-    // update_matched_orders_result.map_err(|e| format!("Error while updating post order {e:#?}"))?;
-    // update_service_state_result
-    //     .map_err(|e| format!("Error while updating service states {e:#?}"))?;
+    update_matched_orders_result.map_err(|e| format!("Error while updating post order {e:#?}"))?;
+    update_service_state_result
+        .map_err(|e| format!("Error while updating service states {e:#?}"))?;
 
     Ok(())
 }

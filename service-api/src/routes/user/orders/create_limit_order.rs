@@ -31,7 +31,7 @@ pub struct CreateOrderPayload {
     outcome_side: Option<String>,
 }
 
-pub async fn create_order(
+pub async fn create_limit_order(
     State(app_state): State<AppState>,
     Extension(claims): Extension<SessionTokenClaims>,
     Json(payload): Json<CreateOrderPayload>,

@@ -1,3 +1,5 @@
+"use client";
+
 import {
   Avatar,
   Box,
@@ -7,13 +9,14 @@ import {
   Portal,
   SkeletonCircle,
   Text,
+  Separator as Divider,
+  VStack,
 } from "@chakra-ui/react";
-import { LogOut, User2 } from "lucide-react";
+import { LogOut, User2, Wallet } from "lucide-react";
 import Link from "next/link";
-import React, { useState } from "react";
+import { useState } from "react";
 import { googleLogout } from "@react-oauth/google";
 import jsCookie from "js-cookie";
-
 import useUserInfo from "@/hooks/useUserInfo";
 import useRevalidation from "@/hooks/useRevalidate";
 import GoogleSignInButton from "./GoogleSignInButton";
@@ -29,9 +32,17 @@ const NavbarAvatarButton = () => {
     queueMicrotask(() => revalidate(["userData"]));
     setOpenPopover(false);
   }
+
+  // Mock balance data - replace with actual balance from your API
+  const userBalance = Number(data?.balance || 30).toLocaleString("en-US", {
+    style: "currency",
+    currency: "USD",
+  });
+
   if (isLoading) {
     return <SkeletonCircle size="9" />;
   }
+
   return (
     <div>
       {data && !isLoading ? (
@@ -46,46 +57,111 @@ const NavbarAvatarButton = () => {
               <Avatar.Image src={data.avatar} />
             </Avatar.Root>
           </Popover.Trigger>
-
           <Portal>
             <Popover.Positioner>
-              <Popover.Content>
-                <Popover.Body padding={3}>
-                  <Box spaceY={2}>
-                    <Box
-                      padding={2}
-                      rounded="md"
-                      _hover={{
-                        backgroundColor: "gray.100",
-                        cursor: "pointer",
-                      }}
-                    >
-                      <Link href="/profile" className="flex items-center">
-                        <Icon size="md">
-                          <User2 />
-                        </Icon>
-                        <Text ml={2}>Profile</Text>
-                      </Link>
+              <Popover.Content minW="280px">
+                <Popover.Body padding={0}>
+                  <VStack gap={0} align="stretch">
+                    {/* User Info Header */}
+                    <Box p={4} bg="gradient-to-r from-blue.50 to-purple.50">
+                      <Flex align="center" gap={3}>
+                        <Avatar.Root size="md">
+                          <Avatar.Fallback name={data.name} />
+                          <Avatar.Image src={data.avatar} />
+                        </Avatar.Root>
+                        <Box flex={1}>
+                          <Text
+                            fontWeight="bold"
+                            fontSize="md"
+                            color="gray.800"
+                          >
+                            {data.name}
+                          </Text>
+                          <Text fontSize="sm" color="gray.600">
+                            {data.email}
+                          </Text>
+                        </Box>
+                      </Flex>
                     </Box>
-                    <Flex
-                      padding={2}
-                      rounded="md"
-                      _hover={{
-                        backgroundColor: "red.50",
-                        cursor: "pointer",
-                      }}
-                      onClick={handleLogout}
-                      as="button"
-                      width="full"
-                    >
-                      <Icon size="md" color="red.500">
-                        <LogOut />
-                      </Icon>
-                      <Text ml={2} color={"red.500"}>
-                        Logout
-                      </Text>
-                    </Flex>
-                  </Box>
+
+                    {/* Balance Section */}
+                    <Box p={4} bg="white">
+                      <VStack gap={3} align="stretch">
+                        <Flex justify="space-between" align="center">
+                          <Flex align="center" gap={2}>
+                            <Icon color="green.500">
+                              <Wallet />
+                            </Icon>
+                            <Text
+                              fontSize="sm"
+                              fontWeight="medium"
+                              color="gray.700"
+                            >
+                              Balance
+                            </Text>
+                          </Flex>
+                          <Text
+                            fontSize="lg"
+                            fontWeight="bold"
+                            color="green.600"
+                          >
+                            {userBalance}
+                          </Text>
+                        </Flex>
+                      </VStack>
+                    </Box>
+
+                    <Divider />
+
+                    {/* Action Items */}
+                    <Box p={2}>
+                      <VStack gap={1} align="stretch">
+                        <Box
+                          padding={2}
+                          rounded="md"
+                          _hover={{
+                            backgroundColor: "gray.100",
+                            cursor: "pointer",
+                          }}
+                          transition="all 0.2s"
+                        >
+                          <Link href="/profile" className="flex items-center">
+                            <Icon size="md" color="gray.600">
+                              <User2 />
+                            </Icon>
+                            <Text ml={3} fontSize="sm" fontWeight="medium">
+                              Profile Settings
+                            </Text>
+                          </Link>
+                        </Box>
+
+                        <Flex
+                          padding={2}
+                          rounded="md"
+                          _hover={{
+                            backgroundColor: "red.50",
+                            cursor: "pointer",
+                          }}
+                          onClick={handleLogout}
+                          as="button"
+                          width="full"
+                          transition="all 0.2s"
+                        >
+                          <Icon size="md" color="red.500">
+                            <LogOut />
+                          </Icon>
+                          <Text
+                            ml={3}
+                            color="red.500"
+                            fontSize="sm"
+                            fontWeight="medium"
+                          >
+                            Sign Out
+                          </Text>
+                        </Flex>
+                      </VStack>
+                    </Box>
+                  </VStack>
                 </Popover.Body>
               </Popover.Content>
             </Popover.Positioner>

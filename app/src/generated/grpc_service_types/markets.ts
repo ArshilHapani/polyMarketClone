@@ -136,6 +136,81 @@ export interface Market {
     noPrice: number;
 }
 /**
+ * @generated from protobuf message markets.VolumeInfo
+ */
+export interface VolumeInfo {
+    /**
+     * @generated from protobuf field: string market_id = 1;
+     */
+    marketId: string;
+    /**
+     * @generated from protobuf field: double yes_buy_qty = 2;
+     */
+    yesBuyQty: number;
+    /**
+     * @generated from protobuf field: double yes_buy_usd = 3;
+     */
+    yesBuyUsd: number;
+    /**
+     * @generated from protobuf field: double yes_sell_qty = 4;
+     */
+    yesSellQty: number;
+    /**
+     * @generated from protobuf field: double yes_sell_usd = 5;
+     */
+    yesSellUsd: number;
+    /**
+     * @generated from protobuf field: double no_buy_qty = 6;
+     */
+    noBuyQty: number;
+    /**
+     * @generated from protobuf field: double no_buy_usd = 7;
+     */
+    noBuyUsd: number;
+    /**
+     * @generated from protobuf field: double no_sell_qty = 8;
+     */
+    noSellQty: number;
+    /**
+     * @generated from protobuf field: double no_sell_usd = 9;
+     */
+    noSellUsd: number;
+}
+/**
+ * @generated from protobuf message markets.MarketPrice
+ */
+export interface MarketPrice {
+    /**
+     * @generated from protobuf field: string market_id = 1;
+     */
+    marketId: string;
+    /**
+     * @generated from protobuf field: double latest_yes_price = 2;
+     */
+    latestYesPrice: number;
+    /**
+     * @generated from protobuf field: double latest_no_price = 3;
+     */
+    latestNoPrice: number;
+}
+/**
+ * @generated from protobuf message markets.GetMarketByIdResponse
+ */
+export interface GetMarketByIdResponse {
+    /**
+     * @generated from protobuf field: markets.Market market = 1;
+     */
+    market?: Market;
+    /**
+     * @generated from protobuf field: markets.VolumeInfo volume_info = 2;
+     */
+    volumeInfo?: VolumeInfo;
+    /**
+     * @generated from protobuf field: markets.MarketPrice market_price = 3;
+     */
+    marketPrice?: MarketPrice;
+}
+/**
  * @generated from protobuf message markets.GetPaginatedMarketResponse
  */
 export interface GetPaginatedMarketResponse {
@@ -607,6 +682,240 @@ class Market$Type extends MessageType<Market> {
  */
 export const Market = new Market$Type();
 // @generated message type with reflection information, may provide speed optimized methods
+class VolumeInfo$Type extends MessageType<VolumeInfo> {
+    constructor() {
+        super("markets.VolumeInfo", [
+            { no: 1, name: "market_id", kind: "scalar", T: 9 /*ScalarType.STRING*/ },
+            { no: 2, name: "yes_buy_qty", kind: "scalar", T: 1 /*ScalarType.DOUBLE*/ },
+            { no: 3, name: "yes_buy_usd", kind: "scalar", T: 1 /*ScalarType.DOUBLE*/ },
+            { no: 4, name: "yes_sell_qty", kind: "scalar", T: 1 /*ScalarType.DOUBLE*/ },
+            { no: 5, name: "yes_sell_usd", kind: "scalar", T: 1 /*ScalarType.DOUBLE*/ },
+            { no: 6, name: "no_buy_qty", kind: "scalar", T: 1 /*ScalarType.DOUBLE*/ },
+            { no: 7, name: "no_buy_usd", kind: "scalar", T: 1 /*ScalarType.DOUBLE*/ },
+            { no: 8, name: "no_sell_qty", kind: "scalar", T: 1 /*ScalarType.DOUBLE*/ },
+            { no: 9, name: "no_sell_usd", kind: "scalar", T: 1 /*ScalarType.DOUBLE*/ }
+        ]);
+    }
+    create(value?: PartialMessage<VolumeInfo>): VolumeInfo {
+        const message = globalThis.Object.create((this.messagePrototype!));
+        message.marketId = "";
+        message.yesBuyQty = 0;
+        message.yesBuyUsd = 0;
+        message.yesSellQty = 0;
+        message.yesSellUsd = 0;
+        message.noBuyQty = 0;
+        message.noBuyUsd = 0;
+        message.noSellQty = 0;
+        message.noSellUsd = 0;
+        if (value !== undefined)
+            reflectionMergePartial<VolumeInfo>(this, message, value);
+        return message;
+    }
+    internalBinaryRead(reader: IBinaryReader, length: number, options: BinaryReadOptions, target?: VolumeInfo): VolumeInfo {
+        let message = target ?? this.create(), end = reader.pos + length;
+        while (reader.pos < end) {
+            let [fieldNo, wireType] = reader.tag();
+            switch (fieldNo) {
+                case /* string market_id */ 1:
+                    message.marketId = reader.string();
+                    break;
+                case /* double yes_buy_qty */ 2:
+                    message.yesBuyQty = reader.double();
+                    break;
+                case /* double yes_buy_usd */ 3:
+                    message.yesBuyUsd = reader.double();
+                    break;
+                case /* double yes_sell_qty */ 4:
+                    message.yesSellQty = reader.double();
+                    break;
+                case /* double yes_sell_usd */ 5:
+                    message.yesSellUsd = reader.double();
+                    break;
+                case /* double no_buy_qty */ 6:
+                    message.noBuyQty = reader.double();
+                    break;
+                case /* double no_buy_usd */ 7:
+                    message.noBuyUsd = reader.double();
+                    break;
+                case /* double no_sell_qty */ 8:
+                    message.noSellQty = reader.double();
+                    break;
+                case /* double no_sell_usd */ 9:
+                    message.noSellUsd = reader.double();
+                    break;
+                default:
+                    let u = options.readUnknownField;
+                    if (u === "throw")
+                        throw new globalThis.Error(`Unknown field ${fieldNo} (wire type ${wireType}) for ${this.typeName}`);
+                    let d = reader.skip(wireType);
+                    if (u !== false)
+                        (u === true ? UnknownFieldHandler.onRead : u)(this.typeName, message, fieldNo, wireType, d);
+            }
+        }
+        return message;
+    }
+    internalBinaryWrite(message: VolumeInfo, writer: IBinaryWriter, options: BinaryWriteOptions): IBinaryWriter {
+        /* string market_id = 1; */
+        if (message.marketId !== "")
+            writer.tag(1, WireType.LengthDelimited).string(message.marketId);
+        /* double yes_buy_qty = 2; */
+        if (message.yesBuyQty !== 0)
+            writer.tag(2, WireType.Bit64).double(message.yesBuyQty);
+        /* double yes_buy_usd = 3; */
+        if (message.yesBuyUsd !== 0)
+            writer.tag(3, WireType.Bit64).double(message.yesBuyUsd);
+        /* double yes_sell_qty = 4; */
+        if (message.yesSellQty !== 0)
+            writer.tag(4, WireType.Bit64).double(message.yesSellQty);
+        /* double yes_sell_usd = 5; */
+        if (message.yesSellUsd !== 0)
+            writer.tag(5, WireType.Bit64).double(message.yesSellUsd);
+        /* double no_buy_qty = 6; */
+        if (message.noBuyQty !== 0)
+            writer.tag(6, WireType.Bit64).double(message.noBuyQty);
+        /* double no_buy_usd = 7; */
+        if (message.noBuyUsd !== 0)
+            writer.tag(7, WireType.Bit64).double(message.noBuyUsd);
+        /* double no_sell_qty = 8; */
+        if (message.noSellQty !== 0)
+            writer.tag(8, WireType.Bit64).double(message.noSellQty);
+        /* double no_sell_usd = 9; */
+        if (message.noSellUsd !== 0)
+            writer.tag(9, WireType.Bit64).double(message.noSellUsd);
+        let u = options.writeUnknownFields;
+        if (u !== false)
+            (u == true ? UnknownFieldHandler.onWrite : u)(this.typeName, message, writer);
+        return writer;
+    }
+}
+/**
+ * @generated MessageType for protobuf message markets.VolumeInfo
+ */
+export const VolumeInfo = new VolumeInfo$Type();
+// @generated message type with reflection information, may provide speed optimized methods
+class MarketPrice$Type extends MessageType<MarketPrice> {
+    constructor() {
+        super("markets.MarketPrice", [
+            { no: 1, name: "market_id", kind: "scalar", T: 9 /*ScalarType.STRING*/ },
+            { no: 2, name: "latest_yes_price", kind: "scalar", T: 1 /*ScalarType.DOUBLE*/ },
+            { no: 3, name: "latest_no_price", kind: "scalar", T: 1 /*ScalarType.DOUBLE*/ }
+        ]);
+    }
+    create(value?: PartialMessage<MarketPrice>): MarketPrice {
+        const message = globalThis.Object.create((this.messagePrototype!));
+        message.marketId = "";
+        message.latestYesPrice = 0;
+        message.latestNoPrice = 0;
+        if (value !== undefined)
+            reflectionMergePartial<MarketPrice>(this, message, value);
+        return message;
+    }
+    internalBinaryRead(reader: IBinaryReader, length: number, options: BinaryReadOptions, target?: MarketPrice): MarketPrice {
+        let message = target ?? this.create(), end = reader.pos + length;
+        while (reader.pos < end) {
+            let [fieldNo, wireType] = reader.tag();
+            switch (fieldNo) {
+                case /* string market_id */ 1:
+                    message.marketId = reader.string();
+                    break;
+                case /* double latest_yes_price */ 2:
+                    message.latestYesPrice = reader.double();
+                    break;
+                case /* double latest_no_price */ 3:
+                    message.latestNoPrice = reader.double();
+                    break;
+                default:
+                    let u = options.readUnknownField;
+                    if (u === "throw")
+                        throw new globalThis.Error(`Unknown field ${fieldNo} (wire type ${wireType}) for ${this.typeName}`);
+                    let d = reader.skip(wireType);
+                    if (u !== false)
+                        (u === true ? UnknownFieldHandler.onRead : u)(this.typeName, message, fieldNo, wireType, d);
+            }
+        }
+        return message;
+    }
+    internalBinaryWrite(message: MarketPrice, writer: IBinaryWriter, options: BinaryWriteOptions): IBinaryWriter {
+        /* string market_id = 1; */
+        if (message.marketId !== "")
+            writer.tag(1, WireType.LengthDelimited).string(message.marketId);
+        /* double latest_yes_price = 2; */
+        if (message.latestYesPrice !== 0)
+            writer.tag(2, WireType.Bit64).double(message.latestYesPrice);
+        /* double latest_no_price = 3; */
+        if (message.latestNoPrice !== 0)
+            writer.tag(3, WireType.Bit64).double(message.latestNoPrice);
+        let u = options.writeUnknownFields;
+        if (u !== false)
+            (u == true ? UnknownFieldHandler.onWrite : u)(this.typeName, message, writer);
+        return writer;
+    }
+}
+/**
+ * @generated MessageType for protobuf message markets.MarketPrice
+ */
+export const MarketPrice = new MarketPrice$Type();
+// @generated message type with reflection information, may provide speed optimized methods
+class GetMarketByIdResponse$Type extends MessageType<GetMarketByIdResponse> {
+    constructor() {
+        super("markets.GetMarketByIdResponse", [
+            { no: 1, name: "market", kind: "message", T: () => Market },
+            { no: 2, name: "volume_info", kind: "message", T: () => VolumeInfo },
+            { no: 3, name: "market_price", kind: "message", T: () => MarketPrice }
+        ]);
+    }
+    create(value?: PartialMessage<GetMarketByIdResponse>): GetMarketByIdResponse {
+        const message = globalThis.Object.create((this.messagePrototype!));
+        if (value !== undefined)
+            reflectionMergePartial<GetMarketByIdResponse>(this, message, value);
+        return message;
+    }
+    internalBinaryRead(reader: IBinaryReader, length: number, options: BinaryReadOptions, target?: GetMarketByIdResponse): GetMarketByIdResponse {
+        let message = target ?? this.create(), end = reader.pos + length;
+        while (reader.pos < end) {
+            let [fieldNo, wireType] = reader.tag();
+            switch (fieldNo) {
+                case /* markets.Market market */ 1:
+                    message.market = Market.internalBinaryRead(reader, reader.uint32(), options, message.market);
+                    break;
+                case /* markets.VolumeInfo volume_info */ 2:
+                    message.volumeInfo = VolumeInfo.internalBinaryRead(reader, reader.uint32(), options, message.volumeInfo);
+                    break;
+                case /* markets.MarketPrice market_price */ 3:
+                    message.marketPrice = MarketPrice.internalBinaryRead(reader, reader.uint32(), options, message.marketPrice);
+                    break;
+                default:
+                    let u = options.readUnknownField;
+                    if (u === "throw")
+                        throw new globalThis.Error(`Unknown field ${fieldNo} (wire type ${wireType}) for ${this.typeName}`);
+                    let d = reader.skip(wireType);
+                    if (u !== false)
+                        (u === true ? UnknownFieldHandler.onRead : u)(this.typeName, message, fieldNo, wireType, d);
+            }
+        }
+        return message;
+    }
+    internalBinaryWrite(message: GetMarketByIdResponse, writer: IBinaryWriter, options: BinaryWriteOptions): IBinaryWriter {
+        /* markets.Market market = 1; */
+        if (message.market)
+            Market.internalBinaryWrite(message.market, writer.tag(1, WireType.LengthDelimited).fork(), options).join();
+        /* markets.VolumeInfo volume_info = 2; */
+        if (message.volumeInfo)
+            VolumeInfo.internalBinaryWrite(message.volumeInfo, writer.tag(2, WireType.LengthDelimited).fork(), options).join();
+        /* markets.MarketPrice market_price = 3; */
+        if (message.marketPrice)
+            MarketPrice.internalBinaryWrite(message.marketPrice, writer.tag(3, WireType.LengthDelimited).fork(), options).join();
+        let u = options.writeUnknownFields;
+        if (u !== false)
+            (u == true ? UnknownFieldHandler.onWrite : u)(this.typeName, message, writer);
+        return writer;
+    }
+}
+/**
+ * @generated MessageType for protobuf message markets.GetMarketByIdResponse
+ */
+export const GetMarketByIdResponse = new GetMarketByIdResponse$Type();
+// @generated message type with reflection information, may provide speed optimized methods
 class GetPaginatedMarketResponse$Type extends MessageType<GetPaginatedMarketResponse> {
     constructor() {
         super("markets.GetPaginatedMarketResponse", [
@@ -665,6 +974,6 @@ export const GetPaginatedMarketResponse = new GetPaginatedMarketResponse$Type();
  */
 export const MarketService = new ServiceType("markets.MarketService", [
     { name: "GetMarketData", options: {}, I: PageRequest, O: GetPaginatedMarketResponse },
-    { name: "GetMarketById", options: {}, I: RequestWithMarketId, O: Market },
+    { name: "GetMarketById", options: {}, I: RequestWithMarketId, O: GetMarketByIdResponse },
     { name: "GetMarketBook", options: {}, I: RequestForMarketBook, O: GetMarketBookResponse }
 ]);

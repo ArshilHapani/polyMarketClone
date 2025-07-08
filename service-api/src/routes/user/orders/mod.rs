@@ -6,7 +6,8 @@ use axum::{
 use crate::state::AppState;
 
 pub mod cancel_order;
-pub mod create_order;
+pub mod create_limit_order;
+pub mod create_market_order;
 pub mod get_all_users_orders;
 pub mod get_orders_by_markets;
 pub mod update_order;
@@ -14,7 +15,14 @@ pub mod update_order;
 pub fn router() -> Router<AppState> {
     Router::new()
         .route("/get", get(get_all_users_orders::get_all_users_orders))
-        .route("/create", post(create_order::create_order))
+        .route(
+            "/create/limit",
+            post(create_limit_order::create_limit_order),
+        )
+        .route(
+            "/create/market",
+            post(create_market_order::create_limit_order),
+        )
         .route(
             "/get/{id}",
             get(get_orders_by_markets::get_user_orders_by_market),
