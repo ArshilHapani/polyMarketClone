@@ -1,5 +1,3 @@
-use std::str::FromStr;
-
 use auth_service::types::SessionTokenClaims;
 use axum::{
     Extension, Json,
@@ -29,7 +27,6 @@ pub async fn get_user_orders_by_market(
     Path(market_id): Path<Uuid>,
 ) -> Result<impl IntoResponse, (StatusCode, Response)> {
     let user_id = claims.user_id;
-    let user_id = Uuid::from_str(&user_id).unwrap(); // already validated in auth middleware
     let status = params.status.as_deref().unwrap_or("open");
 
     require_field!(params.page);

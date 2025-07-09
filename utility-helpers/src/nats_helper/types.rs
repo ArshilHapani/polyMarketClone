@@ -27,6 +27,12 @@ pub struct UpdateOrderMessage {
     pub new_price: Decimal,
 }
 
+#[derive(Debug, Serialize, Deserialize)]
+pub struct MarketOrderCreateMessage {
+    pub order_id: Uuid,
+    pub budget: Decimal,
+}
+
 impl OrderBookUpdateData {
     pub fn get_prost_market_book(self, market_id: Uuid) -> MarketBook {
         let yes_book_bids = Self::get_order_level(&self.yes_book.bids);

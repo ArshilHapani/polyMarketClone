@@ -27,6 +27,7 @@ const GoogleSignInButton = () => {
           secure: true,
         });
         queueMicrotask(() => revalidate(["userData"]));
+        window.location.reload();
 
         return {
           title: "Success",

@@ -2,6 +2,7 @@ use std::sync::Arc;
 
 use db_service::schema::{enums::OrderStatus, orders::Order};
 use utility_helpers::log_warn;
+use uuid::Uuid;
 
 use crate::{
     state::AppState,
@@ -10,10 +11,8 @@ use crate::{
 
 pub async fn cancel_order_handler(
     app_state: Arc<AppState>,
-    order_id: String,
+    order_id: Uuid,
 ) -> Result<(), OrderServiceError> {
-    let order_id =
-        uuid::Uuid::parse_str(&order_id).map_err(|_| "Invalid order ID format".to_string())?;
     let order = Order::find_order_by_id(order_id, &app_state.db_pool)
         .await
         .map_err(|e| format!("Failed to find order {:#?}", e))?;

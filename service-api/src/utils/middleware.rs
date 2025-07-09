@@ -1,4 +1,4 @@
-use std::{str::FromStr, sync::Arc};
+use std::sync::Arc;
 
 use axum::{
     Json,
@@ -9,7 +9,6 @@ use axum::{
     response::IntoResponse,
 };
 use serde_json::json;
-use uuid::Uuid;
 
 use crate::state::AppState;
 
@@ -46,22 +45,13 @@ pub async fn validate_jwt(
         .map_err(|_| invalid_token_error)?;
 
     // bloom filter check
-    let user_id = Uuid::from_str(&claims.user_id);
+    let user_id = claims.user_id;
 
-    if let Ok(user_id) = user_id {
-        if !app_state.bloom_filter.contains(&user_id) {
-            return Err((
-                StatusCode::NOT_FOUND,
-                Json(json!({
-                    "error": "User not found"
-                })),
-            ));
-        }
-    } else {
+    if !app_state.bloom_filter.contains(&user_id) {
         return Err((
-            StatusCode::BAD_REQUEST,
+            StatusCode::NOT_FOUND,
             Json(json!({
-                "error": "Invalid user ID format"
+                "error": "User not found"
             })),
         ));
     }

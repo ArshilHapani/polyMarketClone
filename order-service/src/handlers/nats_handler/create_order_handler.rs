@@ -1,6 +1,7 @@
-use std::{str::FromStr, sync::Arc};
+use std::sync::Arc;
 
 use db_service::schema::{enums::OrderStatus, orders::Order};
+use rust_decimal::Decimal;
 use utility_helpers::log_info;
 use uuid::Uuid;
 
@@ -14,10 +15,9 @@ use crate::{
 
 pub async fn create_order_handler(
     app_state: Arc<AppState>,
-    order_id: String,
-    is_market_order: bool,
+    order_id: Uuid,
+    market_order_budget_opt: Option<Decimal>,
 ) -> Result<(), OrderServiceError> {
-    let order_id = Uuid::from_str(&order_id).map_err(|_| "Invalid order ID format".to_string())?;
     let order = Order::find_order_by_id_with_market(order_id, &app_state.db_pool)
         .await
         .map_err(|e| format!("Failed to find order {:#?}", e))?;
@@ -44,11 +44,16 @@ pub async fn create_order_handler(
                 side: order.side,
                 updated_at: order.updated_at,
                 user_id: order.user_id,
+                order_type: order.order_type,
             };
 
             let mut order_book = app_state.order_book.write();
-            let matches = if is_market_order {
-                order_book.create_market_order(&order.market_id, &mut order_raw)
+            let matches = if let Some(market_order_budget) = market_order_budget_opt {
+                order_book.create_market_order(
+                    &order.market_id,
+                    &mut order_raw,
+                    market_order_budget,
+                )
             } else {
                 order_book.process_order(&mut order_raw, order.liquidity_b)
             };

@@ -1,4 +1,5 @@
 use serde::{Deserialize, Serialize};
+use uuid::Uuid;
 
 #[derive(Deserialize, Serialize, Debug)]
 pub enum GoogleClaimsError {
@@ -54,7 +55,7 @@ pub struct GoogleTokenInfoResponse {
 
 #[derive(Deserialize, Serialize, Debug, Clone)]
 pub struct SessionTokenClaims {
-    pub user_id: String,
+    pub user_id: Uuid,
     pub google_sub: String,
     pub email: Option<String>,
     pub exp: usize,

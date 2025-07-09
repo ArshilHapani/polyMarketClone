@@ -1,5 +1,3 @@
-use std::str::FromStr;
-
 use auth_service::types::SessionTokenClaims;
 use axum::{
     Extension, Json,
@@ -11,7 +9,6 @@ use db_service::schema::{enums::OrderStatus, orders::Order};
 use serde::{Deserialize, Serialize};
 use serde_json::json;
 use utility_helpers::log_error;
-use uuid::Uuid;
 
 use crate::{require_field, state::AppState, validate_paginated_fields};
 
@@ -28,7 +25,6 @@ pub async fn get_all_users_orders(
     Extension(claims): Extension<SessionTokenClaims>,
 ) -> Result<impl IntoResponse, (StatusCode, Response)> {
     let user_id = claims.user_id;
-    let user_id = Uuid::from_str(&user_id).unwrap(); // already validated in auth middleware
     let status = params.status.as_deref().unwrap_or("open");
 
     require_field!(params.page);

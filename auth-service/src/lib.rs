@@ -113,7 +113,7 @@ impl AuthService {
     fn generate_session_token(
         &self,
         google_claims: &GoogleClaims,
-        user_id: String,
+        user_id: Uuid,
     ) -> Result<String, Box<dyn StdError>> {
         let current_time = chrono::Utc::now().timestamp() as usize;
         let session_claims = SessionTokenClaims {
@@ -177,7 +177,7 @@ impl AuthService {
 
         // generate session token
         let session_token = self
-            .generate_session_token(&google_claims, user.id.to_string())
+            .generate_session_token(&google_claims, user.id)
             .map_err(|_| AuthenticateUserError::FailedToGenerateSessionToken)?;
 
         Ok((user.id, session_token, is_new_user))

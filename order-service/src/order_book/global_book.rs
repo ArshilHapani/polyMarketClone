@@ -63,9 +63,10 @@ impl GlobalMarketBook {
         &mut self,
         market_id: &Uuid,
         order: &mut Order,
+        budget: Decimal,
     ) -> Vec<OrderBookMatchedOutput> {
         if let Some(market_book) = self.markets.get_mut(market_id) {
-            market_book.create_market_order(order)
+            market_book.create_market_order(order, budget)
         } else {
             Vec::new()
         }
@@ -109,7 +110,7 @@ impl GlobalMarketBook {
 #[cfg(test)]
 mod test {
     use chrono::NaiveDateTime;
-    use db_service::schema::enums::{OrderSide, OrderStatus, Outcome};
+    use db_service::schema::enums::{OrderSide, OrderStatus, OrderType, Outcome};
     use rust_decimal_macros::dec;
 
     use super::*;
@@ -167,6 +168,7 @@ mod test {
             status: OrderStatus::OPEN,
             updated_at: get_created_at(),
             user_id: get_random_uuid(),
+            order_type: OrderType::LIMIT,
         };
 
         let results = global_market_book.process_order(&mut buy_order, liquidity_b);
@@ -186,6 +188,7 @@ mod test {
             status: OrderStatus::OPEN,
             updated_at: get_created_at(),
             user_id: get_random_uuid(),
+            order_type: OrderType::LIMIT,
         };
 
         let results = global_market_book.process_order(&mut sell_order, liquidity_b);

@@ -31,6 +31,7 @@ impl RedisHelper {
         &self,
         key: RedisKey,
         callback: F,
+        cache_expiry: Option<u64>,
     ) -> Result<T, Box<dyn std::error::Error>>
     where
         T: DeserializeOwned + Serialize,
@@ -60,15 +61,12 @@ impl RedisHelper {
             return Ok(fresh_data);
         }
 
+        let expiry = cache_expiry.unwrap_or(self.cache_expiry);
         match serialize_to_message_pack(&fresh_data) {
             Ok(encoded) => {
                 if !encoded.is_empty() {
                     if let Err(e) = conn
-                        .set_ex::<&str, Vec<u8>, String>(
-                            &key.to_string(),
-                            encoded,
-                            self.cache_expiry,
-                        )
+                        .set_ex::<&str, Vec<u8>, String>(&key.to_string(), encoded, expiry)
                         .await
                     {
                         log_info!("Failed to set cache for key: {}, error: {}", key, e);

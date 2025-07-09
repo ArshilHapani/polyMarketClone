@@ -46,19 +46,23 @@ impl MarketService for MarketServiceStub {
             ));
         }
 
-        let markets =
-            self.state
-                .redis_helper
-                .get_or_set_cache(key, || async {
+        let markets = self
+            .state
+            .redis_helper
+            .get_or_set_cache(
+                key,
+                || async {
                     Ok(SchemaMarket::get_all_markets_paginated(
                         &self.state.db_pool,
                         page_no,
                         page_size,
                     )
                     .await?)
-                })
-                .await
-                .map_err(|e| Status::internal(format!("Failed to get market {e}")))?;
+                },
+                None,
+            )
+            .await
+            .map_err(|e| Status::internal(format!("Failed to get market {e}")))?;
 
         let response = GetPaginatedMarketResponse {
             markets: markets
@@ -87,9 +91,13 @@ impl MarketService for MarketServiceStub {
         let market = self
             .state
             .redis_helper
-            .get_or_set_cache(key, || async {
-                Ok(SchemaMarket::get_market_by_id(&self.state.db_pool, &market_id).await?)
-            })
+            .get_or_set_cache(
+                key,
+                || async {
+                    Ok(SchemaMarket::get_market_by_id(&self.state.db_pool, &market_id).await?)
+                },
+                None,
+            )
             .await
             .map_err(|e| Status::internal(format!("Failed to get market id {e}")))?;
 

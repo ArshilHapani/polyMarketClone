@@ -31,6 +31,7 @@ const NavbarAvatarButton = () => {
     googleLogout();
     queueMicrotask(() => revalidate(["userData"]));
     setOpenPopover(false);
+    window.location.reload();
   }
 
   // Mock balance data - replace with actual balance from your API

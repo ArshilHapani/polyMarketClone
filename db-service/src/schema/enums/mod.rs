@@ -72,3 +72,18 @@ pub enum UserTransactionStatus {
     COMPLETED,
     FAILED,
 }
+
+#[derive(Debug, Serialize, Deserialize, sqlx::Type, Clone, PartialEq, Default, Copy)]
+#[sqlx(type_name = "\"polymarket\".\"order_type\"")]
+#[sqlx(rename_all = "lowercase")]
+pub enum OrderType {
+    #[default]
+    #[serde(rename = "limit")]
+    LIMIT,
+    #[serde(rename = "market")]
+    MARKET,
+    #[serde(rename = "stop_loss")]
+    StopLoss,
+    #[serde(rename = "take_profit")]
+    TakeProfit,
+}

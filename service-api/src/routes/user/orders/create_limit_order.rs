@@ -9,7 +9,7 @@ use axum::{
     response::{IntoResponse, Response},
 };
 use db_service::schema::{
-    enums::{OrderSide, OrderStatus, Outcome},
+    enums::{OrderSide, OrderStatus, OrderType, Outcome},
     orders::Order,
     user_holdings::UserHoldings,
     users::User,
@@ -75,15 +75,7 @@ pub async fn create_limit_order(
         }
     };
 
-    let user_id = Uuid::from_str(&claims.user_id).map_err(|_| {
-        (
-            StatusCode::BAD_REQUEST,
-            Json(json!({
-                "error": "Invalid user ID"
-            }))
-            .into_response(),
-        )
-    })?;
+    let user_id = claims.user_id;
     let market_id = Uuid::from_str(&payload.market_id.unwrap()).map_err(|_| {
         (
             StatusCode::BAD_REQUEST,
@@ -168,7 +160,7 @@ pub async fn create_limit_order(
             ));
         }
     } else {
-        let user = User::get_user_by_id(&app_state.pg_pool, user_id)
+        let balance = User::get_user_balance(&app_state.pg_pool, user_id)
             .await
             .map_err(|e| {
                 log_error!("Failed to get user - {:?}", e);
@@ -181,7 +173,7 @@ pub async fn create_limit_order(
                 )
             })?;
         let required_price = from_f64(payload.price) * from_f64(payload.quantity);
-        if user.balance <= required_price {
+        if balance <= required_price {
             return Err((
                 StatusCode::BAD_REQUEST,
                 Json(json!({
@@ -201,6 +193,7 @@ pub async fn create_limit_order(
         from_f64(payload.quantity),
         side,
         outcome_side,
+        OrderType::LIMIT,
         &app_state.pg_pool,
     )
     .await

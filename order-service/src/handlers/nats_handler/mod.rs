@@ -5,7 +5,10 @@ use futures_util::StreamExt;
 use utility_helpers::{
     log_error, log_info,
     message_pack_helper::deserialize_from_message_pack,
-    nats_helper::{NatsSubjects, types::UpdateOrderMessage},
+    nats_helper::{
+        NatsSubjects,
+        types::{MarketOrderCreateMessage, UpdateOrderMessage},
+    },
 };
 
 use crate::{
@@ -52,7 +55,9 @@ pub async fn handle_nats_message(app_state: Arc<AppState>) -> Result<(), OrderSe
                 let order_id = String::from_utf8(message.payload.to_vec())
                     .map_err(|_| "Failed to convert payload to string".to_string())?;
                 log_info!("Received order ID: {}", order_id);
-                let _ = create_order_handler(Arc::clone(&app_state), order_id, false)
+                let order_id = uuid::Uuid::parse_str(&order_id)
+                    .map_err(|_| "Failed to parse order ID from string".to_string())?;
+                let _ = create_order_handler(app_state.clone(), order_id, None)
                     .await
                     .map_err(|e| {
                         log_error!("Error occur while adding order in book {e}");
@@ -61,6 +66,9 @@ pub async fn handle_nats_message(app_state: Arc<AppState>) -> Result<(), OrderSe
             NatsSubjects::OrderCancel => {
                 let order_id = String::from_utf8(message.payload.to_vec())
                     .map_err(|_| "Failed to convert payload to string".to_string())?;
+
+                let order_id = uuid::Uuid::parse_str(&order_id)
+                    .map_err(|_| "Failed to parse order ID from string".to_string())?;
                 let _ = cancel_order_handler(app_state.clone(), order_id)
                     .await
                     .map_err(|e| {
@@ -80,13 +88,19 @@ pub async fn handle_nats_message(app_state: Arc<AppState>) -> Result<(), OrderSe
                     });
             }
             NatsSubjects::MarketOrderCreate => {
-                let order_id = String::from_utf8(message.payload.to_vec())
-                    .map_err(|_| "Failed to convert payload to string".to_string())?;
-                let _ = create_order_handler(app_state.clone(), order_id, true)
-                    .await
-                    .map_err(|e| {
-                        log_error!("Error occur while adding market order in book {e}");
-                    });
+                let serialized_message = message.payload.to_vec();
+                let deserialized_message =
+                    deserialize_from_message_pack::<MarketOrderCreateMessage>(&serialized_message)?;
+
+                let _ = create_order_handler(
+                    app_state.clone(),
+                    deserialized_message.order_id,
+                    Some(deserialized_message.budget),
+                )
+                .await
+                .map_err(|e| {
+                    log_error!("Error occur while adding market order in book {e}");
+                });
             }
             _ => {}
         }

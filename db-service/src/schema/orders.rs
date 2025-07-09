@@ -5,6 +5,8 @@ use sqlx::PgPool;
 use utility_helpers::log_info;
 use uuid::Uuid;
 
+use crate::schema::enums::OrderType;
+
 use super::enums::{OrderSide, OrderStatus, Outcome};
 
 #[derive(Debug, Serialize, Deserialize, sqlx::FromRow, Default)]
@@ -18,6 +20,7 @@ pub struct Order {
     pub quantity: Decimal,
     pub filled_quantity: Decimal,
     pub status: OrderStatus,
+    pub order_type: OrderType,
     pub created_at: NaiveDateTime,
     pub updated_at: NaiveDateTime,
 }
@@ -34,6 +37,7 @@ pub struct OrderWithMarket {
     pub quantity: Decimal,
     pub filled_quantity: Decimal,
     pub status: OrderStatus,
+    pub order_type: OrderType,
     pub created_at: NaiveDateTime,
     pub updated_at: NaiveDateTime,
     pub liquidity_b: Decimal,
@@ -53,6 +57,7 @@ impl From<OrderWithMarket> for Order {
             status: order.status,
             created_at: order.created_at,
             updated_at: order.updated_at,
+            order_type: order.order_type,
         }
     }
 }
@@ -65,28 +70,31 @@ impl Order {
         quantity: Decimal,
         side: OrderSide,
         outcome_side: Outcome,
+        order_type: OrderType,
         pool: &PgPool,
     ) -> Result<Order, sqlx::Error> {
         let order = sqlx::query_as!(
             Order,
             r#"
             INSERT INTO "polymarket"."orders"
-            (user_id, market_id, price, quantity, side, outcome)
-            VALUES ($1, $2, $3, $4, $5, $6)
+            (user_id, market_id, price, quantity, side, outcome, order_type)
+            VALUES ($1, $2, $3, $4, $5, $6, $7)
             RETURNING 
             id, user_id, market_id,
             outcome as "outcome: Outcome",
             price, quantity, filled_quantity,
             status as "status: OrderStatus",
             side as "side: OrderSide",            
-            created_at, updated_at
+            created_at, updated_at,
+            order_type as "order_type: OrderType"
             "#,
             user_id,
             market_id,
             price,
             quantity,
             side as _,
-            outcome_side as _
+            outcome_side as _,
+            order_type as _,
         )
         .fetch_one(pool)
         .await?;
@@ -107,6 +115,7 @@ impl Order {
             price, quantity, filled_quantity,
             status as "status: OrderStatus",
             side as "side: OrderSide",
+            order_type as "order_type: OrderType",
             created_at, updated_at
             "#,
             order_id
@@ -135,6 +144,7 @@ impl Order {
             price, quantity, filled_quantity,
             status as "status: OrderStatus",
             side as "side: OrderSide",
+            order_type as "order_type: OrderType",
             created_at, updated_at
             "#,
             status as _,
@@ -160,7 +170,8 @@ impl Order {
             price, quantity, filled_quantity,
             status as "status: OrderStatus",
             side as "side: OrderSide",
-            created_at, updated_at            
+            order_type as "order_type: OrderType",
+            created_at, updated_at    
             FROM polymarket.orders
             WHERE id = $1
             "#,
@@ -186,6 +197,7 @@ impl Order {
             price, quantity, filled_quantity,
             status as "status: OrderStatus",
             side as "side: OrderSide",
+            order_type as "order_type: OrderType",
             created_at, updated_at            
             FROM polymarket.orders
             WHERE id = $1 AND status = $2
@@ -212,7 +224,8 @@ impl Order {
             o.price, o.quantity, o.filled_quantity,
             o.status as "status: OrderStatus",
             o.side as "side: OrderSide",
-            o.created_at, o.updated_at, m.liquidity_b
+            o.created_at, o.updated_at, m.liquidity_b,
+            o.order_type as "order_type: OrderType"
             FROM polymarket.orders o
             LEFT JOIN polymarket.markets m ON o.market_id = m.id
             WHERE o.id = $1
@@ -236,7 +249,8 @@ impl Order {
             o.price, o.quantity, o.filled_quantity,
             o.status as "status: OrderStatus",
             o.side as "side: OrderSide",
-            o.created_at, o.updated_at, m.liquidity_b
+            o.created_at, o.updated_at, m.liquidity_b,
+            o.order_type as "order_type: OrderType"
             FROM polymarket.orders o
             JOIN polymarket.markets m ON o.market_id = m.id
             WHERE o.status = 'open'::polymarket.order_status         
@@ -260,7 +274,8 @@ impl Order {
             o.price, o.quantity, o.filled_quantity,
             o.status as "status: OrderStatus",
             o.side as "side: OrderSide",
-            o.created_at, o.updated_at, m.liquidity_b
+            o.created_at, o.updated_at, m.liquidity_b,
+            o.order_type as "order_type: OrderType"
             FROM polymarket.orders o
             JOIN polymarket.markets m ON o.market_id = m.id
             WHERE o.status IN ('open'::polymarket.order_status, 'unspecified'::polymarket.order_status)
@@ -285,7 +300,8 @@ impl Order {
                 o.price, o.quantity, o.filled_quantity,
                 o.status as "status: OrderStatus",
                 o.side as "side: OrderSide",
-                o.created_at, o.updated_at, m.liquidity_b
+                o.created_at, o.updated_at, m.liquidity_b,
+                o.order_type as "order_type: OrderType"
             FROM polymarket.orders o
             JOIN polymarket.markets m ON o.market_id = m.id                
             WHERE o.status = $1
@@ -311,14 +327,16 @@ impl Order {
                 price = $5,
                 quantity = $6,
                 filled_quantity = $7,
-                status = $8
-            WHERE id = $9
+                status = $8,
+                order_type = $9
+            WHERE id = $10
             RETURNING 
             id, user_id, market_id,
             outcome as "outcome: Outcome",
             price, quantity, filled_quantity,
             status as "status: OrderStatus",
             side as "side: OrderSide",
+            order_type as "order_type: OrderType",
             created_at, updated_at
             "#,
             self.user_id,
@@ -329,7 +347,8 @@ impl Order {
             self.quantity,
             self.filled_quantity,
             self.status as _,
-            self.id
+            self.order_type as _,
+            self.id,
         )
         .fetch_one(pool)
         .await?;
@@ -393,6 +412,7 @@ impl Order {
             price, quantity, filled_quantity,
             status as "status: OrderStatus",
             side as "side: OrderSide",
+            order_type as "order_type: OrderType",
             created_at, updated_at
             "#,
             order_status as _,
@@ -428,6 +448,7 @@ impl Order {
                 filled_quantity,
                 status as "status: OrderStatus",
                 side as "side: OrderSide",
+                order_type as "order_type: OrderType",
                 created_at,
                 updated_at
             FROM polymarket.orders
@@ -465,6 +486,7 @@ impl Order {
             price, quantity, filled_quantity,
             status as "status: OrderStatus",
             side as "side: OrderSide",
+            order_type as "order_type: OrderType",
             created_at, updated_at
             FROM polymarket.orders
             WHERE user_id = $1 AND market_id = $2 AND status = $3
@@ -500,6 +522,7 @@ impl Order {
             outcome as "outcome: Outcome",
             price, quantity, filled_quantity,
             status as "status: OrderStatus",
+            order_type as "order_type: OrderType",
             side as "side: OrderSide",
             created_at, updated_at
             "#,
@@ -575,6 +598,7 @@ mod tests {
             quantity,
             side.clone(),
             Outcome::YES,
+            OrderType::LIMIT,
             &pool,
         )
         .await
@@ -671,6 +695,7 @@ mod tests {
             quantity,
             side.clone(),
             Outcome::YES,
+            OrderType::LIMIT,
             &pool,
         )
         .await

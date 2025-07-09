@@ -7,6 +7,7 @@ CREATE TYPE polymarket.order_side AS ENUM ('buy', 'sell');
 CREATE TYPE polymarket.order_status AS ENUM ('open', 'filled', 'cancelled', 'unspecified', 'expired', 'pending_cancel', 'partial_fill', 'pending_update');
 CREATE TYPE polymarket.user_transaction_type AS ENUM ('deposit', 'withdrawal', 'trade');
 CREATE TYPE polymarket.user_transaction_status AS ENUM ('pending', 'complete', 'failed');
+CREATE TYPE polymarket.order_type AS ENUM ('limit','market', 'stop_loss', 'take_profit');
 
 
 -- users
@@ -49,9 +50,10 @@ CREATE TABLE IF NOT EXISTS polymarket.orders (
     "side" polymarket.order_side NOT NULL,
     "outcome" polymarket.outcome NOT NULL DEFAULT 'unspecified',
     "price" decimal NOT NULL CHECK ("price" >= 0 AND "price" <= 1),
-    "quantity" decimal NOT NULL CHECK ("quantity" > 0),
+    "quantity" decimal NOT NULL CHECK ("quantity" >= 0),
     "filled_quantity" decimal NOT NULL DEFAULT 0,
     "status" polymarket.order_status NOT NULL DEFAULT 'unspecified',
+    "order_type" polymarket.order_type NOT NULL,
     "created_at" timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP,
     "updated_at" timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP
 );
@@ -62,6 +64,7 @@ CREATE TABLE IF NOT EXISTS polymarket.user_trades (
     "user_id" uuid NOT NULL REFERENCES polymarket.users("id"),
     "buy_order_id" uuid NOT NULL REFERENCES polymarket.orders("id"),
     "sell_order_id" uuid NOT NULL REFERENCES polymarket.orders("id"),
+    "trade_type" polymarket.order_side NOT NULL, -- we are storing this to prevent joins for optimizing query performance
     "market_id" uuid NOT NULL REFERENCES polymarket.markets("id"),
     "outcome" polymarket.outcome NOT NULL,
     "price" decimal NOT NULL,

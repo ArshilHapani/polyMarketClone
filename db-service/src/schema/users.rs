@@ -138,6 +138,23 @@ impl User {
         Ok(user)
     }
 
+    pub async fn get_user_balance(
+        executor: impl Executor<'_, Database = Postgres>,
+        user_id: Uuid,
+    ) -> Result<Decimal, sqlx::Error> {
+        let balance = sqlx::query_as!(
+            UserBalance,
+            r#"
+            SELECT balance FROM polymarket.users WHERE id = $1
+            "#,
+            user_id
+        )
+        .fetch_one(executor)
+        .await?;
+
+        Ok(balance.balance)
+    }
+
     pub async fn get_two_users_balance<'a>(
         executor: impl Executor<'a, Database = Postgres>,
         user_1_id: Uuid,

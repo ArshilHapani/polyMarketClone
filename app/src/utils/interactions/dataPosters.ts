@@ -26,19 +26,16 @@ export class MarketActions {
     outcome_side: "yes" | "no";
   }) {
     try {
-      const { status, data } = await axios.post(
-        `${BASE_URL}/user/orders/create`,
-        reqPayload,
-        {
-          headers: {
-            "Content-Type": "application/json",
-            Authorization: `Bearer ${TOKEN}`,
-          },
+      await axios.post(`${BASE_URL}/user/orders/create/limit`, reqPayload, {
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${TOKEN}`,
         },
-      );
+      });
     } catch (error: any) {
       console.error("Error creating limit order:", error);
       if (error instanceof AxiosError) {
+        console.log("Axios error details:", error.response?.data);
         throw new Error(
           error.response?.data?.error || "Failed to create limit order",
         );
