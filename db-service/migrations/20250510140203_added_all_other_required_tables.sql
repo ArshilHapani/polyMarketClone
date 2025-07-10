@@ -49,7 +49,7 @@ CREATE TABLE IF NOT EXISTS polymarket.orders (
     "market_id" uuid NOT NULL REFERENCES polymarket.markets("id"),
     "side" polymarket.order_side NOT NULL,
     "outcome" polymarket.outcome NOT NULL DEFAULT 'unspecified',
-    "price" decimal NOT NULL CHECK ("price" >= 0 AND "price" <= 1),
+    "price" decimal NOT NULL, -- for market orders, the price is the user's budget
     "quantity" decimal NOT NULL CHECK ("quantity" >= 0),
     "filled_quantity" decimal NOT NULL DEFAULT 0,
     "status" polymarket.order_status NOT NULL DEFAULT 'unspecified',
@@ -64,7 +64,7 @@ CREATE TABLE IF NOT EXISTS polymarket.user_trades (
     "user_id" uuid NOT NULL REFERENCES polymarket.users("id"),
     "buy_order_id" uuid NOT NULL REFERENCES polymarket.orders("id"),
     "sell_order_id" uuid NOT NULL REFERENCES polymarket.orders("id"),
-    "trade_type" polymarket.order_side NOT NULL, -- we are storing this to prevent joins for optimizing query performance
+    "trade_type" polymarket.order_side NOT NULL, -- we are storing this to prevent joins for optimizing query performance (for order.type == buy then trade_type == sell and vice versa)
     "market_id" uuid NOT NULL REFERENCES polymarket.markets("id"),
     "outcome" polymarket.outcome NOT NULL,
     "price" decimal NOT NULL,

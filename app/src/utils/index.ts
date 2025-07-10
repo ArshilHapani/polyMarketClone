@@ -11,11 +11,16 @@ export function formatDate<T extends string | number>(date: T): string {
   return dt;
 }
 
-export function formatPriceString(price: number): string {
-  return price.toLocaleString("en-US", {
+export function formatPriceString(
+  price: number,
+  precision: number = 2,
+): string {
+  const formatter = new Intl.NumberFormat("en-US", {
     style: "currency",
     currency: "USD",
-    minimumFractionDigits: 2,
-    maximumFractionDigits: 2,
+    minimumFractionDigits: precision,
+    maximumFractionDigits: precision,
   });
+
+  return formatter.format(price);
 }

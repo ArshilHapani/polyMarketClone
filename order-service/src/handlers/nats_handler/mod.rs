@@ -1,25 +1,27 @@
 use std::sync::Arc;
 
 use async_nats::jetstream;
+use db_service::schema::orders::Order;
 use futures_util::StreamExt;
 use utility_helpers::{
     log_error, log_info,
     message_pack_helper::deserialize_from_message_pack,
     nats_helper::{
         NatsSubjects,
-        types::{MarketOrderCreateMessage, UpdateOrderMessage},
+        types::{InitializeOrderBookMessage, MarketOrderCreateMessage, UpdateOrderMessage},
     },
 };
 
 use crate::{
     handlers::nats_handler::{
-        cancel_order_handler::cancel_order_handler, create_order_handler::create_order_handler,
-        update_order_handler::update_order_handler,
+        add_order_handler::add_order_handler, cancel_order_handler::cancel_order_handler,
+        create_order_handler::create_order_handler, update_order_handler::update_order_handler,
     },
     state::AppState,
     utils::OrderServiceError,
 };
 
+pub mod add_order_handler;
 pub mod cancel_order_handler;
 pub mod create_order_handler;
 pub mod update_order_handler;
@@ -101,6 +103,23 @@ pub async fn handle_nats_message(app_state: Arc<AppState>) -> Result<(), OrderSe
                 .map_err(|e| {
                     log_error!("Error occur while adding market order in book {e}");
                 });
+            }
+            NatsSubjects::InitializeOrderBook => {
+                let serialized_message = message.payload.to_vec();
+                let deserialized_message = deserialize_from_message_pack::<
+                    InitializeOrderBookMessage<Order>,
+                >(&serialized_message)?;
+
+                let _ = add_order_handler(
+                    app_state.clone(),
+                    &deserialized_message.orders,
+                    deserialized_message.liquidity_b,
+                )
+                .await
+                .map_err(|e| {
+                    log_error!("Error occur while initializing order book {e}");
+                    e
+                })?;
             }
             _ => {}
         }

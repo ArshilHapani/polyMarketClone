@@ -119,6 +119,30 @@ pub struct GetMarketByIdResponse {
 }
 #[derive(serde::Serialize, serde::Deserialize)]
 #[derive(Clone, PartialEq, ::prost::Message)]
+pub struct UserWithTotalHoldings {
+    #[prost(string, tag = "1")]
+    pub user_id: ::prost::alloc::string::String,
+    #[prost(double, tag = "2")]
+    pub total_shares: f64,
+    #[prost(double, tag = "3")]
+    pub total_yes_shares: f64,
+    #[prost(double, tag = "4")]
+    pub total_no_shares: f64,
+    #[prost(string, tag = "5")]
+    pub username: ::prost::alloc::string::String,
+    #[prost(string, tag = "6")]
+    pub avatar: ::prost::alloc::string::String,
+}
+#[derive(serde::Serialize, serde::Deserialize)]
+#[derive(Clone, PartialEq, ::prost::Message)]
+pub struct GetTopHoldersResponse {
+    #[prost(string, tag = "1")]
+    pub market_id: ::prost::alloc::string::String,
+    #[prost(message, repeated, tag = "2")]
+    pub top_holders: ::prost::alloc::vec::Vec<UserWithTotalHoldings>,
+}
+#[derive(serde::Serialize, serde::Deserialize)]
+#[derive(Clone, PartialEq, ::prost::Message)]
 pub struct GetPaginatedMarketResponse {
     #[prost(message, repeated, tag = "1")]
     pub markets: ::prost::alloc::vec::Vec<Market>,
@@ -223,6 +247,13 @@ pub mod market_service_server {
             request: tonic::Request<super::RequestForMarketBook>,
         ) -> std::result::Result<
             tonic::Response<super::GetMarketBookResponse>,
+            tonic::Status,
+        >;
+        async fn get_top_holders(
+            &self,
+            request: tonic::Request<super::RequestWithMarketId>,
+        ) -> std::result::Result<
+            tonic::Response<super::GetTopHoldersResponse>,
             tonic::Status,
         >;
     }
@@ -423,6 +454,51 @@ pub mod market_service_server {
                     let inner = self.inner.clone();
                     let fut = async move {
                         let method = GetMarketBookSvc(inner);
+                        let codec = tonic::codec::ProstCodec::default();
+                        let mut grpc = tonic::server::Grpc::new(codec)
+                            .apply_compression_config(
+                                accept_compression_encodings,
+                                send_compression_encodings,
+                            )
+                            .apply_max_message_size_config(
+                                max_decoding_message_size,
+                                max_encoding_message_size,
+                            );
+                        let res = grpc.unary(method, req).await;
+                        Ok(res)
+                    };
+                    Box::pin(fut)
+                }
+                "/markets.MarketService/GetTopHolders" => {
+                    #[allow(non_camel_case_types)]
+                    struct GetTopHoldersSvc<T: MarketService>(pub Arc<T>);
+                    impl<
+                        T: MarketService,
+                    > tonic::server::UnaryService<super::RequestWithMarketId>
+                    for GetTopHoldersSvc<T> {
+                        type Response = super::GetTopHoldersResponse;
+                        type Future = BoxFuture<
+                            tonic::Response<Self::Response>,
+                            tonic::Status,
+                        >;
+                        fn call(
+                            &mut self,
+                            request: tonic::Request<super::RequestWithMarketId>,
+                        ) -> Self::Future {
+                            let inner = Arc::clone(&self.0);
+                            let fut = async move {
+                                <T as MarketService>::get_top_holders(&inner, request).await
+                            };
+                            Box::pin(fut)
+                        }
+                    }
+                    let accept_compression_encodings = self.accept_compression_encodings;
+                    let send_compression_encodings = self.send_compression_encodings;
+                    let max_decoding_message_size = self.max_decoding_message_size;
+                    let max_encoding_message_size = self.max_encoding_message_size;
+                    let inner = self.inner.clone();
+                    let fut = async move {
+                        let method = GetTopHoldersSvc(inner);
                         let codec = tonic::codec::ProstCodec::default();
                         let mut grpc = tonic::server::Grpc::new(codec)
                             .apply_compression_config(

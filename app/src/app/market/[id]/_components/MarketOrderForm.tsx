@@ -1,35 +1,73 @@
+"use client";
+
 import { Box, Button, Flex, NumberInput, Text } from "@chakra-ui/react";
 import { useState } from "react";
+import { useMutation } from "@tanstack/react-query";
 
 import { toaster } from "@/components/ui/toaster";
+import useUserInfo from "@/hooks/useUserInfo";
+import useRevalidation from "@/hooks/useRevalidate";
+import { formatPriceString } from "@/utils";
+import { MarketActions } from "@/utils/interactions/dataPosters";
 
 type Props = {
   mode: "buy" | "sell";
   stockMode: "yes" | "no";
+  market_id: string;
 };
 
-const MarketOrderForm = ({ mode }: Props) => {
+const MarketOrderForm = ({ mode, stockMode, market_id }: Props) => {
   const [amount, setAmount] = useState("");
+  const { data: userInfo } = useUserInfo();
+  const { mutateAsync, isPending } = useMutation({
+    mutationFn: MarketActions.createMarketOrder,
+  });
+  const revalidate = useRevalidation();
 
   function handleSubmit() {
-    console.log({ amount });
     if (amount === "") {
       toaster.error({
         title: "Amount is required",
       });
       return;
     }
-    toaster.success({
-      title: "TODO",
-    });
+    toaster.promise(
+      mutateAsync({
+        market_id,
+        outcome: stockMode,
+        price: Number(amount),
+        side: mode,
+      }),
+      {
+        loading: { title: "Creating order..." },
+        success: () => {
+          setAmount("");
+          revalidate(["marketOrders", market_id]);
+          revalidate(["userData"]);
+          return { title: "Order created successfully!" };
+        },
+        error: (error: any) => {
+          console.error("Error creating market order:", error);
+          return {
+            title: "Error",
+            description: error.message || "Failed to create market order",
+          };
+        },
+      },
+    );
   }
 
   return (
     <Box>
       <Flex mt={4}>
-        <Text fontSize="lg" color="gray.600" fontWeight="semibold" width="1/3">
-          Amount
-        </Text>
+        <Box width="full">
+          <Text fontSize="lg" color="gray.600" fontWeight="semibold">
+            Amount
+          </Text>
+          <Text fontSize="sm" color="gray.500" fontWeight="medium">
+            Bal. {formatPriceString(userInfo?.balance || 0)}
+          </Text>
+        </Box>
         <NumberInput.Root
           formatOptions={{
             style: "currency",
@@ -52,7 +90,7 @@ const MarketOrderForm = ({ mode }: Props) => {
         </NumberInput.Root>
       </Flex>
       {/* pre defined amount setter */}
-      <Flex mt={3} justifyContent="end">
+      <Flex mt={3} justifyContent="end" alignItems="center">
         <Flex gap={2} alignItems="center">
           {PREDEFINED_AMOUNTS.map((amount) => (
             <Button
@@ -81,6 +119,7 @@ const MarketOrderForm = ({ mode }: Props) => {
         bg="blue.600/90"
         _hover={{ bg: "blue.600" }}
         onClick={handleSubmit}
+        loading={isPending}
       >
         {mode === "buy" ? "Buy" : "Sell"} Now
       </Button>

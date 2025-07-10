@@ -6,6 +6,7 @@ edition = "2024"
 [dependencies]
 axum = "0.8.4"
 axum-extra = { version = "0.10.0", features = ["protobuf"] }
+rand = "0.9.1"
 db-service = { path = "../db-service" }
 auth-service = { path = "../auth-service" }
 utility-helpers = { path = "../utility-helpers" }

@@ -17,6 +17,16 @@ pub struct UserHoldings {
     pub updated_at: NaiveDateTime,
 }
 
+#[derive(Debug, Serialize, Deserialize, sqlx::FromRow)]
+pub struct UserIdWithShares {
+    pub user_id: Uuid,
+    pub total_shares: Option<Decimal>,
+    pub total_yes_shares: Option<Decimal>,
+    pub total_no_shares: Option<Decimal>,
+    pub username: Option<String>,
+    pub avatar: Option<String>,
+}
+
 impl UserHoldings {
     pub async fn create_user_holding<'a>(
         executor: impl Executor<'a, Database = Postgres>,
@@ -30,6 +40,41 @@ impl UserHoldings {
             r#"
             INSERT INTO polymarket.user_holdings (user_id, market_id, shares, outcome)
             VALUES ($1, $2, $3, $4)
+            RETURNING 
+                id, 
+                user_id, 
+                market_id, 
+                shares, 
+                created_at, 
+                updated_at, 
+                outcome as "outcome: Outcome";
+            "#,
+            user_id,
+            market_id,
+            shares,
+            outcome as _
+        )
+        .fetch_one(executor)
+        .await?;
+
+        Ok(holding)
+    }
+
+    pub async fn create_user_holding_conflict_free<'a>(
+        executor: impl Executor<'a, Database = Postgres>,
+        user_id: Uuid,
+        market_id: Uuid,
+        shares: Decimal,
+        outcome: Outcome,
+    ) -> Result<UserHoldings, sqlx::error::Error> {
+        let holding = sqlx::query_as!(
+            UserHoldings,
+            r#"
+            INSERT INTO polymarket.user_holdings (user_id, market_id, shares, outcome)
+            VALUES ($1, $2, $3, $4)
+            ON CONFLICT (user_id, market_id, outcome)
+            DO UPDATE SET shares = polymarket.user_holdings.shares + $3,
+            updated_at = NOW()            
             RETURNING 
                 id, 
                 user_id, 
@@ -168,5 +213,36 @@ impl UserHoldings {
         let yes_shares = result.yes_shares.unwrap_or(Decimal::ZERO);
         let no_shares = result.no_shares.unwrap_or(Decimal::ZERO);
         Ok((yes_shares, no_shares))
+    }
+
+    pub async fn get_top_holders(
+        db_pool: &sqlx::PgPool,
+        market_id: Uuid,
+        limit: i8,
+    ) -> Result<Vec<UserIdWithShares>, sqlx::error::Error> {
+        let orders = sqlx::query_as!(
+            UserIdWithShares,
+            r#"
+                SELECT
+                    u.id AS user_id,
+                    u.name AS username,
+                    u.avatar,
+                    SUM(uh.shares) AS total_shares,
+                    SUM(uh.shares) FILTER (WHERE uh.outcome = 'yes'::polymarket.outcome) AS total_yes_shares,
+                    SUM(uh.shares) FILTER (WHERE uh.outcome = 'no'::polymarket.outcome) AS total_no_shares
+                FROM polymarket.user_holdings uh
+                JOIN polymarket.users u ON uh.user_id = u.id
+                WHERE uh.market_id = $1
+                GROUP BY u.id, u.name, u.avatar
+                ORDER BY total_shares DESC
+                LIMIT $2
+            "#,
+            market_id,
+            limit as i32
+        )
+        .fetch_all(db_pool)
+        .await?;
+
+        Ok(orders)
     }
 }

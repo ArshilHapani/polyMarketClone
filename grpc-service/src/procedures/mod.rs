@@ -1,11 +1,15 @@
-use db_service::{pagination::PageInfo as DbPageInfo, schema::market::Market as DbMarket};
+use db_service::{
+    pagination::PageInfo as DbPageInfo,
+    schema::{market::Market as DbMarket, user_holdings::UserIdWithShares},
+};
+use utility_helpers::to_f64_verbose;
 
 use crate::{
     generated::{
         common::PageInfo,
-        markets::{GetMarketBookResponse, Market, OrderBook, OrderLevel},
+        markets::{GetMarketBookResponse, Market, OrderBook, OrderLevel, UserWithTotalHoldings},
     },
-    utils::{clickhouse_schema::GetOrderBook, to_f64},
+    utils::clickhouse_schema::GetOrderBook,
 };
 
 pub mod market_services;
@@ -19,7 +23,7 @@ pub fn from_db_market(value: &DbMarket, yes_price: f32, no_price: f32) -> Market
         description: value.description.clone(),
         final_outcome: value.final_outcome as i32,
         id: value.id.to_string(),
-        liquidity_b: to_f64(value.liquidity_b),
+        liquidity_b: to_f64_verbose(value.liquidity_b),
         logo: value.logo.clone(),
         name: value.name.clone(),
         status: value.status as i32,
@@ -37,6 +41,25 @@ impl From<DbPageInfo> for PageInfo {
             page_size: value.page_size,
             total_items: value.total_items,
             total_pages: value.total_pages,
+        }
+    }
+}
+
+impl From<UserIdWithShares> for UserWithTotalHoldings {
+    fn from(value: UserIdWithShares) -> Self {
+        UserWithTotalHoldings {
+            user_id: value.user_id.to_string(),
+            total_shares: value
+                .total_shares
+                .map_or_else(|| 0.0, |shares| to_f64_verbose(shares)),
+            total_yes_shares: value
+                .total_yes_shares
+                .map_or_else(|| 0.0, |shares| to_f64_verbose(shares)),
+            total_no_shares: value
+                .total_no_shares
+                .map_or_else(|| 0.0, |shares| to_f64_verbose(shares)),
+            username: value.username.unwrap_or_default(),
+            avatar: value.avatar.unwrap_or_default(),
         }
     }
 }

@@ -132,7 +132,7 @@ pub async fn create_limit_order(
 
     let market_order_create_message = MarketOrderCreateMessage {
         order_id: order.id,
-        budget,
+        budget: budget / Decimal::new(100, 0),
     };
 
     let message_pack_encoded_message = serialize_to_message_pack(&market_order_create_message)

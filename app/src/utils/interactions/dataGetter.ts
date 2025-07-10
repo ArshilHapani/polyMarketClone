@@ -3,7 +3,7 @@ import jsCookies from "js-cookie";
 
 import { marketServiceClient, priceServiceClient } from "../grpc/clients";
 import { GetUserOrdersPaginatedResponse, GetUserResponse } from "../types/api";
-import { OrderType } from "../types";
+import { OrderCategory } from "../types";
 import { Timeframe } from "@/generated/grpc_service_types/common";
 
 const TOKEN = jsCookies.get("polymarketAuthToken") || "";
@@ -45,6 +45,18 @@ export class MarketGetters {
     } catch (error: any) {
       console.error("Failed to get order book: ", error);
       return null;
+    }
+  }
+
+  static async getTopTenHolders(marketId: string) {
+    try {
+      const { response } = await marketServiceClient.getTopHolders({
+        marketId,
+      });
+      return response.topHolders;
+    } catch (error: any) {
+      console.error("Failed to get top ten holders: ", error);
+      return [];
     }
   }
 }
@@ -96,7 +108,7 @@ export class OrderGetters {
     marketId: string,
     page: number,
     pageSize: number,
-    orderType: OrderType = "open",
+    orderType: OrderCategory = "all",
   ) {
     try {
       const { data } = await axios.get<GetUserOrdersPaginatedResponse>(

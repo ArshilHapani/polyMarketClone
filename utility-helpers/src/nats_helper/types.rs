@@ -33,6 +33,16 @@ pub struct MarketOrderCreateMessage {
     pub budget: Decimal,
 }
 
+#[derive(Debug, Serialize, Deserialize)]
+#[serde(bound(
+    serialize = "T: Serialize",
+    deserialize = "T: serde::de::DeserializeOwned"
+))]
+pub struct InitializeOrderBookMessage<T> {
+    pub liquidity_b: Decimal,
+    pub orders: Vec<T>,
+}
+
 impl OrderBookUpdateData {
     pub fn get_prost_market_book(self, market_id: Uuid) -> MarketBook {
         let yes_book_bids = Self::get_order_level(&self.yes_book.bids);

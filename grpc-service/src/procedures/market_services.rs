@@ -1,6 +1,6 @@
 use std::str::FromStr;
 
-use db_service::schema::market::Market as SchemaMarket;
+use db_service::schema::{market::Market as SchemaMarket, user_holdings::UserHoldings};
 use sqlx::types::Uuid;
 use tonic::{Request, Response, Status};
 use utility_helpers::redis::keys::RedisKey;
@@ -10,7 +10,8 @@ use crate::{
         common::PageRequest,
         markets::{
             GetMarketBookResponse, GetMarketByIdResponse, GetPaginatedMarketResponse,
-            RequestForMarketBook, RequestWithMarketId, market_service_server::MarketService,
+            GetTopHoldersResponse, RequestForMarketBook, RequestWithMarketId,
+            market_service_server::MarketService,
         },
     },
     procedures::{from_db_market, to_resp_for_market_book},
@@ -179,6 +180,28 @@ impl MarketService for MarketServiceStub {
         let response = Response::new(order_book);
 
         Ok(response)
+    }
+
+    async fn get_top_holders(
+        &self,
+        req: Request<RequestWithMarketId>,
+    ) -> Result<Response<GetTopHoldersResponse>, Status> {
+        let market_id = req.into_inner().market_id;
+        validate_strings!(market_id);
+
+        let market_id = Uuid::from_str(&market_id)
+            .map_err(|_| Status::invalid_argument("Invalid market id"))?;
+
+        let top_holders = UserHoldings::get_top_holders(&self.state.db_pool, market_id, 10)
+            .await
+            .map_err(|e| Status::internal(format!("Failed to get top holders: {}", e)))?;
+
+        let response = GetTopHoldersResponse {
+            market_id: market_id.to_string(),
+            top_holders: top_holders.into_iter().map(Into::into).collect(),
+        };
+
+        Ok(Response::new(response))
     }
 }
 

@@ -1,5 +1,3 @@
-use std::str::FromStr;
-
 use async_nats::jetstream;
 use auth_service::types::SessionTokenClaims;
 use axum::{
@@ -15,6 +13,7 @@ use db_service::schema::{
     users::User,
 };
 use rust_decimal::{Decimal, prelude::FromPrimitive};
+use rust_decimal_macros::dec;
 use serde::{Deserialize, Serialize};
 use serde_json::json;
 use sqlx::types::Uuid;
@@ -24,11 +23,11 @@ use crate::{require_field, state::AppState};
 
 #[derive(Deserialize, Serialize, Debug)]
 pub struct CreateOrderPayload {
-    market_id: Option<String>,
-    price: Option<f64>,
+    market_id: Option<Uuid>,
+    price: Option<u8>,
     quantity: Option<f64>,
-    side: Option<String>,
-    outcome_side: Option<String>,
+    side: Option<OrderSide>,
+    outcome_side: Option<Outcome>,
 }
 
 pub async fn create_limit_order(
@@ -42,55 +41,18 @@ pub async fn create_limit_order(
     require_field!(payload.side);
     require_field!(payload.outcome_side);
 
-    let side: OrderSide = match payload.side.as_deref().unwrap().to_lowercase().as_str() {
-        "buy" => OrderSide::BUY,
-        "sell" => OrderSide::SELL,
-        _ => {
-            return Err((
-                StatusCode::BAD_REQUEST,
-                Json(json!({
-                    "error": "Invalid order side - must be 'buy' or 'sell'"
-                }))
-                .into_response(),
-            ));
-        }
-    };
-    let outcome_side: Outcome = match payload
-        .outcome_side
-        .as_deref()
-        .unwrap()
-        .to_lowercase()
-        .as_str()
-    {
-        "yes" => Outcome::YES,
-        "no" => Outcome::NO,
-        _ => {
-            return Err((
-                StatusCode::BAD_REQUEST,
-                Json(json!({
-                    "error":"Invalid outcome side - must be 'yes' or 'no'"
-                }))
-                .into_response(),
-            ));
-        }
-    };
-
+    let market_id = payload.market_id.unwrap();
+    let side = payload.side.unwrap();
+    let outcome_side = payload.outcome_side.unwrap();
     let user_id = claims.user_id;
-    let market_id = Uuid::from_str(&payload.market_id.unwrap()).map_err(|_| {
-        (
-            StatusCode::BAD_REQUEST,
-            Json(json!({
-                "error": "Invalid market ID"
-            }))
-            .into_response(),
-        )
-    })?;
+    let quantity = payload.quantity.unwrap();
+
     let price = payload.price.unwrap();
-    if price < 0f64 || price > 1f64 {
+    if price > 100 {
         return Err((
             StatusCode::BAD_REQUEST,
             Json(json!({
-                "error": "Price must be between 0 and 1"
+                "error": "Price must be between 0 and 100"
             }))
             .into_response(),
         ));
@@ -150,7 +112,7 @@ pub async fn create_limit_order(
             )
         })?;
 
-        if holdings.shares <= Decimal::ZERO || holdings.shares < from_f64(payload.quantity) {
+        if holdings.shares <= Decimal::ZERO || holdings.shares < from_f64(quantity) {
             return Err((
                 StatusCode::BAD_REQUEST,
                 Json(json!({
@@ -172,7 +134,7 @@ pub async fn create_limit_order(
                     .into_response(),
                 )
             })?;
-        let required_price = from_f64(payload.price) * from_f64(payload.quantity);
+        let required_price = from_u8(price) * from_f64(quantity);
         if balance <= required_price {
             return Err((
                 StatusCode::BAD_REQUEST,
@@ -185,12 +147,13 @@ pub async fn create_limit_order(
     }
 
     ///////////////////////////////////////////////////////////////
+    let price = from_u8(price) / dec!(100); // scaling down the price to 2 decimal places (0-100 to 0.00-1.00)
 
     let order = Order::create_order(
         user_id,
         market_id,
-        from_f64(payload.price),
-        from_f64(payload.quantity),
+        price, // scaling down the price to 2 decimal places (0-100 to 0.00-1.00)
+        from_f64(quantity),
         side,
         outcome_side,
         OrderType::LIMIT,
@@ -268,10 +231,13 @@ pub async fn create_limit_order(
     Ok((StatusCode::CREATED, Json(response)))
 }
 
-fn from_f64(value: Option<f64>) -> Decimal {
-    let value = value.unwrap();
+fn from_f64(value: f64) -> Decimal {
     Decimal::from_f64(value)
         .unwrap_or_else(|| panic!("Failed to convert f64 to Decimal: {}", value))
+}
+
+fn from_u8(value: u8) -> Decimal {
+    Decimal::from_u8(value).unwrap_or_else(|| panic!("Failed to convert u8 to Decimal: {}", value))
 }
 
 fn has_max_two_decimal_places(value: f64) -> bool {

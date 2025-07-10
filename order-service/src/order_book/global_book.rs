@@ -45,6 +45,12 @@ impl GlobalMarketBook {
         }
     }
 
+    pub(crate) fn add_order(&mut self, order: &Order, liquidity_b: Decimal) {
+        let market_id = order.market_id;
+        let market_book = self.get_or_create_market(market_id, liquidity_b);
+        market_book.add_order(order);
+    }
+
     pub(crate) fn get_market_price(&self, market_id: &Uuid, outcome: Outcome) -> Option<Decimal> {
         self.markets.get(market_id).map(|market| match outcome {
             Outcome::YES => market.current_yes_price,

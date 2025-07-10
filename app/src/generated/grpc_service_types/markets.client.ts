@@ -4,6 +4,7 @@
 import type { RpcTransport } from "@protobuf-ts/runtime-rpc";
 import type { ServiceInfo } from "@protobuf-ts/runtime-rpc";
 import { MarketService } from "./markets";
+import type { GetTopHoldersResponse } from "./markets";
 import type { GetMarketBookResponse } from "./markets";
 import type { RequestForMarketBook } from "./markets";
 import type { GetMarketByIdResponse } from "./markets";
@@ -29,6 +30,10 @@ export interface IMarketServiceClient {
      * @generated from protobuf rpc: GetMarketBook(markets.RequestForMarketBook) returns (markets.GetMarketBookResponse);
      */
     getMarketBook(input: RequestForMarketBook, options?: RpcOptions): UnaryCall<RequestForMarketBook, GetMarketBookResponse>;
+    /**
+     * @generated from protobuf rpc: GetTopHolders(markets.RequestWithMarketId) returns (markets.GetTopHoldersResponse);
+     */
+    getTopHolders(input: RequestWithMarketId, options?: RpcOptions): UnaryCall<RequestWithMarketId, GetTopHoldersResponse>;
 }
 /**
  * @generated from protobuf service markets.MarketService
@@ -59,5 +64,12 @@ export class MarketServiceClient implements IMarketServiceClient, ServiceInfo {
     getMarketBook(input: RequestForMarketBook, options?: RpcOptions): UnaryCall<RequestForMarketBook, GetMarketBookResponse> {
         const method = this.methods[2], opt = this._transport.mergeOptions(options);
         return stackIntercept<RequestForMarketBook, GetMarketBookResponse>("unary", this._transport, method, opt, input);
+    }
+    /**
+     * @generated from protobuf rpc: GetTopHolders(markets.RequestWithMarketId) returns (markets.GetTopHoldersResponse);
+     */
+    getTopHolders(input: RequestWithMarketId, options?: RpcOptions): UnaryCall<RequestWithMarketId, GetTopHoldersResponse> {
+        const method = this.methods[3], opt = this._transport.mergeOptions(options);
+        return stackIntercept<RequestWithMarketId, GetTopHoldersResponse>("unary", this._transport, method, opt, input);
     }
 }

@@ -10,6 +10,7 @@ import OrderBook from "./_components/OrderBook";
 import MyOrders from "./_components/MyOrders";
 import VolumeInfoCard from "./_components/VolumeInfoCard";
 import HoldingsInfoClient from "./_components/HoldingsInfoClient";
+import TopMarketHolders from "./_components/TopMarketHolders";
 
 type Props = {
   params: Promise<{
@@ -113,12 +114,11 @@ const MarketPage = async ({ params }: Props) => {
               <MyOrders marketId={id} />
             </Tabs.Content>
             <Tabs.Content value="top_holders">
-              <Text fontSize="lg" fontWeight="bold" mb={4}>
-                Top Holders
-              </Text>
-              <Text color="gray.600" fontSize="sm">
-                Coming soon...
-              </Text>
+              <TopMarketHolders
+                marketId={id}
+                yesPrice={marketPrice.latestYesPrice}
+                noPrice={marketPrice.latestNoPrice}
+              />
             </Tabs.Content>
           </Tabs.Root>
         </Box>

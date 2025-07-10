@@ -2,14 +2,6 @@ pub mod clickhouse_schema;
 pub mod macros;
 pub mod timeframe;
 
-use sqlx::types::Decimal;
-
-pub fn to_f64(num: Decimal) -> f64 {
-    let num_str = num.to_string();
-    let num_f64: f64 = num_str.parse().unwrap();
-    num_f64
-}
-
 pub mod clickhouse_queries {
     pub const ORDER_BOOK_INITIALS: &str = r#"
             SELECT

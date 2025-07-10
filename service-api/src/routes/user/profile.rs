@@ -23,7 +23,7 @@ pub async fn get_profile(
         .get_or_set_cache(
             user_key,
             || async { Ok(User::get_user_by_id(&app_state.pg_pool, user_id).await?) },
-            Some(60),
+            Some(20),
         )
         .await
         .map_err(|err| {

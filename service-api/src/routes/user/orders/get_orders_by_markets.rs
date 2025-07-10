@@ -36,12 +36,13 @@ pub async fn get_user_orders_by_market(
     let page_size = params.page_size.unwrap();
 
     let order_status = match status.to_lowercase().as_str() {
-        "open" => OrderStatus::OPEN,
-        "cancelled" => OrderStatus::CANCELLED,
-        "filled" => OrderStatus::FILLED,
-        "expired" => OrderStatus::EXPIRED,
-        "pending_update" => OrderStatus::PendingUpdate,
-        "pending_cancel" => OrderStatus::PendingCancel,
+        "open" => Some(OrderStatus::OPEN),
+        "cancelled" => Some(OrderStatus::CANCELLED),
+        "filled" => Some(OrderStatus::FILLED),
+        "expired" => Some(OrderStatus::EXPIRED),
+        "pending_update" => Some(OrderStatus::PendingUpdate),
+        "pending_cancel" => Some(OrderStatus::PendingCancel),
+        "all" => None,
         _ => {
             return Err((
                 StatusCode::BAD_REQUEST,

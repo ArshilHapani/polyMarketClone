@@ -7,6 +7,7 @@ use db_service::schema::{
     user_trades::UserTrades,
     users::User,
 };
+use rust_decimal::Decimal;
 
 use crate::{
     order_book::outcome_book::OrderBookMatchedOutput, state::AppState, utils::OrderServiceError,
@@ -50,13 +51,25 @@ pub async fn update_matched_orders(
         let (current_order_user_id, opposite_order_user_id) = tokio::try_join!(
             get_current_order_user_id_future,
             get_opposite_order_user_id_future
-        )?;
+        )
+        .map_err(|e| {
+            format!(
+                "Failed to get user ids for current order {:#?} and opposite order {:#?}: {:#?}",
+                current_order_id, opposite_order_id, e
+            )
+        })?;
 
         /////// Database Transaction start ////////
 
         // here we are preferring to use db transaction instead of rust's parallel (tokio::join) operation processing (it compromises performance and perform sequential processing), +we can't share `tx` across async tasks parallelly
         let mut tx = app_state.db_pool.begin().await?;
 
+        let (current_order_type, opposite_order_type) = match order.side {
+            OrderSide::BUY => (OrderSide::SELL, OrderSide::BUY), // if my current order is buy, then trade type is sell for opposite order as I want to sell my shares
+            OrderSide::SELL => (OrderSide::BUY, OrderSide::SELL), // if my current order is sell, then trade type is buy for opposite order as I want to buy shares
+        };
+
+        // create current order's user trade
         UserTrades::create_user_trade(
             &mut *tx,
             current_order_id,
@@ -66,9 +79,12 @@ pub async fn update_matched_orders(
             order.outcome,
             match_item.price,
             quantity,
+            current_order_type,
         )
-        .await?;
+        .await
+        .map_err(|e| format!("Failed to create user trade: {:#?}", e))?;
 
+        // create opposite order's user trade
         UserTrades::create_user_trade(
             &mut *tx,
             current_order_id,
@@ -78,6 +94,7 @@ pub async fn update_matched_orders(
             order.outcome,
             match_item.price,
             quantity,
+            opposite_order_type,
         )
         .await?;
 
@@ -110,7 +127,7 @@ pub async fn update_matched_orders(
             &mut *tx,
             current_order_user_id,
             opposite_order_user_id,
-            match_item.matched_quantity * match_item.price,
+            (match_item.matched_quantity * match_item.price) * Decimal::from(100),
             order.side,
         )
         .await?;

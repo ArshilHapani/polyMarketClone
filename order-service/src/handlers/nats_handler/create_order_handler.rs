@@ -67,9 +67,6 @@ pub async fn create_order_handler(
         .await
         .map_err(|e| format!("Failed to update order: {:#?}", e))?;
 
-    // update_matched_orders(matched_order, app_state.clone(), &updated_raw_order).await?;
-    // update_service_state(app_state.clone(), &updated_raw_order).await?;
-
     let update_matched_order_future =
         update_matched_orders(matched_order, app_state.clone(), &updated_raw_order);
 

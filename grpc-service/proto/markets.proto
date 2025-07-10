@@ -8,6 +8,7 @@ service MarketService {
     rpc GetMarketData(common.PageRequest) returns (GetPaginatedMarketResponse);    
     rpc GetMarketById(RequestWithMarketId) returns (GetMarketByIdResponse);
     rpc GetMarketBook(RequestForMarketBook) returns (GetMarketBookResponse);
+    rpc GetTopHolders(RequestWithMarketId) returns (GetTopHoldersResponse);
 }
 
 
@@ -92,6 +93,21 @@ message GetMarketByIdResponse {
     Market market = 1;
     VolumeInfo volume_info = 2;
     MarketPrice market_price = 3;
+}
+
+
+message UserWithTotalHoldings {
+    string user_id = 1;
+    double total_shares = 2;
+    double total_yes_shares = 3;
+    double total_no_shares = 4;
+    string username = 5;
+    string avatar = 6;
+}
+
+message GetTopHoldersResponse {
+    string market_id = 1;
+    repeated UserWithTotalHoldings top_holders = 2;
 }
 
 message GetPaginatedMarketResponse {

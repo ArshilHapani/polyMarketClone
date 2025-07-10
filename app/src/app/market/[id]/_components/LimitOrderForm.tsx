@@ -50,10 +50,10 @@ const LimitOrderForm = ({ mode, stockMode, market_id }: Props) => {
       });
       return;
     }
-    if (Number(data.limitPrice) < 0 || Number(data.limitPrice) > 1) {
+    if (Number(data.limitPrice) < 0 || Number(data.limitPrice) > 100) {
       toaster.error({
         title: "Invalid price",
-        description: "Price must be between $0 and $1.",
+        description: "Price must be between $0 and $100.",
       });
       return;
     }
@@ -69,6 +69,7 @@ const LimitOrderForm = ({ mode, stockMode, market_id }: Props) => {
         loading: { title: "Creating order..." },
         success: () => {
           revalidate(["marketOrders", market_id]);
+          revalidate(["userData"]);
           return { title: "Order created successfully!" };
         },
         error: (e: any) => {
@@ -113,6 +114,14 @@ const LimitOrderForm = ({ mode, stockMode, market_id }: Props) => {
                   pattern: {
                     value: /^\d*\.?\d+$/,
                     message: "Invalid price format",
+                  },
+                  min: {
+                    value: 1,
+                    message: "Price must be at least 1",
+                  },
+                  max: {
+                    value: 100,
+                    message: "Price must be at most 100",
                   },
                 })}
               />

@@ -12,6 +12,7 @@ import {
 } from "@/generated/grpc_service_types/markets";
 import useSubscription from "@/hooks/useSubscription";
 import { MarketBook } from "@/generated/service_types/ws_server/order_book";
+import { formatPriceString } from "@/utils";
 
 type Props = {
   tradeType: "yes" | "no";
@@ -80,6 +81,7 @@ const OrderBook = ({ tradeType, marketId }: Props) => {
               <Table.ColumnHeader>Price</Table.ColumnHeader>
               <Table.ColumnHeader>Quantity</Table.ColumnHeader>
               <Table.ColumnHeader>Total</Table.ColumnHeader>
+              <Table.ColumnHeader>Total Price (USD)</Table.ColumnHeader>
             </Table.Row>
           </Table.Header>
 
@@ -142,9 +144,14 @@ const OrderBook = ({ tradeType, marketId }: Props) => {
                         )}
                       </Box>
                     </Table.Cell>
-                    <Table.Cell>{order.price}</Table.Cell>
+                    <Table.Cell>{Number(order.price || 0) * 100}</Table.Cell>
                     <Table.Cell>{order.shares}</Table.Cell>
                     <Table.Cell>{order.total}</Table.Cell>
+                    <Table.Cell>
+                      {formatPriceString(
+                        Number(order.price || 0) * 100 * order.shares,
+                      )}
+                    </Table.Cell>
                   </Table.Row>
                 </React.Fragment>
               );

@@ -94,4 +94,28 @@ export class MarketActions {
       throw new Error("Failed to cancel order");
     }
   }
+
+  static async createMarketOrder(reqPayload: {
+    market_id: string;
+    price: number;
+    outcome: "yes" | "no";
+    side: "buy" | "sell";
+  }) {
+    try {
+      await axios.post(`${BASE_URL}/user/orders/create/market`, reqPayload, {
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${TOKEN}`,
+        },
+      });
+    } catch (error: any) {
+      console.error("Error creating market order:", error);
+      if (error instanceof AxiosError) {
+        throw new Error(
+          error.response?.data?.error || "Failed to create market order",
+        );
+      }
+      throw new Error("Failed to create market order");
+    }
+  }
 }

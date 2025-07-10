@@ -38,7 +38,7 @@ pub async fn handle_binary_message(
                             let channel = data.channel();
                             match channel {
                                 Channel::Priceposter => {
-                                    // we don't need to do queue based data handling just like order-book update as we know that there must be some subscriber for price poster channel when they are creating order
+                                    // we don't need to do queue based data handling just like order-book update as we know that there must be some subscriber for price poster channel when they are creating order and the payload for price update is small, while the payload for order book update can be large
                                     price_poster_handler_bin(&data, state, client_id).await;
                                 }
                                 _ => {}

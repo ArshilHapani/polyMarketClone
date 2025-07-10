@@ -5,8 +5,6 @@ use uuid::Uuid;
 
 use crate::core::SafeSender;
 
-type ClientData = SafeSender;
-
 #[derive(Debug, Hash, PartialEq, Eq)]
 pub enum SpecialKindOfClients {
     OrderService,
@@ -14,7 +12,7 @@ pub enum SpecialKindOfClients {
 
 #[derive(Debug)]
 pub struct SubscriptionAndClientManager {
-    subscription: HashMap<ChannelType, HashMap<Uuid, ClientData>>,
+    subscription: HashMap<ChannelType, HashMap<Uuid, SafeSender>>,
     special_clients: HashMap<SpecialKindOfClients, Uuid>,
 }
 
@@ -41,7 +39,7 @@ impl SubscriptionAndClientManager {
             }
         }
     }
-    pub fn get_clients(&self, channel: &ChannelType) -> Option<&HashMap<Uuid, ClientData>> {
+    pub fn get_clients(&self, channel: &ChannelType) -> Option<&HashMap<Uuid, SafeSender>> {
         self.subscription.get(channel)
     }
 
@@ -71,7 +69,7 @@ impl SubscriptionAndClientManager {
         self.special_clients.insert(kind, client_id);
     }
 
-    pub fn get_special_client(&self, kind: SpecialKindOfClients) -> Option<ClientData> {
+    pub fn get_special_client(&self, kind: SpecialKindOfClients) -> Option<SafeSender> {
         let client_id = self.special_clients.get(&kind);
         if let Some(client_id) = client_id {
             let client_tx = self.get_client_transmitter(client_id);

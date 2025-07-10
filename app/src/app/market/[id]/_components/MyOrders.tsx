@@ -30,7 +30,7 @@ import useRevalidation from "@/hooks/useRevalidate";
 import { OrderGetters } from "@/utils/interactions/dataGetter";
 import { MarketActions } from "@/utils/interactions/dataPosters";
 import { formatDate } from "@/utils";
-import { OrderType } from "@/utils/types";
+import { OrderCategory } from "@/utils/types";
 
 type Props = {
   marketId: string;
@@ -44,7 +44,7 @@ const MyOrders = ({ marketId }: Props) => {
     mutationFn: MarketActions.cancelOrder,
   });
   const revalidate = useRevalidation();
-  const [filter, setFilter] = useState<OrderType>("open");
+  const [filter, setFilter] = useState<OrderCategory>("all");
 
   const { data } = useQuery({
     queryKey: ["marketOrders", marketId, page, Number(pageSize), filter],
@@ -56,30 +56,6 @@ const MyOrders = ({ marketId }: Props) => {
         filter,
       ),
   });
-  const clearFilterButton = (
-    <Button
-      variant="outline"
-      rounded="full"
-      onClick={() => {
-        setFilter("open");
-        setPage(1);
-        setPageSize(["10"]);
-      }}
-      colorPalette="blue"
-    >
-      Clear filter
-    </Button>
-  );
-
-  if (!data?.orders || data?.orders.length === 0) {
-    return (
-      <EmptyStateCustom
-        title="No orders found"
-        description="You have not placed any orders in this market yet."
-        actionButton={clearFilterButton}
-      />
-    );
-  }
   function handleCancelOrder(orderId: string) {
     const cnf = confirm(
       "Are you sure you want to cancel this order? This action cannot be undone.",
@@ -98,40 +74,90 @@ const MyOrders = ({ marketId }: Props) => {
       }),
     });
   }
+
+  function getOrderStatusColor(status: OrderCategory) {
+    switch (status) {
+      case "filled":
+        return "blue.600";
+      case "cancelled":
+        return "red.600";
+      case "expired":
+        return "gray.600";
+      case "pending_update":
+        return "yellow.600";
+      case "pending_cancel":
+        return "orange.600";
+      default:
+        return "green.600"; // For 'open' or any other status
+    }
+  }
+
+  const clearFilterButton = (
+    <Button
+      variant="outline"
+      rounded="full"
+      onClick={() => {
+        setFilter("open");
+        setPage(1);
+        setPageSize(["10"]);
+      }}
+      colorPalette="blue"
+    >
+      Clear filter
+    </Button>
+  );
+
+  const filterDropdown = (
+    <Flex gap={3} alignItems="center" justifyContent="space-between">
+      <Select.Root
+        collection={orderFilters}
+        size="sm"
+        width="320px"
+        onValueChange={(value) => setFilter(value.value[0] as OrderCategory)}
+      >
+        <Select.HiddenSelect />
+        <Select.Control>
+          <Select.Trigger>
+            <Select.ValueText placeholder="Select order type" />
+          </Select.Trigger>
+          <Select.IndicatorGroup>
+            <Select.Indicator />
+          </Select.IndicatorGroup>
+        </Select.Control>
+        <Portal>
+          <Select.Positioner>
+            <Select.Content>
+              {orderFilters.items.map((filter) => (
+                <Select.Item item={filter} key={filter.value}>
+                  {filter.label}
+                  <Select.ItemIndicator />
+                </Select.Item>
+              ))}
+            </Select.Content>
+          </Select.Positioner>
+        </Portal>
+      </Select.Root>
+      {filter !== "open" && clearFilterButton}
+    </Flex>
+  );
+
+  if (!data?.orders || data?.orders.length === 0) {
+    return (
+      <>
+        {filterDropdown}
+        <EmptyStateCustom
+          title="No orders found"
+          description="You have not placed any orders in this market yet."
+          actionButton={clearFilterButton}
+        />
+      </>
+    );
+  }
+
   return (
     <>
       <Stack width="full" gap="5">
-        <Flex gap={3} alignItems="center" justifyContent="space-between">
-          <Select.Root
-            collection={orderFilters}
-            size="sm"
-            width="320px"
-            onValueChange={(value) => setFilter(value.value[0] as OrderType)}
-          >
-            <Select.HiddenSelect />
-            <Select.Control>
-              <Select.Trigger>
-                <Select.ValueText placeholder="Select order type" />
-              </Select.Trigger>
-              <Select.IndicatorGroup>
-                <Select.Indicator />
-              </Select.IndicatorGroup>
-            </Select.Control>
-            <Portal>
-              <Select.Positioner>
-                <Select.Content>
-                  {orderFilters.items.map((filter) => (
-                    <Select.Item item={filter} key={filter.value}>
-                      {filter.label}
-                      <Select.ItemIndicator />
-                    </Select.Item>
-                  ))}
-                </Select.Content>
-              </Select.Positioner>
-            </Portal>
-          </Select.Root>
-          {filter !== "open" && clearFilterButton}
-        </Flex>
+        {filterDropdown}
         <Table.Root size="md" stickyHeader>
           <Table.Header>
             <Table.Row bg="bg.subtle">
@@ -142,6 +168,7 @@ const MyOrders = ({ marketId }: Props) => {
               <Table.ColumnHeader>Outcome</Table.ColumnHeader>
               <Table.ColumnHeader>Side</Table.ColumnHeader>
               <Table.ColumnHeader>Status</Table.ColumnHeader>
+              <Table.ColumnHeader>Order Type</Table.ColumnHeader>
               {filter === "open" && (
                 <>
                   <Table.ColumnHeader>Update</Table.ColumnHeader>
@@ -153,10 +180,14 @@ const MyOrders = ({ marketId }: Props) => {
 
           <Table.Body>
             {data.orders.map((item, idx) => (
-              <Table.Row key={item.id}>
+              <Table.Row key={item.id + idx}>
                 <Table.Cell>{idx + 1}</Table.Cell>
                 <Table.Cell>{formatDate(item.created_at)}</Table.Cell>
-                <Table.Cell>{item.price}</Table.Cell>
+                <Table.Cell>
+                  {item.order_type === "limit"
+                    ? Number(item.price) * 100
+                    : item.price}
+                </Table.Cell>
                 <Table.Cell>{item.quantity}</Table.Cell>
 
                 <Table.Cell>
@@ -182,11 +213,21 @@ const MyOrders = ({ marketId }: Props) => {
                 <Table.Cell>
                   <Badge
                     backgroundColor={
-                      item.status === "OPEN" ? "blue.600" : "gray.600"
+                      getOrderStatusColor(item.status) || "gray.600"
                     }
                     variant="solid"
                   >
                     {item.status}
+                  </Badge>
+                </Table.Cell>
+                <Table.Cell>
+                  <Badge
+                    backgroundColor={
+                      item.order_type === "limit" ? "blue.600" : "purple.600"
+                    }
+                    variant="solid"
+                  >
+                    {item.order_type}
                   </Badge>
                 </Table.Cell>
                 {filter === "open" && (
@@ -329,6 +370,6 @@ const orderFilters = createListCollection({
     },
   ] as Readonly<{
     label: string;
-    value: OrderType;
+    value: OrderCategory;
   }>[],
 });

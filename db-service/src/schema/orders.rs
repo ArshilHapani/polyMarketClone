@@ -473,36 +473,65 @@ impl Order {
         market_id: Uuid,
         page: u32,
         page_size: u32,
-        status: OrderStatus,
+        status: Option<OrderStatus>,
     ) -> Result<Vec<Order>, sqlx::Error> {
         let offset = (page - 1) * page_size;
-
-        let orders = sqlx::query_as!(
-            Order,
-            r#"
-            SELECT
-            id, user_id, market_id,
-            outcome as "outcome: Outcome",
-            price, quantity, filled_quantity,
-            status as "status: OrderStatus",
-            side as "side: OrderSide",
-            order_type as "order_type: OrderType",
-            created_at, updated_at
-            FROM polymarket.orders
-            WHERE user_id = $1 AND market_id = $2 AND status = $3
-            ORDER BY created_at DESC
-            LIMIT $4 OFFSET $5
-            "#,
-            user_id,
-            market_id,
-            status as _,
-            page_size as i64,
-            offset as i64
-        )
-        .fetch_all(pool)
-        .await?;
-
-        Ok(orders)
+        if let Some(status) = status {
+            let orders = sqlx::query_as!(
+                Order,
+                r#"
+                    SELECT
+                        id, user_id, market_id,
+                        outcome as "outcome: Outcome",
+                        price, 
+                        quantity, 
+                        filled_quantity,
+                        status as "status: OrderStatus",
+                        side as "side: OrderSide",
+                        order_type as "order_type: OrderType",
+                        created_at, updated_at
+                    FROM polymarket.orders
+                    WHERE user_id = $1 AND market_id = $2 AND status = $3
+                    ORDER BY created_at DESC
+                    LIMIT $4 OFFSET $5
+                "#,
+                user_id,
+                market_id,
+                status as _,
+                page_size as i64,
+                offset as i64
+            )
+            .fetch_all(pool)
+            .await?;
+            Ok(orders)
+        } else {
+            let orders = sqlx::query_as!(
+                Order,
+                r#"
+                    SELECT
+                        id, user_id, market_id,
+                        outcome as "outcome: Outcome",
+                        price, 
+                        quantity, 
+                        filled_quantity,
+                        status as "status: OrderStatus",
+                        side as "side: OrderSide",
+                        order_type as "order_type: OrderType",
+                        created_at, updated_at
+                    FROM polymarket.orders
+                    WHERE user_id = $1 AND market_id = $2
+                    ORDER BY created_at DESC
+                    LIMIT $3 OFFSET $4
+                "#,
+                user_id,
+                market_id,
+                page_size as i64,
+                offset as i64
+            )
+            .fetch_all(pool)
+            .await?;
+            Ok(orders)
+        }
     }
 
     pub async fn update_order_status_and_quantity(
@@ -535,6 +564,47 @@ impl Order {
 
         log_info!("Order updated - {:?}", order.id);
         Ok(order)
+    }
+
+    pub async fn insert_multiple_orders(
+        orders: &Vec<Order>,
+        pool: &PgPool,
+    ) -> Result<Vec<Order>, sqlx::Error> {
+        let mut transaction = pool.begin().await?;
+
+        let mut inserted_orders = Vec::new();
+        for order in orders {
+            let inserted_order = sqlx::query_as!(
+                Order,
+                r#"
+                INSERT INTO "polymarket"."orders"
+                (user_id, market_id, price, quantity, side, outcome, order_type)
+                VALUES ($1, $2, $3, $4, $5, $6, $7)
+                RETURNING 
+                id, user_id, market_id,
+                outcome as "outcome: Outcome",
+                price, quantity, filled_quantity,
+                status as "status: OrderStatus",
+                side as "side: OrderSide",
+                created_at, updated_at,
+                order_type as "order_type: OrderType"
+                "#,
+                order.user_id,
+                order.market_id,
+                order.price,
+                order.quantity,
+                order.side as _,
+                order.outcome as _,
+                order.order_type as _,
+            )
+            .fetch_one(&mut *transaction)
+            .await?;
+
+            inserted_orders.push(inserted_order);
+        }
+
+        transaction.commit().await?;
+        Ok(inserted_orders)
     }
 }
 

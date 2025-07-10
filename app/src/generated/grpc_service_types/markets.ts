@@ -211,6 +211,48 @@ export interface GetMarketByIdResponse {
     marketPrice?: MarketPrice;
 }
 /**
+ * @generated from protobuf message markets.UserWithTotalHoldings
+ */
+export interface UserWithTotalHoldings {
+    /**
+     * @generated from protobuf field: string user_id = 1;
+     */
+    userId: string;
+    /**
+     * @generated from protobuf field: double total_shares = 2;
+     */
+    totalShares: number;
+    /**
+     * @generated from protobuf field: double total_yes_shares = 3;
+     */
+    totalYesShares: number;
+    /**
+     * @generated from protobuf field: double total_no_shares = 4;
+     */
+    totalNoShares: number;
+    /**
+     * @generated from protobuf field: string username = 5;
+     */
+    username: string;
+    /**
+     * @generated from protobuf field: string avatar = 6;
+     */
+    avatar: string;
+}
+/**
+ * @generated from protobuf message markets.GetTopHoldersResponse
+ */
+export interface GetTopHoldersResponse {
+    /**
+     * @generated from protobuf field: string market_id = 1;
+     */
+    marketId: string;
+    /**
+     * @generated from protobuf field: repeated markets.UserWithTotalHoldings top_holders = 2;
+     */
+    topHolders: UserWithTotalHoldings[];
+}
+/**
  * @generated from protobuf message markets.GetPaginatedMarketResponse
  */
 export interface GetPaginatedMarketResponse {
@@ -916,6 +958,148 @@ class GetMarketByIdResponse$Type extends MessageType<GetMarketByIdResponse> {
  */
 export const GetMarketByIdResponse = new GetMarketByIdResponse$Type();
 // @generated message type with reflection information, may provide speed optimized methods
+class UserWithTotalHoldings$Type extends MessageType<UserWithTotalHoldings> {
+    constructor() {
+        super("markets.UserWithTotalHoldings", [
+            { no: 1, name: "user_id", kind: "scalar", T: 9 /*ScalarType.STRING*/ },
+            { no: 2, name: "total_shares", kind: "scalar", T: 1 /*ScalarType.DOUBLE*/ },
+            { no: 3, name: "total_yes_shares", kind: "scalar", T: 1 /*ScalarType.DOUBLE*/ },
+            { no: 4, name: "total_no_shares", kind: "scalar", T: 1 /*ScalarType.DOUBLE*/ },
+            { no: 5, name: "username", kind: "scalar", T: 9 /*ScalarType.STRING*/ },
+            { no: 6, name: "avatar", kind: "scalar", T: 9 /*ScalarType.STRING*/ }
+        ]);
+    }
+    create(value?: PartialMessage<UserWithTotalHoldings>): UserWithTotalHoldings {
+        const message = globalThis.Object.create((this.messagePrototype!));
+        message.userId = "";
+        message.totalShares = 0;
+        message.totalYesShares = 0;
+        message.totalNoShares = 0;
+        message.username = "";
+        message.avatar = "";
+        if (value !== undefined)
+            reflectionMergePartial<UserWithTotalHoldings>(this, message, value);
+        return message;
+    }
+    internalBinaryRead(reader: IBinaryReader, length: number, options: BinaryReadOptions, target?: UserWithTotalHoldings): UserWithTotalHoldings {
+        let message = target ?? this.create(), end = reader.pos + length;
+        while (reader.pos < end) {
+            let [fieldNo, wireType] = reader.tag();
+            switch (fieldNo) {
+                case /* string user_id */ 1:
+                    message.userId = reader.string();
+                    break;
+                case /* double total_shares */ 2:
+                    message.totalShares = reader.double();
+                    break;
+                case /* double total_yes_shares */ 3:
+                    message.totalYesShares = reader.double();
+                    break;
+                case /* double total_no_shares */ 4:
+                    message.totalNoShares = reader.double();
+                    break;
+                case /* string username */ 5:
+                    message.username = reader.string();
+                    break;
+                case /* string avatar */ 6:
+                    message.avatar = reader.string();
+                    break;
+                default:
+                    let u = options.readUnknownField;
+                    if (u === "throw")
+                        throw new globalThis.Error(`Unknown field ${fieldNo} (wire type ${wireType}) for ${this.typeName}`);
+                    let d = reader.skip(wireType);
+                    if (u !== false)
+                        (u === true ? UnknownFieldHandler.onRead : u)(this.typeName, message, fieldNo, wireType, d);
+            }
+        }
+        return message;
+    }
+    internalBinaryWrite(message: UserWithTotalHoldings, writer: IBinaryWriter, options: BinaryWriteOptions): IBinaryWriter {
+        /* string user_id = 1; */
+        if (message.userId !== "")
+            writer.tag(1, WireType.LengthDelimited).string(message.userId);
+        /* double total_shares = 2; */
+        if (message.totalShares !== 0)
+            writer.tag(2, WireType.Bit64).double(message.totalShares);
+        /* double total_yes_shares = 3; */
+        if (message.totalYesShares !== 0)
+            writer.tag(3, WireType.Bit64).double(message.totalYesShares);
+        /* double total_no_shares = 4; */
+        if (message.totalNoShares !== 0)
+            writer.tag(4, WireType.Bit64).double(message.totalNoShares);
+        /* string username = 5; */
+        if (message.username !== "")
+            writer.tag(5, WireType.LengthDelimited).string(message.username);
+        /* string avatar = 6; */
+        if (message.avatar !== "")
+            writer.tag(6, WireType.LengthDelimited).string(message.avatar);
+        let u = options.writeUnknownFields;
+        if (u !== false)
+            (u == true ? UnknownFieldHandler.onWrite : u)(this.typeName, message, writer);
+        return writer;
+    }
+}
+/**
+ * @generated MessageType for protobuf message markets.UserWithTotalHoldings
+ */
+export const UserWithTotalHoldings = new UserWithTotalHoldings$Type();
+// @generated message type with reflection information, may provide speed optimized methods
+class GetTopHoldersResponse$Type extends MessageType<GetTopHoldersResponse> {
+    constructor() {
+        super("markets.GetTopHoldersResponse", [
+            { no: 1, name: "market_id", kind: "scalar", T: 9 /*ScalarType.STRING*/ },
+            { no: 2, name: "top_holders", kind: "message", repeat: 2 /*RepeatType.UNPACKED*/, T: () => UserWithTotalHoldings }
+        ]);
+    }
+    create(value?: PartialMessage<GetTopHoldersResponse>): GetTopHoldersResponse {
+        const message = globalThis.Object.create((this.messagePrototype!));
+        message.marketId = "";
+        message.topHolders = [];
+        if (value !== undefined)
+            reflectionMergePartial<GetTopHoldersResponse>(this, message, value);
+        return message;
+    }
+    internalBinaryRead(reader: IBinaryReader, length: number, options: BinaryReadOptions, target?: GetTopHoldersResponse): GetTopHoldersResponse {
+        let message = target ?? this.create(), end = reader.pos + length;
+        while (reader.pos < end) {
+            let [fieldNo, wireType] = reader.tag();
+            switch (fieldNo) {
+                case /* string market_id */ 1:
+                    message.marketId = reader.string();
+                    break;
+                case /* repeated markets.UserWithTotalHoldings top_holders */ 2:
+                    message.topHolders.push(UserWithTotalHoldings.internalBinaryRead(reader, reader.uint32(), options));
+                    break;
+                default:
+                    let u = options.readUnknownField;
+                    if (u === "throw")
+                        throw new globalThis.Error(`Unknown field ${fieldNo} (wire type ${wireType}) for ${this.typeName}`);
+                    let d = reader.skip(wireType);
+                    if (u !== false)
+                        (u === true ? UnknownFieldHandler.onRead : u)(this.typeName, message, fieldNo, wireType, d);
+            }
+        }
+        return message;
+    }
+    internalBinaryWrite(message: GetTopHoldersResponse, writer: IBinaryWriter, options: BinaryWriteOptions): IBinaryWriter {
+        /* string market_id = 1; */
+        if (message.marketId !== "")
+            writer.tag(1, WireType.LengthDelimited).string(message.marketId);
+        /* repeated markets.UserWithTotalHoldings top_holders = 2; */
+        for (let i = 0; i < message.topHolders.length; i++)
+            UserWithTotalHoldings.internalBinaryWrite(message.topHolders[i], writer.tag(2, WireType.LengthDelimited).fork(), options).join();
+        let u = options.writeUnknownFields;
+        if (u !== false)
+            (u == true ? UnknownFieldHandler.onWrite : u)(this.typeName, message, writer);
+        return writer;
+    }
+}
+/**
+ * @generated MessageType for protobuf message markets.GetTopHoldersResponse
+ */
+export const GetTopHoldersResponse = new GetTopHoldersResponse$Type();
+// @generated message type with reflection information, may provide speed optimized methods
 class GetPaginatedMarketResponse$Type extends MessageType<GetPaginatedMarketResponse> {
     constructor() {
         super("markets.GetPaginatedMarketResponse", [
@@ -975,5 +1159,6 @@ export const GetPaginatedMarketResponse = new GetPaginatedMarketResponse$Type();
 export const MarketService = new ServiceType("markets.MarketService", [
     { name: "GetMarketData", options: {}, I: PageRequest, O: GetPaginatedMarketResponse },
     { name: "GetMarketById", options: {}, I: RequestWithMarketId, O: GetMarketByIdResponse },
-    { name: "GetMarketBook", options: {}, I: RequestForMarketBook, O: GetMarketBookResponse }
+    { name: "GetMarketBook", options: {}, I: RequestForMarketBook, O: GetMarketBookResponse },
+    { name: "GetTopHolders", options: {}, I: RequestWithMarketId, O: GetTopHoldersResponse }
 ]);

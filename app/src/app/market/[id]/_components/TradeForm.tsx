@@ -59,7 +59,11 @@ const TradeForm = ({ mode, orderType, market_id, marketPrice }: Props) => {
           market_id={market_id}
         />
       ) : (
-        <MarketOrderForm mode={mode} stockMode={stockMode} />
+        <MarketOrderForm
+          mode={mode}
+          stockMode={stockMode}
+          market_id={market_id}
+        />
       )}
     </Box>
   );

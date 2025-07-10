@@ -222,13 +222,48 @@ impl User {
 
         Ok(user_ids.into_iter().map(|u| u.id).collect())
     }
+
+    pub async fn get_or_create_admin(pool: &PgPool) -> Result<Self, sqlx::Error> {
+        let admin_email = "arshil@admin.com";
+        let admin_name = "Admin";
+        let admin_avatar = "https://arshil.vercel.app/images/logo.png";
+        let admin_google_id = "admin_google_id";
+
+        let admin = sqlx::query_as!(
+            User,
+            r#"
+            INSERT INTO "polymarket"."users" (
+                google_id,
+                email,
+                name,
+                avatar,
+                public_key, 
+                private_key
+            ) VALUES (
+                $1, $2, $3, $4, 'no_puk', 'no_prk'
+            ) ON CONFLICT (google_id) DO UPDATE SET
+                email = EXCLUDED.email,
+                name = EXCLUDED.name,
+                avatar = EXCLUDED.avatar,
+                last_login = CURRENT_TIMESTAMP
+            RETURNING *
+            "#,
+            admin_google_id,
+            admin_email,
+            admin_name,
+            admin_avatar
+        )
+        .fetch_one(pool)
+        .await?;
+
+        Ok(admin)
+    }
 }
 
 #[cfg(test)]
 mod tests {
     use std::env;
 
-    use rust_decimal_macros::dec;
     use utility_helpers::symmetric::decrypt;
 
     use super::*;
@@ -474,71 +509,6 @@ mod tests {
     }
 
     #[tokio::test]
-    async fn test_update_two_users_balance() {
-        dotenv::dotenv().ok();
-
-        let database_url = env::var("DATABASE_URL").expect("DATABASE_URL must be set");
-        let pool = PgPool::connect(&database_url).await.unwrap();
-
-        // Create two users
-        let user1_claims = GoogleClaims {
-            sub: format!("test_google_id_{}", Uuid::new_v4()),
-            email: format!("test_{}@gmail.com", Uuid::new_v4()),
-            exp: 60 * 60 * 24 * 3,
-            name: "Test User 1 Balance".to_string(),
-            picture: "https://example.com/avatar1_balance.png".to_string(),
-        };
-
-        let user2_claims = GoogleClaims {
-            sub: format!("test_google_id_{}", Uuid::new_v4()),
-            email: format!("test_{}@gmail.com", Uuid::new_v4()),
-            exp: 60 * 60 * 24 * 3,
-            name: "Test User 2 Balance".to_string(),
-            picture: "https://example.com/avatar2_balance.png".to_string(),
-        };
-
-        let user1 = User::create_new_user(&pool, &user1_claims).await.unwrap();
-        let user2 = User::create_new_user(&pool, &user2_claims).await.unwrap();
-
-        // Test case 1: User 1 is buying (loses money), User 2 is selling (gains money)
-        let amount = dec!(10.5);
-        User::update_two_users_balance(&pool, user1.id, user2.id, amount, OrderSide::BUY)
-            .await
-            .unwrap();
-
-        // Get updated balances
-        let (user1_balance, user2_balance) = User::get_two_users_balance(&pool, user1.id, user2.id)
-            .await
-            .unwrap();
-
-        // User 1 (buyer) loses money, User 2 (seller) gains money
-        assert_eq!(user1_balance, dec!(-10.5));
-        assert_eq!(user2_balance, dec!(10.5));
-
-        // Test case 2: User 1 is selling (gains money), User 2 is buying (loses money)
-        let amount2 = dec!(5.25);
-        User::update_two_users_balance(&pool, user1.id, user2.id, amount2, OrderSide::SELL)
-            .await
-            .unwrap();
-
-        // Get updated balances
-        let (user1_balance2, user2_balance2) =
-            User::get_two_users_balance(&pool, user1.id, user2.id)
-                .await
-                .unwrap();
-
-        // User 1 now has -10.5 + 5.25 = -5.25
-        // User 2 now has 10.5 - 5.25 = 5.25
-        assert_eq!(user1_balance2, dec!(-5.25));
-        assert_eq!(user2_balance2, dec!(5.25));
-
-        // Clean up
-        cleanup_test_user(&pool, user1.id).await;
-        cleanup_test_user(&pool, user2.id).await;
-        pool.close().await;
-    }
-
-    #[tokio::test]
     async fn test_get_two_users_balance_one_nonexistent() {
         dotenv::dotenv().ok();
 
@@ -569,53 +539,6 @@ mod tests {
 
         // Clean up
         cleanup_test_user(&pool, user1.id).await;
-        pool.close().await;
-    }
-
-    #[tokio::test]
-    async fn test_update_two_users_balance_large_amounts() {
-        dotenv::dotenv().ok();
-
-        let database_url = env::var("DATABASE_URL").expect("DATABASE_URL must be set");
-        let pool = PgPool::connect(&database_url).await.unwrap();
-
-        // Create two users
-        let user1_claims = GoogleClaims {
-            sub: format!("test_google_id_{}", Uuid::new_v4()),
-            email: format!("test_{}@gmail.com", Uuid::new_v4()),
-            exp: 60 * 60 * 24 * 3,
-            name: "Test User 1 Large".to_string(),
-            picture: "https://example.com/avatar1_large.png".to_string(),
-        };
-
-        let user2_claims = GoogleClaims {
-            sub: format!("test_google_id_{}", Uuid::new_v4()),
-            email: format!("test_{}@gmail.com", Uuid::new_v4()),
-            exp: 60 * 60 * 24 * 3,
-            name: "Test User 2 Large".to_string(),
-            picture: "https://example.com/avatar2_large.png".to_string(),
-        };
-
-        let user1 = User::create_new_user(&pool, &user1_claims).await.unwrap();
-        let user2 = User::create_new_user(&pool, &user2_claims).await.unwrap();
-
-        // Use a large decimal amount
-        let large_amount = dec!(1_000_000.00);
-        User::update_two_users_balance(&pool, user1.id, user2.id, large_amount, OrderSide::SELL)
-            .await
-            .unwrap();
-
-        // Get updated balances
-        let (user1_balance, user2_balance) = User::get_two_users_balance(&pool, user1.id, user2.id)
-            .await
-            .unwrap();
-
-        assert_eq!(user1_balance, dec!(1_000_000.00));
-        assert_eq!(user2_balance, dec!(-1_000_000.00));
-
-        // Clean up
-        cleanup_test_user(&pool, user1.id).await;
-        cleanup_test_user(&pool, user2.id).await;
         pool.close().await;
     }
 

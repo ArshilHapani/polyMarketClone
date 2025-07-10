@@ -7,15 +7,17 @@ export type Order = {
   price: string;
   quantity: string;
   side: "buy" | "sell";
-  status: "OPEN" | "CLOSE" | "UNSPECIFIED";
+  status: OrderCategory;
   updated_at: string;
   user_id: string;
+  order_type: "limit" | "market";
 };
 
-export type OrderType =
+export type OrderCategory =
   | "open"
   | "cancelled"
   | "filled"
   | "expired"
   | "pending_update"
-  | "pending_cancel";
+  | "pending_cancel"
+  | "all";
