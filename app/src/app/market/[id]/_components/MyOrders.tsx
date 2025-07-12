@@ -57,10 +57,10 @@ const MyOrders = ({ marketId }: Props) => {
       ),
   });
   function handleCancelOrder(orderId: string) {
-    const cnf = confirm(
-      "Are you sure you want to cancel this order? This action cannot be undone.",
-    );
-    if (!cnf) return;
+    // const cnf = confirm(
+    //   "Are you sure you want to cancel this order? This action cannot be undone.",
+    // );
+    // if (!cnf) return;
     toaster.promise(mutateAsync(orderId), {
       loading: { title: "Cancelling order..." },
       success: () => {
@@ -97,7 +97,7 @@ const MyOrders = ({ marketId }: Props) => {
       variant="outline"
       rounded="full"
       onClick={() => {
-        setFilter("open");
+        setFilter("all");
         setPage(1);
         setPageSize(["10"]);
       }}
@@ -301,26 +301,33 @@ const MyOrders = ({ marketId }: Props) => {
               </Select.Positioner>
             </Portal>
           </Select.Root>
-          <Pagination.Root pageSize={data.page_size} page={data.page}>
+          <Pagination.Root
+            pageSize={data.page_size}
+            page={data.page}
+            count={data.total_pages * data.page_size}
+          >
             <ButtonGroup variant="ghost" size="sm" wrap="wrap">
               <Pagination.PrevTrigger asChild>
                 <IconButton
                   onClick={() => setPage((prev) => Math.max(prev - 1, 1))}
-                  disabled={data.page === 1}
                 >
                   <LucideChevronLeft />
                 </IconButton>
               </Pagination.PrevTrigger>
 
-              <IconButton variant={{ base: "ghost", _selected: "outline" }}>
-                {data.page}
-              </IconButton>
+              <Pagination.Items
+                render={(page) => (
+                  <IconButton
+                    onClick={() => setPage(page.value)}
+                    variant={{ base: "ghost", _selected: "outline" }}
+                  >
+                    {page.value}
+                  </IconButton>
+                )}
+              />
 
               <Pagination.NextTrigger asChild>
-                <IconButton
-                  onClick={() => setPage((prev) => prev + 1)}
-                  disabled={data.orders.length < data.page_size}
-                >
+                <IconButton onClick={() => setPage((prev) => prev + 1)}>
                   <LucideChevronRight />
                 </IconButton>
               </Pagination.NextTrigger>

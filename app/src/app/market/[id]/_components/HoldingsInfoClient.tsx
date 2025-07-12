@@ -14,8 +14,12 @@ const HoldingsInfoClient = ({ marketId }: Props) => {
     queryKey: ["marketOrders", marketId],
     queryFn: () => OrderGetters.getUserOrdersByMarket(marketId, 1, 10),
   });
-  const yesHoldings = isLoading ? "--" : data?.holdings.yes || "0";
-  const noHoldings = isLoading ? "--" : data?.holdings.no || "0";
+  const yesHoldings = isLoading
+    ? "--"
+    : Number(data?.holdings.yes).toFixed(3) || "0";
+  const noHoldings = isLoading
+    ? "--"
+    : Number(data?.holdings.no).toFixed(3) || "0";
   return (
     <Box>
       <Flex align="center" gap={3}>

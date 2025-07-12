@@ -9,6 +9,7 @@ service MarketService {
     rpc GetMarketById(RequestWithMarketId) returns (GetMarketByIdResponse);
     rpc GetMarketBook(RequestForMarketBook) returns (GetMarketBookResponse);
     rpc GetTopHolders(RequestWithMarketId) returns (GetTopHoldersResponse);
+    rpc GetMarketTrades(RequestWithMarketIdAndPageRequest) returns (GetMarketTradesResponse);
 }
 
 
@@ -26,10 +27,39 @@ enum Outcome {
     UNSPECIFIED = 3;
 }
 
+enum TradeType {
+    UNSPECIFIED_TRADE_TYPE = 0;
+    BUY = 1; // Buy trade
+    SELL = 2; // Sell trade
+}
+
 message OrderLevel {
     double price = 1; // Price of the order
     double shares = 2; // Total quantity of shares at this price
     uint32 users = 3; // Number of users at this price (histogram)
+}
+
+message RequestWithMarketIdAndPageRequest {
+    string market_id = 1; // ID of the market
+    common.PageRequest page_request = 2; // Pagination request
+}
+
+message MarketTrade {
+    string id = 1;
+    string name = 2;
+    string avatar = 3;
+    string email = 4;
+    TradeType trade_type = 5;
+    Outcome outcome = 6;
+    double price = 7;
+    double quantity = 8;
+    string created_at = 9;
+}
+
+message GetMarketTradesResponse {
+    string market_id = 1; // ID of the market
+    repeated MarketTrade trades = 2; // List of trades for the market
+    common.PageInfo page_info = 3; // Pagination info
 }
 
 message OrderBook {

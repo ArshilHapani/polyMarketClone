@@ -2,9 +2,15 @@ import axios from "axios";
 import jsCookies from "js-cookie";
 
 import { marketServiceClient, priceServiceClient } from "../grpc/clients";
-import { GetUserOrdersPaginatedResponse, GetUserResponse } from "../types/api";
+import {
+  GetUserMetadataResponse,
+  GetUserOrdersPaginatedResponse,
+  GetUserResponse,
+} from "../types/api";
 import { OrderCategory } from "../types";
+
 import { Timeframe } from "@/generated/grpc_service_types/common";
+import { GetMarketTradesResponse } from "@/generated/grpc_service_types/markets";
 
 const TOKEN = jsCookies.get("polymarketAuthToken") || "";
 const BASE_URL = process.env.NEXT_PUBLIC_SERVICE_API_URL || "";
@@ -59,6 +65,39 @@ export class MarketGetters {
       return [];
     }
   }
+
+  static async getMarketTrades({
+    marketId,
+    page,
+    pageSize,
+  }: {
+    marketId: string;
+    page: number;
+    pageSize: number;
+  }): Promise<GetMarketTradesResponse> {
+    try {
+      const { response } = await marketServiceClient.getMarketTrades({
+        marketId,
+        pageRequest: {
+          page,
+          pageSize,
+        },
+      });
+      return response;
+    } catch (error: any) {
+      console.error("Failed to get market trades: ", error);
+      return {
+        trades: [],
+        marketId: "",
+        pageInfo: {
+          page: 0,
+          pageSize: 0,
+          totalPages: 0,
+          totalItems: 0,
+        },
+      };
+    }
+  }
 }
 
 export class UserGetters {
@@ -79,6 +118,24 @@ export class UserGetters {
       return data;
     } catch (e: any) {
       console.log("Error fetching user data:", e);
+      return null;
+    }
+  }
+
+  static async getUserMetadata() {
+    try {
+      const { data } = await axios.get<GetUserMetadataResponse>(
+        `${BASE_URL}/user/metadata`,
+        {
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${TOKEN}`,
+          },
+        },
+      );
+      return data;
+    } catch (error: any) {
+      console.error("Failed to get user metadata: ", error);
       return null;
     }
   }
@@ -129,6 +186,7 @@ export class OrderGetters {
         page: 0,
         page_size: 0,
         holdings: { no: "0", yes: "0" },
+        total_pages: 0,
       };
     }
   }

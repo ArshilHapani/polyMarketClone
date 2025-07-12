@@ -131,7 +131,7 @@ const NavbarAvatarButton = () => {
                               <User2 />
                             </Icon>
                             <Text ml={3} fontSize="sm" fontWeight="medium">
-                              Profile Settings
+                              My Profile
                             </Text>
                           </Link>
                         </Box>

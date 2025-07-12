@@ -12,7 +12,7 @@ export function formatDate<T extends string | number>(date: T): string {
 }
 
 export function formatPriceString(
-  price: number,
+  price: number | string,
   precision: number = 2,
 ): string {
   const formatter = new Intl.NumberFormat("en-US", {
@@ -22,5 +22,5 @@ export function formatPriceString(
     maximumFractionDigits: precision,
   });
 
-  return formatter.format(price);
+  return formatter.format(Number(price || 0));
 }

@@ -35,7 +35,7 @@ const OrderBook = ({ tradeType, marketId }: Props) => {
         },
       },
     },
-    false, // maintainPreviousMessages
+    false, // maintainPreviousMessages to false
   );
   const [orders, setOrders] = useState<OrderBookLevel[]>([]);
 
@@ -90,7 +90,7 @@ const OrderBook = ({ tradeType, marketId }: Props) => {
               const isSpreadRow = idx === buyOrders.length;
               const bestBuy = buyOrders[0]?.price ?? 0;
               const bestSell = sellOrders[0]?.price ?? 0;
-              const spread = (bestSell - bestBuy).toFixed(2);
+              const spread = ((bestSell - bestBuy) * 100).toFixed(2);
 
               return (
                 <React.Fragment key={`${order.type}-${order.price}-${idx}`}>

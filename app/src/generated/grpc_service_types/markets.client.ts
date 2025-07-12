@@ -4,6 +4,8 @@
 import type { RpcTransport } from "@protobuf-ts/runtime-rpc";
 import type { ServiceInfo } from "@protobuf-ts/runtime-rpc";
 import { MarketService } from "./markets";
+import type { GetMarketTradesResponse } from "./markets";
+import type { RequestWithMarketIdAndPageRequest } from "./markets";
 import type { GetTopHoldersResponse } from "./markets";
 import type { GetMarketBookResponse } from "./markets";
 import type { RequestForMarketBook } from "./markets";
@@ -34,6 +36,10 @@ export interface IMarketServiceClient {
      * @generated from protobuf rpc: GetTopHolders(markets.RequestWithMarketId) returns (markets.GetTopHoldersResponse);
      */
     getTopHolders(input: RequestWithMarketId, options?: RpcOptions): UnaryCall<RequestWithMarketId, GetTopHoldersResponse>;
+    /**
+     * @generated from protobuf rpc: GetMarketTrades(markets.RequestWithMarketIdAndPageRequest) returns (markets.GetMarketTradesResponse);
+     */
+    getMarketTrades(input: RequestWithMarketIdAndPageRequest, options?: RpcOptions): UnaryCall<RequestWithMarketIdAndPageRequest, GetMarketTradesResponse>;
 }
 /**
  * @generated from protobuf service markets.MarketService
@@ -71,5 +77,12 @@ export class MarketServiceClient implements IMarketServiceClient, ServiceInfo {
     getTopHolders(input: RequestWithMarketId, options?: RpcOptions): UnaryCall<RequestWithMarketId, GetTopHoldersResponse> {
         const method = this.methods[3], opt = this._transport.mergeOptions(options);
         return stackIntercept<RequestWithMarketId, GetTopHoldersResponse>("unary", this._transport, method, opt, input);
+    }
+    /**
+     * @generated from protobuf rpc: GetMarketTrades(markets.RequestWithMarketIdAndPageRequest) returns (markets.GetMarketTradesResponse);
+     */
+    getMarketTrades(input: RequestWithMarketIdAndPageRequest, options?: RpcOptions): UnaryCall<RequestWithMarketIdAndPageRequest, GetMarketTradesResponse> {
+        const method = this.methods[4], opt = this._transport.mergeOptions(options);
+        return stackIntercept<RequestWithMarketIdAndPageRequest, GetMarketTradesResponse>("unary", this._transport, method, opt, input);
     }
 }

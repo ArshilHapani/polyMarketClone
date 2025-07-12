@@ -11,6 +11,7 @@ import MyOrders from "./_components/MyOrders";
 import VolumeInfoCard from "./_components/VolumeInfoCard";
 import HoldingsInfoClient from "./_components/HoldingsInfoClient";
 import TopMarketHolders from "./_components/TopMarketHolders";
+import MarketTrades from "./_components/MarketTrades";
 
 type Props = {
   params: Promise<{
@@ -103,6 +104,7 @@ const MarketPage = async ({ params }: Props) => {
               <Tabs.Trigger value="no_book">Trade no</Tabs.Trigger>
               <Tabs.Trigger value="my_orders">My orders</Tabs.Trigger>
               <Tabs.Trigger value="top_holders">Top holders</Tabs.Trigger>
+              <Tabs.Trigger value="trades">Trades</Tabs.Trigger>
             </Tabs.List>
             <Tabs.Content value="yes_book">
               <OrderBook tradeType="yes" marketId={id} />
@@ -119,6 +121,9 @@ const MarketPage = async ({ params }: Props) => {
                 yesPrice={marketPrice.latestYesPrice}
                 noPrice={marketPrice.latestNoPrice}
               />
+            </Tabs.Content>
+            <Tabs.Content value="trades">
+              <MarketTrades market_id={id} />
             </Tabs.Content>
           </Tabs.Root>
         </Box>
