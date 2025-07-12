@@ -21,3 +21,5 @@
 # Notes
 
 NATS can produce multiple messages parallelly, it have multiple streams, each stream acts as separate queue, so we have to use different streams for different services
+
+This project is not focused on frontend, so the frontend codebase may be not well structured, but it is functional and can be used to test the backend services.
