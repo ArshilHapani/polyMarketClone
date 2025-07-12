@@ -1,9 +1,9 @@
 use axum::{http::StatusCode, response::Response};
-use serde::{Deserialize, Serialize};
+use serde::Deserialize;
 
 pub type ReturnType = (StatusCode, Response);
 
-#[derive(Serialize, Deserialize, Clone, Debug)]
+#[derive(Deserialize, Clone, Debug)]
 pub struct PaginationRequestQuery {
     pub page: u64,
     #[serde(rename = "pageSize")]

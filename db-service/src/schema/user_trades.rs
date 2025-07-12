@@ -1,14 +1,17 @@
 use chrono::NaiveDateTime;
 use rust_decimal::Decimal;
-use serde::{Deserialize, Serialize};
+use serde::Serialize;
 use sqlx::{Executor, Postgres};
 use uuid::Uuid;
 
-use crate::{pagination::PaginatedResponse, schema::enums::OrderSide};
+use crate::{
+    pagination::PaginatedResponse,
+    schema::enums::{MarketStatus, OrderSide},
+};
 
 use super::enums::Outcome;
 
-#[derive(Debug, Serialize, Deserialize, sqlx::FromRow, Default)]
+#[derive(Debug, Serialize, sqlx::FromRow, Default)]
 pub struct UserTrades {
     id: Uuid,
     // TODO: in free time change the field names `buy_order_id` and `sell_order_id` to `current_order_id` and `opposite_order_id`
@@ -25,7 +28,22 @@ pub struct UserTrades {
     updated_at: NaiveDateTime,
 }
 
-#[derive(Debug, Serialize, Deserialize, sqlx::FromRow, Default)]
+#[derive(Debug, Serialize, sqlx::FromRow)]
+pub struct UserTradesWithMarket {
+    // market
+    pub market_name: String,
+    pub market_logo: String,
+    pub market_status: MarketStatus,
+    pub market_final_outcome: Outcome,
+
+    // trades
+    pub trade_type: OrderSide,
+    pub trade_outcome: Outcome,
+    pub trade_price: Decimal,
+    pub trade_quantity: Decimal,
+}
+
+#[derive(Debug, Serialize, sqlx::FromRow, Default)]
 pub struct MarketTrades {
     pub id: Uuid,
     pub name: String,
@@ -119,6 +137,59 @@ impl UserTrades {
         )
         .fetch_all(pool)
         .await?;
+        Ok(PaginatedResponse::new(
+            trades,
+            page,
+            page_size,
+            total_count as u64,
+        ))
+    }
+
+    pub async fn get_user_trades_paginated(
+        user_id: Uuid,
+        page: u64,
+        page_size: u64,
+        pool: &sqlx::PgPool,
+    ) -> Result<PaginatedResponse<UserTradesWithMarket>, sqlx::Error> {
+        let offset = (page - 1) * page_size;
+        let total_count = sqlx::query_scalar!(
+            r#"
+            SELECT COUNT(*) FROM polymarket.user_trades ut
+            JOIN polymarket.markets m ON m.id = ut.market_id
+            WHERE ut.user_id = $1
+            "#,
+            user_id
+        )
+        .fetch_one(pool)
+        .await?
+        .unwrap_or(0);
+
+        let trades = sqlx::query_as!(
+            UserTradesWithMarket,
+            r#"            
+            SELECT 
+                m.name AS market_name,
+                m.logo AS market_logo,
+                m.status AS "market_status: MarketStatus",
+                m.final_outcome AS "market_final_outcome: Outcome",
+
+                t.trade_type AS "trade_type: OrderSide",
+                t.outcome AS "trade_outcome: Outcome",
+                t.price AS trade_price,
+                t.quantity AS trade_quantity
+            FROM polymarket.user_trades t
+            JOIN polymarket.markets m ON t.market_id = m.id
+            WHERE t.user_id = $1
+            ORDER BY t.timestamp DESC
+            LIMIT $2 OFFSET $3;
+            "#,
+            user_id,
+            page_size as i64,
+            offset as i64,
+        )
+        .fetch_all(pool)
+        .await?;
+
         Ok(PaginatedResponse::new(
             trades,
             page,

@@ -1,4 +1,4 @@
-![Architecture v2](./assets/architecture_v3.png)
+![Architecture v2](./assets/architecture_v4.png)
 
 # Sub sys architecture diagrams
 

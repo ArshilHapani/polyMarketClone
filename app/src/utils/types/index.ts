@@ -21,3 +21,10 @@ export type OrderCategory =
   | "pending_update"
   | "pending_cancel"
   | "all";
+
+export type PageInfoServiceAPi = {
+  page: number;
+  page_size: number;
+  total_items: number;
+  total_pages: number;
+};

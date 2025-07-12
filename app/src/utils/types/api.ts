@@ -1,4 +1,4 @@
-import { Order } from ".";
+import { Order, PageInfoServiceAPi } from ".";
 
 export interface BaseResponse {
   message: string;
@@ -59,4 +59,44 @@ export interface GetUserMetadataResponse {
     total_withdraw: null;
   };
   user_id: string;
+}
+
+export interface Trade {
+  market_final_outcome: string;
+  market_logo: string;
+  market_name: string;
+  market_status: string;
+  trade_outcome: string;
+  trade_price: string;
+  trade_quantity: string;
+  trade_type: string;
+}
+
+export interface GetUserTradesResponse {
+  data: {
+    page_info: PageInfoServiceAPi;
+    trades: Trade[];
+  };
+}
+
+// Holdings interface based on your data structure
+interface Holding {
+  final_outcome: string;
+  market_created_at: string;
+  market_description: string;
+  market_expiry: string;
+  market_id: string;
+  market_logo: string;
+  market_name: string;
+  market_status: string;
+  market_updated_at: string;
+  outcome: string;
+  shares: string;
+}
+
+export interface GetUserHoldingsResponse {
+  data: {
+    holdings: Holding[];
+    page_info: PageInfoServiceAPi;
+  };
 }

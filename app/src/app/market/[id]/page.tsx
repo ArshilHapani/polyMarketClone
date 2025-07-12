@@ -1,5 +1,13 @@
 import React from "react";
-import { Avatar, Box, Container, Flex, Tabs, Text } from "@chakra-ui/react";
+import {
+  Avatar,
+  Badge,
+  Box,
+  Container,
+  Flex,
+  Tabs,
+  Text,
+} from "@chakra-ui/react";
 import { Bookmark, Clock5, Link } from "lucide-react";
 
 import EmptyStateCustom from "@/components/EmptyStateCustom";
@@ -12,6 +20,7 @@ import VolumeInfoCard from "./_components/VolumeInfoCard";
 import HoldingsInfoClient from "./_components/HoldingsInfoClient";
 import TopMarketHolders from "./_components/TopMarketHolders";
 import MarketTrades from "./_components/MarketTrades";
+import { MarketStatus } from "@/generated/grpc_service_types/markets";
 
 type Props = {
   params: Promise<{
@@ -58,6 +67,11 @@ const MarketPage = async ({ params }: Props) => {
             <Text fontSize="2xl" fontWeight="semibold">
               {market.name}
             </Text>
+            {market.status !== MarketStatus.OPEN && (
+              <Badge variant="outline" rounded="lg" colorScheme="blue">
+                {MarketStatus[market.status].toLowerCase()}
+              </Badge>
+            )}
           </Flex>
 
           <HoldingsInfoClient marketId={id} />
@@ -87,14 +101,16 @@ const MarketPage = async ({ params }: Props) => {
         <PriceChart market_id={id} />
 
         {/*  action bar for purchasing now  */}
-        <PurchaseNowActionBar
-          market_id={id}
-          marketPrice={{
-            latestNoPrice: marketPrice.latestNoPrice,
-            latestYesPrice: marketPrice.latestYesPrice,
-            marketId: market.id,
-          }}
-        />
+        {market.status === MarketStatus.OPEN && (
+          <PurchaseNowActionBar
+            market_id={id}
+            marketPrice={{
+              latestNoPrice: marketPrice.latestNoPrice,
+              latestYesPrice: marketPrice.latestYesPrice,
+              marketId: market.id,
+            }}
+          />
+        )}
 
         {/* order book */}
         <Box mt={10}>

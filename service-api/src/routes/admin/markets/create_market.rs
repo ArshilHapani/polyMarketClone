@@ -7,7 +7,7 @@ use axum::{
 use db_service::schema::market::Market;
 use rust_decimal::{Decimal, prelude::FromPrimitive};
 use serde_json::json;
-use sqlx::types::chrono::DateTime;
+use sqlx::types::chrono::{self, DateTime};
 use utility_helpers::log_error;
 
 use crate::{require_fields_raw_response, state::AppState};
@@ -56,6 +56,18 @@ pub async fn create_new_market(
             })),
         )
     })?;
+
+    // if date time is in the past, return an error
+    if date_time < chrono::Utc::now() {
+        log_error!("Market expiry date is in the past: {}", market_expiry);
+        return Err((
+            StatusCode::BAD_REQUEST,
+            Json(json!({
+                "error": "Market expiry date cannot be in the past"
+            })),
+        ));
+    }
+
     let market_expiry = date_time.naive_utc();
 
     let market = Market::create_new_market(

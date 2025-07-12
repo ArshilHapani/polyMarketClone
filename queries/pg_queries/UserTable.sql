@@ -1,7 +1,7 @@
 -- truncate table polymarket.users cascade;
 
 -- delete from polymarket.users where id not in ('3a308ea2-003c-41e0-adeb-3bd1f7e0e884'::uuid, 'f45d9e53-820c-425b-b9bc-56af30ea1351'::uuid);
-SELECT balance, email, name from polymarket.users;
+SELECT id, balance, email, name from polymarket.users;
 -- SELECT * FROM polymarket.users;
 
 -- delete from polymarket.users where id='cd31934d-0019-41d1-9ccc-bafc6b9330de';

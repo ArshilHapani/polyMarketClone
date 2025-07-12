@@ -1,7 +1,7 @@
 use base64::{Engine, engine::general_purpose::STANDARD as base64_engine};
 use chrono::NaiveDateTime;
 use rust_decimal::Decimal;
-use serde::{Deserialize, Serialize};
+use serde::Serialize;
 use solana_sdk::{signature::Keypair, signer::Signer};
 use sqlx::{Executor, PgPool, Postgres};
 use uuid::Uuid;
@@ -10,7 +10,7 @@ use utility_helpers::{log_info, symmetric::encrypt, types::GoogleClaims};
 
 use crate::schema::enums::OrderSide;
 
-#[derive(Debug, Serialize, Deserialize, Default)]
+#[derive(Debug, Serialize, Default)]
 pub struct User {
     pub id: Uuid,
 
@@ -29,7 +29,7 @@ pub struct User {
     pub balance: Decimal,
 }
 
-#[derive(Debug, Serialize, Deserialize, Default)]
+#[derive(Debug, Serialize, Default)]
 pub struct UserBalance {
     pub balance: Decimal,
 }

@@ -13,7 +13,12 @@
 --             LEFT JOIN polymarket.markets m ON o.market_id = m.id
 --             WHERE o.status = 'open'::polymarket.order_status 
 
-select * from polymarket.markets;
+
+-- UPDATE polymarket.markets
+-- 	SET status = 'closed'::polymarket.market_status, updated_at = CURRENT_TIMESTAMP
+--     WHERE id = 'c3cc74a7-6695-41e1-8bdf-d5affa5b4aac'::uuid AND market_expiry <= CURRENT_TIMESTAMP AND status = 'open'::polymarket.market_status;
+
+select * from polymarket.markets ORDER BY created_at DESC;
 
 -- delete from polymarket.markets where id = '06761131-a639-4dae-9dff-d652ff3b3832'::uuid;
 

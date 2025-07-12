@@ -1,6 +1,9 @@
 services:
   postgres:
-    image: postgres:16.9-bookworm
+    build:
+      context: ./pg-docker
+      dockerfile: pg.Dockerfile
+    image: poly-postgres:latest
     container_name: polyMarket_postgres
     environment:
       POSTGRES_USER: polyMarket

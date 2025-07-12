@@ -106,6 +106,10 @@ impl GlobalMarketBook {
         }
     }
 
+    pub(crate) fn remove_market(&mut self, market_id: &Uuid) -> bool {
+        self.markets.remove(market_id).is_some()
+    }
+
     fn get_or_create_market(&mut self, market_id: Uuid, liquidity_b: Decimal) -> &mut MarketBook {
         self.markets
             .entry(market_id)

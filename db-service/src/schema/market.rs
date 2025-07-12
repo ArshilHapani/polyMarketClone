@@ -6,9 +6,13 @@ use utility_helpers::log_info;
 use uuid::Uuid;
 
 use super::enums::{MarketStatus, Outcome};
-use crate::pagination::PaginatedResponse;
+use crate::{
+    pagination::PaginatedResponse,
+    utils::{CronJobName, to_cron_expression},
+};
 
-#[derive(Debug, Serialize, Deserialize, sqlx::FromRow, Default)]
+// serialized by redis
+#[derive(Debug, Serialize, sqlx::FromRow, Deserialize, Default)]
 pub struct Market {
     pub id: Uuid,
     pub name: String,
@@ -31,10 +35,12 @@ impl Market {
         market_expiry: NaiveDateTime,
         pg_pool: &PgPool,
     ) -> Result<Self, sqlx::Error> {
+        let mut tx = pg_pool.begin().await?;
+
         let market = sqlx::query_as!(
             Market,
             r#"
-            INSERT INTO "polymarket"."markets" (
+            INSERT INTO polymarket.markets (
                 name,
                 description,
                 logo,
@@ -64,8 +70,31 @@ impl Market {
             liquidity_b,
             market_expiry
         )
-        .fetch_one(pg_pool)
+        .fetch_one(&mut *tx)
         .await?;
+
+        // create cron
+        let cron_name = CronJobName::CloseMarket(market.id).to_string();
+
+        let cron_query = format!("SELECT polymarket.close_market('{}'::uuid);", market.id); // cron function
+        let cron_expression = to_cron_expression(market.market_expiry);
+
+        sqlx::query(
+            r#"
+            SELECT cron.schedule(
+                $1, -- cron name
+                $2, -- cron run time
+                $3 -- cron function
+            )
+            "#,
+        )
+        .bind(cron_name)
+        .bind(cron_expression)
+        .bind(cron_query)
+        .execute(&mut *tx)
+        .await?;
+
+        tx.commit().await?;
 
         log_info!("Market created: {}", market.id);
         Ok(market)
@@ -131,6 +160,61 @@ impl Market {
             ORDER BY created_at DESC
             LIMIT $1 OFFSET $2
             "#,
+            page_size as i64,
+            offset as i64
+        )
+        .fetch_all(pg_pool)
+        .await?;
+
+        Ok(PaginatedResponse::new(
+            markets,
+            page,
+            page_size,
+            total_count as u64,
+        ))
+    }
+
+    pub async fn get_all_market_by_status_paginated(
+        pg_pool: &PgPool,
+        status: MarketStatus,
+        page: u64,
+        page_size: u64,
+    ) -> Result<PaginatedResponse<Self>, sqlx::Error> {
+        let offset = (page - 1) * page_size;
+
+        let total_count = sqlx::query!(
+            r#"
+            SELECT COUNT(*) as total_count
+            FROM "polymarket"."markets"
+            WHERE status = $1
+            "#,
+            status as _
+        )
+        .fetch_one(pg_pool)
+        .await?
+        .total_count
+        .unwrap_or(0);
+
+        let markets = sqlx::query_as!(
+            Market,
+            r#"
+            SELECT 
+                id,
+                name,
+                description,
+                logo,
+                status as "status: MarketStatus",
+                final_outcome as "final_outcome: Outcome",
+                liquidity_b,
+                market_expiry,
+                created_at,
+                updated_at
+            FROM "polymarket"."markets"
+            WHERE status = $1
+            ORDER BY created_at DESC
+            LIMIT $2 OFFSET $3
+            "#,
+            status as _,
             page_size as i64,
             offset as i64
         )
@@ -217,6 +301,80 @@ impl Market {
         .await?;
 
         Ok(orders)
+    }
+
+    pub async fn settle_market(
+        pg_pool: &PgPool,
+        market_id: &Uuid,
+        final_outcome: Outcome,
+    ) -> Result<(), sqlx::Error> {
+        let mut tx = pg_pool.begin().await?;
+
+        // 1. Updating the market status to settled
+        sqlx::query!(
+            r#"
+            UPDATE polymarket.markets
+            SET status = 'settled'::polymarket.market_status,
+                final_outcome = $2
+            WHERE id = $1
+            "#,
+            market_id,
+            final_outcome as _
+        )
+        .execute(&mut *tx)
+        .await?;
+
+        // 2. Expiring all open orders in the market
+        sqlx::query!(
+            r#"
+            UPDATE polymarket.orders
+            SET status = 'expired'::polymarket.order_status
+            WHERE market_id = $1 AND status in (
+                'open'::polymarket.order_status,
+                'partial_fill'::polymarket.order_status,
+                'pending_update'::polymarket.order_status,
+                'pending_cancel'::polymarket.order_status
+            )
+            "#,
+            market_id
+        )
+        .execute(&mut *tx)
+        .await?;
+
+        // 3. Credit the balance to the user's holdings
+        sqlx::query!(
+            r#"
+            UPDATE polymarket.users u
+            SET balance = balance + (payout.total * 100) -- Each share is worth 100 after settlement
+            FROM (
+                SELECT user_id, SUM(shares) AS total
+                FROM polymarket.user_holdings
+                WHERE market_id = $1 AND outcome = $2
+                GROUP BY user_id
+            ) AS payout
+             WHERE u.id = payout.user_id
+            "#,
+            market_id,
+            final_outcome as _
+        )
+        .execute(&mut *tx)
+        .await?;
+
+        // 4. Zero out all the holdings for the market
+        sqlx::query!(
+            r#"
+            UPDATE polymarket.user_holdings
+            SET shares = 0
+            WHERE market_id = $1
+            "#,
+            market_id
+        )
+        .execute(&mut *tx)
+        .await?;
+
+        tx.commit().await?;
+
+        Ok(())
     }
 }
 

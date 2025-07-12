@@ -1,21 +1,19 @@
 use std::str::FromStr;
 
 use db_service::schema::{
-    market::Market as SchemaMarket, user_holdings::UserHoldings, user_trades::UserTrades,
+    enums::MarketStatus, market::Market as SchemaMarket, user_holdings::UserHoldings,
+    user_trades::UserTrades,
 };
 use sqlx::types::Uuid;
 use tonic::{Request, Response, Status};
 use utility_helpers::redis::keys::RedisKey;
 
 use crate::{
-    generated::{
-        common::PageRequest,
-        markets::{
-            GetMarketBookResponse, GetMarketByIdResponse, GetMarketTradesResponse,
-            GetPaginatedMarketResponse, GetTopHoldersResponse, RequestForMarketBook,
-            RequestWithMarketId, RequestWithMarketIdAndPageRequest,
-            market_service_server::MarketService,
-        },
+    generated::markets::{
+        GetMarketBookResponse, GetMarketByIdResponse, GetMarketDataRequest,
+        GetMarketTradesResponse, GetPaginatedMarketResponse, GetTopHoldersResponse,
+        RequestForMarketBook, RequestWithMarketId, RequestWithMarketIdAndPageRequest,
+        market_service_server::MarketService,
     },
     procedures::{from_db_market, to_resp_for_market_book},
     state::SafeState,
@@ -36,10 +34,24 @@ pub struct MarketServiceStub {
 impl MarketService for MarketServiceStub {
     async fn get_market_data(
         &self,
-        req: Request<PageRequest>,
+        req: Request<GetMarketDataRequest>,
     ) -> Result<Response<GetPaginatedMarketResponse>, Status> {
-        let page_no = req.get_ref().page;
-        let page_size = req.get_ref().page_size;
+        let page_info = req.get_ref().page_request.clone();
+        if page_info.is_none() {
+            return Err(Status::invalid_argument("Page request cannot be empty"));
+        }
+        let page_info = page_info.unwrap();
+        let page_no = page_info.page;
+        let page_size = page_info.page_size;
+
+        let market_status: MarketStatus = match req.get_ref().market_status {
+            0 => MarketStatus::SETTLED,
+            1 => MarketStatus::OPEN,
+            2 => MarketStatus::CLOSED,
+            3 => MarketStatus::SETTLED,
+            _ => return Err(Status::invalid_argument("Invalid market status")),
+        };
+
         validate_numbers!(page_no);
         validate_numbers!(page_size);
 
@@ -56,8 +68,9 @@ impl MarketService for MarketServiceStub {
             .get_or_set_cache(
                 key,
                 || async {
-                    Ok(SchemaMarket::get_all_markets_paginated(
+                    Ok(SchemaMarket::get_all_market_by_status_paginated(
                         &self.state.db_pool,
+                        market_status,
                         page_no,
                         page_size,
                     )

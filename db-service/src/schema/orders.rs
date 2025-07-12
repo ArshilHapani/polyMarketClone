@@ -9,6 +9,7 @@ use crate::schema::enums::OrderType;
 
 use super::enums::{OrderSide, OrderStatus, Outcome};
 
+// need serialize for message pack
 #[derive(Debug, Serialize, Deserialize, sqlx::FromRow, Default)]
 pub struct Order {
     pub id: Uuid,
@@ -26,7 +27,7 @@ pub struct Order {
 }
 
 // extend order struct with new fields
-#[derive(Debug, Serialize, Deserialize, sqlx::FromRow, Clone)]
+#[derive(Debug, Serialize, sqlx::FromRow, Clone)]
 pub struct OrderWithMarket {
     pub id: Uuid,
     pub user_id: Uuid,

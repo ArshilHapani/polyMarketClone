@@ -1,11 +1,11 @@
 use chrono::NaiveDateTime;
 use rust_decimal::Decimal;
-use serde::{Deserialize, Serialize};
+use serde::Serialize;
 use uuid::Uuid;
 
 use super::enums::{UserTransactionStatus, UserTransactionType};
 
-#[derive(Debug, sqlx::FromRow, Default, Serialize, Deserialize)]
+#[derive(Debug, sqlx::FromRow, Default, Serialize)]
 pub struct UserTransactions {
     pub id: Uuid,
     pub user_id: Uuid,

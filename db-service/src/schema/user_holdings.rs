@@ -1,12 +1,15 @@
 use chrono::NaiveDateTime;
 use rust_decimal::Decimal;
-use serde::{Deserialize, Serialize};
+use serde::Serialize;
 use sqlx::{Executor, Postgres};
 use uuid::Uuid;
 
-use crate::schema::enums::{MarketStatus, Outcome};
+use crate::{
+    pagination::PaginatedResponse,
+    schema::enums::{MarketStatus, Outcome},
+};
 
-#[derive(Debug, Serialize, Deserialize, sqlx::FromRow, Default)]
+#[derive(Debug, Serialize, sqlx::FromRow, Default)]
 pub struct UserHoldings {
     pub id: Uuid,
     pub user_id: Uuid,
@@ -17,7 +20,7 @@ pub struct UserHoldings {
     pub updated_at: NaiveDateTime,
 }
 
-#[derive(Debug, Serialize, Deserialize, sqlx::FromRow)]
+#[derive(Debug, Serialize, sqlx::FromRow)]
 pub struct UserIdWithShares {
     pub user_id: Uuid,
     pub total_shares: Option<Decimal>,
@@ -27,7 +30,7 @@ pub struct UserIdWithShares {
     pub avatar: Option<String>,
 }
 
-#[derive(Debug, sqlx::FromRow)]
+#[derive(Debug, sqlx::FromRow, Serialize)]
 pub struct UserHoldingWithMarket {
     pub market_id: Uuid,
     pub outcome: Outcome,
@@ -264,11 +267,26 @@ impl UserHoldings {
         Ok(orders)
     }
 
-    pub async fn get_user_holdings_by_market(
-        db_pool: &sqlx::PgPool,
+    pub async fn get_user_holdings_by_market_paginated(
         user_id: Uuid,
-    ) -> Result<Vec<UserHoldingWithMarket>, sqlx::error::Error> {
-        sqlx::query_as!(
+        page: u64,
+        page_size: u64,
+        db_pool: &sqlx::PgPool,
+    ) -> Result<PaginatedResponse<UserHoldingWithMarket>, sqlx::error::Error> {
+        let offset = (page - 1) * page_size;
+        let total_count = sqlx::query_scalar!(
+            r#"
+            SELECT COUNT(*) FROM polymarket.user_holdings uh
+            JOIN polymarket.markets m ON uh.market_id = m.id
+            WHERE uh.user_id = $1
+            "#,
+            user_id
+        )
+        .fetch_one(db_pool)
+        .await?
+        .unwrap_or(0);
+
+        let user_holdings = sqlx::query_as!(
             UserHoldingWithMarket,
             r#"
             SELECT 
@@ -286,11 +304,22 @@ impl UserHoldings {
                 m.updated_at AS market_updated_at
             FROM polymarket.user_holdings uh
             JOIN polymarket.markets m ON uh.market_id = m.id
-            WHERE uh.user_id = $1;
+            WHERE uh.user_id = $1
+            ORDER BY uh.created_at DESC
+            LIMIT $2 OFFSET $3
             "#,
-            user_id
+            user_id,
+            page_size as i64,
+            offset as i64,
         )
         .fetch_all(db_pool)
-        .await
+        .await?;
+
+        Ok(PaginatedResponse::new(
+            user_holdings,
+            page,
+            page_size,
+            total_count as u64,
+        ))
     }
 }

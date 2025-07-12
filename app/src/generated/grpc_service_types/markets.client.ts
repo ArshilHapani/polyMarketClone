@@ -13,7 +13,7 @@ import type { GetMarketByIdResponse } from "./markets";
 import type { RequestWithMarketId } from "./markets";
 import { stackIntercept } from "@protobuf-ts/runtime-rpc";
 import type { GetPaginatedMarketResponse } from "./markets";
-import type { PageRequest } from "./common";
+import type { GetMarketDataRequest } from "./markets";
 import type { UnaryCall } from "@protobuf-ts/runtime-rpc";
 import type { RpcOptions } from "@protobuf-ts/runtime-rpc";
 /**
@@ -21,9 +21,9 @@ import type { RpcOptions } from "@protobuf-ts/runtime-rpc";
  */
 export interface IMarketServiceClient {
     /**
-     * @generated from protobuf rpc: GetMarketData(common.PageRequest) returns (markets.GetPaginatedMarketResponse);
+     * @generated from protobuf rpc: GetMarketData(markets.GetMarketDataRequest) returns (markets.GetPaginatedMarketResponse);
      */
-    getMarketData(input: PageRequest, options?: RpcOptions): UnaryCall<PageRequest, GetPaginatedMarketResponse>;
+    getMarketData(input: GetMarketDataRequest, options?: RpcOptions): UnaryCall<GetMarketDataRequest, GetPaginatedMarketResponse>;
     /**
      * @generated from protobuf rpc: GetMarketById(markets.RequestWithMarketId) returns (markets.GetMarketByIdResponse);
      */
@@ -51,11 +51,11 @@ export class MarketServiceClient implements IMarketServiceClient, ServiceInfo {
     constructor(private readonly _transport: RpcTransport) {
     }
     /**
-     * @generated from protobuf rpc: GetMarketData(common.PageRequest) returns (markets.GetPaginatedMarketResponse);
+     * @generated from protobuf rpc: GetMarketData(markets.GetMarketDataRequest) returns (markets.GetPaginatedMarketResponse);
      */
-    getMarketData(input: PageRequest, options?: RpcOptions): UnaryCall<PageRequest, GetPaginatedMarketResponse> {
+    getMarketData(input: GetMarketDataRequest, options?: RpcOptions): UnaryCall<GetMarketDataRequest, GetPaginatedMarketResponse> {
         const method = this.methods[0], opt = this._transport.mergeOptions(options);
-        return stackIntercept<PageRequest, GetPaginatedMarketResponse>("unary", this._transport, method, opt, input);
+        return stackIntercept<GetMarketDataRequest, GetPaginatedMarketResponse>("unary", this._transport, method, opt, input);
     }
     /**
      * @generated from protobuf rpc: GetMarketById(markets.RequestWithMarketId) returns (markets.GetMarketByIdResponse);

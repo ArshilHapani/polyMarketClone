@@ -7,7 +7,8 @@ use axum::{
     response::{IntoResponse, Response},
 };
 use db_service::schema::{
-    enums::{OrderSide, OrderStatus, OrderType, Outcome},
+    enums::{MarketStatus, OrderSide, OrderStatus, OrderType, Outcome},
+    market::Market,
     orders::Order,
     user_holdings::UserHoldings,
     users::User,
@@ -42,6 +43,40 @@ pub async fn create_limit_order(
     require_field!(payload.outcome_side);
 
     let market_id = payload.market_id.unwrap();
+
+    let market = Market::get_market_by_id(&app_state.pg_pool, &market_id)
+        .await
+        .map_err(|e| {
+            log_error!("Failed to get market - {:?}", e);
+            (
+                StatusCode::INTERNAL_SERVER_ERROR,
+                Json(json!({
+                    "error": "Failed to get market"
+                }))
+                .into_response(),
+            )
+        })?;
+
+    if market.is_none() {
+        return Err((
+            StatusCode::NOT_FOUND,
+            Json(json!({
+                "error": "Market not found"
+            }))
+            .into_response(),
+        ));
+    }
+
+    if market.unwrap().status == MarketStatus::SETTLED {
+        return Err((
+            StatusCode::BAD_REQUEST,
+            Json(json!({
+                "error": "Market is already settled, cannot create order"
+            }))
+            .into_response(),
+        ));
+    }
+
     let side = payload.side.unwrap();
     let outcome_side = payload.outcome_side.unwrap();
     let user_id = claims.user_id;

@@ -3,24 +3,36 @@ import jsCookies from "js-cookie";
 
 import { marketServiceClient, priceServiceClient } from "../grpc/clients";
 import {
+  GetUserHoldingsResponse,
   GetUserMetadataResponse,
   GetUserOrdersPaginatedResponse,
   GetUserResponse,
+  GetUserTradesResponse,
 } from "../types/api";
 import { OrderCategory } from "../types";
 
 import { Timeframe } from "@/generated/grpc_service_types/common";
-import { GetMarketTradesResponse } from "@/generated/grpc_service_types/markets";
+import {
+  GetMarketTradesResponse,
+  MarketStatus,
+} from "@/generated/grpc_service_types/markets";
 
 const TOKEN = jsCookies.get("polymarketAuthToken") || "";
 const BASE_URL = process.env.NEXT_PUBLIC_SERVICE_API_URL || "";
 
 export class MarketGetters {
-  static async getMarketData(page: number, pageSize: number) {
+  static async getMarketData(
+    page: number,
+    pageSize: number,
+    marketStatus: MarketStatus,
+  ) {
     try {
       const data = await marketServiceClient.getMarketData({
-        page,
-        pageSize,
+        pageRequest: {
+          page,
+          pageSize,
+        },
+        marketStatus,
       });
       return data.response.markets;
     } catch (error: any) {
@@ -137,6 +149,68 @@ export class UserGetters {
     } catch (error: any) {
       console.error("Failed to get user metadata: ", error);
       return null;
+    }
+  }
+
+  static async getUserTrades(
+    page: number,
+    pageSize: number,
+  ): Promise<GetUserTradesResponse> {
+    try {
+      const { data } = await axios.get<GetUserTradesResponse>(
+        `${BASE_URL}/user/trades?page=${page}&pageSize=${pageSize}`,
+        {
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${TOKEN}`,
+          },
+        },
+      );
+      return data;
+    } catch (error: any) {
+      console.error("Failed to get user trades: ", error);
+      return {
+        data: {
+          trades: [],
+          page_info: {
+            page: 0,
+            page_size: 0,
+            total_items: 0,
+            total_pages: 0,
+          },
+        },
+      };
+    }
+  }
+
+  static async getUserHoldings(
+    page: number,
+    pageSize: number,
+  ): Promise<GetUserHoldingsResponse> {
+    try {
+      const { data } = await axios.get<GetUserHoldingsResponse>(
+        `${BASE_URL}/user/holdings?page=${page}&pageSize=${pageSize}`,
+        {
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${TOKEN}`,
+          },
+        },
+      );
+      return data;
+    } catch (error: any) {
+      console.error("Failed to get user holdings: ", error);
+      return {
+        data: {
+          holdings: [],
+          page_info: {
+            page: 0,
+            page_size: 0,
+            total_items: 0,
+            total_pages: 0,
+          },
+        },
+      };
     }
   }
 }

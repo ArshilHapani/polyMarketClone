@@ -121,6 +121,22 @@ pub async fn handle_nats_message(app_state: Arc<AppState>) -> Result<(), OrderSe
                     e
                 })?;
             }
+            NatsSubjects::FinalizeMarket => {
+                let market_id = String::from_utf8(message.payload.to_vec())
+                    .map_err(|_| "Failed to convert payload to string".to_string())?;
+                let market_id = uuid::Uuid::parse_str(&market_id)
+                    .map_err(|_| "Failed to parse market ID from string".to_string())?;
+
+                let mut global_book_guard = app_state.order_book.write();
+                if global_book_guard.remove_market(&market_id) {
+                    log_info!("Market with ID {} removed from global book", market_id);
+                } else {
+                    log_error!(
+                        "Failed to remove market with ID {} from global book",
+                        market_id
+                    );
+                }
+            }
             _ => {}
         }
 

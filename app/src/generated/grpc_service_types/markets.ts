@@ -14,6 +14,19 @@ import { MessageType } from "@protobuf-ts/runtime";
 import { PageInfo } from "./common";
 import { PageRequest } from "./common";
 /**
+ * @generated from protobuf message markets.GetMarketDataRequest
+ */
+export interface GetMarketDataRequest {
+    /**
+     * @generated from protobuf field: common.PageRequest page_request = 1;
+     */
+    pageRequest?: PageRequest; // Pagination request
+    /**
+     * @generated from protobuf field: markets.MarketStatus market_status = 2;
+     */
+    marketStatus: MarketStatus; // Status of the market
+}
+/**
  * @generated from protobuf message markets.OrderLevel
  */
 export interface OrderLevel {
@@ -399,6 +412,60 @@ export enum TradeType {
      */
     SELL = 2
 }
+// @generated message type with reflection information, may provide speed optimized methods
+class GetMarketDataRequest$Type extends MessageType<GetMarketDataRequest> {
+    constructor() {
+        super("markets.GetMarketDataRequest", [
+            { no: 1, name: "page_request", kind: "message", T: () => PageRequest },
+            { no: 2, name: "market_status", kind: "enum", T: () => ["markets.MarketStatus", MarketStatus] }
+        ]);
+    }
+    create(value?: PartialMessage<GetMarketDataRequest>): GetMarketDataRequest {
+        const message = globalThis.Object.create((this.messagePrototype!));
+        message.marketStatus = 0;
+        if (value !== undefined)
+            reflectionMergePartial<GetMarketDataRequest>(this, message, value);
+        return message;
+    }
+    internalBinaryRead(reader: IBinaryReader, length: number, options: BinaryReadOptions, target?: GetMarketDataRequest): GetMarketDataRequest {
+        let message = target ?? this.create(), end = reader.pos + length;
+        while (reader.pos < end) {
+            let [fieldNo, wireType] = reader.tag();
+            switch (fieldNo) {
+                case /* common.PageRequest page_request */ 1:
+                    message.pageRequest = PageRequest.internalBinaryRead(reader, reader.uint32(), options, message.pageRequest);
+                    break;
+                case /* markets.MarketStatus market_status */ 2:
+                    message.marketStatus = reader.int32();
+                    break;
+                default:
+                    let u = options.readUnknownField;
+                    if (u === "throw")
+                        throw new globalThis.Error(`Unknown field ${fieldNo} (wire type ${wireType}) for ${this.typeName}`);
+                    let d = reader.skip(wireType);
+                    if (u !== false)
+                        (u === true ? UnknownFieldHandler.onRead : u)(this.typeName, message, fieldNo, wireType, d);
+            }
+        }
+        return message;
+    }
+    internalBinaryWrite(message: GetMarketDataRequest, writer: IBinaryWriter, options: BinaryWriteOptions): IBinaryWriter {
+        /* common.PageRequest page_request = 1; */
+        if (message.pageRequest)
+            PageRequest.internalBinaryWrite(message.pageRequest, writer.tag(1, WireType.LengthDelimited).fork(), options).join();
+        /* markets.MarketStatus market_status = 2; */
+        if (message.marketStatus !== 0)
+            writer.tag(2, WireType.Varint).int32(message.marketStatus);
+        let u = options.writeUnknownFields;
+        if (u !== false)
+            (u == true ? UnknownFieldHandler.onWrite : u)(this.typeName, message, writer);
+        return writer;
+    }
+}
+/**
+ * @generated MessageType for protobuf message markets.GetMarketDataRequest
+ */
+export const GetMarketDataRequest = new GetMarketDataRequest$Type();
 // @generated message type with reflection information, may provide speed optimized methods
 class OrderLevel$Type extends MessageType<OrderLevel> {
     constructor() {
@@ -1476,7 +1543,7 @@ export const GetPaginatedMarketResponse = new GetPaginatedMarketResponse$Type();
  * @generated ServiceType for protobuf service markets.MarketService
  */
 export const MarketService = new ServiceType("markets.MarketService", [
-    { name: "GetMarketData", options: {}, I: PageRequest, O: GetPaginatedMarketResponse },
+    { name: "GetMarketData", options: {}, I: GetMarketDataRequest, O: GetPaginatedMarketResponse },
     { name: "GetMarketById", options: {}, I: RequestWithMarketId, O: GetMarketByIdResponse },
     { name: "GetMarketBook", options: {}, I: RequestForMarketBook, O: GetMarketBookResponse },
     { name: "GetTopHolders", options: {}, I: RequestWithMarketId, O: GetTopHoldersResponse },
