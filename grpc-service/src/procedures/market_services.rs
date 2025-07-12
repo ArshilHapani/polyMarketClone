@@ -1,6 +1,8 @@
 use std::str::FromStr;
 
-use db_service::schema::{market::Market as SchemaMarket, user_holdings::UserHoldings};
+use db_service::schema::{
+    market::Market as SchemaMarket, user_holdings::UserHoldings, user_trades::UserTrades,
+};
 use sqlx::types::Uuid;
 use tonic::{Request, Response, Status};
 use utility_helpers::redis::keys::RedisKey;
@@ -9,8 +11,9 @@ use crate::{
     generated::{
         common::PageRequest,
         markets::{
-            GetMarketBookResponse, GetMarketByIdResponse, GetPaginatedMarketResponse,
-            GetTopHoldersResponse, RequestForMarketBook, RequestWithMarketId,
+            GetMarketBookResponse, GetMarketByIdResponse, GetMarketTradesResponse,
+            GetPaginatedMarketResponse, GetTopHoldersResponse, RequestForMarketBook,
+            RequestWithMarketId, RequestWithMarketIdAndPageRequest,
             market_service_server::MarketService,
         },
     },
@@ -192,13 +195,59 @@ impl MarketService for MarketServiceStub {
         let market_id = Uuid::from_str(&market_id)
             .map_err(|_| Status::invalid_argument("Invalid market id"))?;
 
-        let top_holders = UserHoldings::get_top_holders(&self.state.db_pool, market_id, 10)
-            .await
-            .map_err(|e| Status::internal(format!("Failed to get top holders: {}", e)))?;
+        let top_holders = UserHoldings::get_top_holders(
+            &self.state.db_pool,
+            market_id,
+            self.state.admin_username.clone(),
+            10,
+        )
+        .await
+        .map_err(|e| Status::internal(format!("Failed to get top holders: {}", e)))?;
 
         let response = GetTopHoldersResponse {
             market_id: market_id.to_string(),
             top_holders: top_holders.into_iter().map(Into::into).collect(),
+        };
+
+        Ok(Response::new(response))
+    }
+
+    async fn get_market_trades(
+        &self,
+        req: Request<RequestWithMarketIdAndPageRequest>,
+    ) -> Result<Response<GetMarketTradesResponse>, Status> {
+        let market_id = req.get_ref().market_id.clone();
+        let page_request = req.get_ref().page_request;
+
+        if page_request.is_none() {
+            return Err(Status::invalid_argument("Page request cannot be empty"));
+        }
+        let page_request = page_request.unwrap();
+
+        validate_strings!(market_id);
+        validate_numbers!(page_request.page);
+        validate_numbers!(page_request.page_size);
+        let market_id = Uuid::from_str(&market_id)
+            .map_err(|_| Status::invalid_argument("Invalid market id"))?;
+
+        let paginated_response = UserTrades::get_market_trades_paginated(
+            market_id,
+            self.state.admin_username.clone(),
+            page_request.page,
+            page_request.page_size,
+            &self.state.db_pool,
+        )
+        .await
+        .map_err(|e| Status::internal(format!("Failed to get market trades: {}", e)))?;
+
+        let response = GetMarketTradesResponse {
+            market_id: market_id.to_string(),
+            trades: paginated_response
+                .items
+                .into_iter()
+                .map(Into::into)
+                .collect(),
+            page_info: Some(paginated_response.page_info.into()),
         };
 
         Ok(Response::new(response))

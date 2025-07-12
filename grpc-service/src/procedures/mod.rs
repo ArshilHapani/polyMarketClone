@@ -1,13 +1,18 @@
 use db_service::{
     pagination::PageInfo as DbPageInfo,
-    schema::{market::Market as DbMarket, user_holdings::UserIdWithShares},
+    schema::{
+        market::Market as DbMarket, user_holdings::UserIdWithShares, user_trades::MarketTrades,
+    },
 };
 use utility_helpers::to_f64_verbose;
 
 use crate::{
     generated::{
         common::PageInfo,
-        markets::{GetMarketBookResponse, Market, OrderBook, OrderLevel, UserWithTotalHoldings},
+        markets::{
+            GetMarketBookResponse, Market, MarketTrade as GeneratedMarketTrade, OrderBook,
+            OrderLevel, UserWithTotalHoldings,
+        },
     },
     utils::clickhouse_schema::GetOrderBook,
 };
@@ -41,6 +46,21 @@ impl From<DbPageInfo> for PageInfo {
             page_size: value.page_size,
             total_items: value.total_items,
             total_pages: value.total_pages,
+        }
+    }
+}
+impl From<MarketTrades> for GeneratedMarketTrade {
+    fn from(value: MarketTrades) -> Self {
+        GeneratedMarketTrade {
+            created_at: value.timestamp.to_string(),
+            email: value.email,
+            avatar: value.avatar,
+            id: value.id.to_string(),
+            name: value.name,
+            outcome: value.outcome as i32,
+            price: to_f64_verbose(value.price),
+            quantity: to_f64_verbose(value.quantity),
+            trade_type: value.trade_type as i32,
         }
     }
 }

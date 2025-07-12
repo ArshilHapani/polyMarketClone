@@ -4,7 +4,7 @@ use serde::{Deserialize, Serialize};
 use sqlx::{Executor, Postgres};
 use uuid::Uuid;
 
-use crate::schema::enums::Outcome;
+use crate::schema::enums::{MarketStatus, Outcome};
 
 #[derive(Debug, Serialize, Deserialize, sqlx::FromRow, Default)]
 pub struct UserHoldings {
@@ -25,6 +25,22 @@ pub struct UserIdWithShares {
     pub total_no_shares: Option<Decimal>,
     pub username: Option<String>,
     pub avatar: Option<String>,
+}
+
+#[derive(Debug, sqlx::FromRow)]
+pub struct UserHoldingWithMarket {
+    pub market_id: Uuid,
+    pub outcome: Outcome,
+    pub shares: Decimal,
+
+    pub market_name: String,
+    pub market_description: String,
+    pub market_logo: String,
+    pub market_status: MarketStatus,
+    pub final_outcome: Outcome,
+    pub market_expiry: NaiveDateTime,
+    pub market_created_at: NaiveDateTime,
+    pub market_updated_at: NaiveDateTime,
 }
 
 impl UserHoldings {
@@ -218,6 +234,7 @@ impl UserHoldings {
     pub async fn get_top_holders(
         db_pool: &sqlx::PgPool,
         market_id: Uuid,
+        admin_user: String,
         limit: i8,
     ) -> Result<Vec<UserIdWithShares>, sqlx::error::Error> {
         let orders = sqlx::query_as!(
@@ -232,17 +249,48 @@ impl UserHoldings {
                     SUM(uh.shares) FILTER (WHERE uh.outcome = 'no'::polymarket.outcome) AS total_no_shares
                 FROM polymarket.user_holdings uh
                 JOIN polymarket.users u ON uh.user_id = u.id
-                WHERE uh.market_id = $1
+                WHERE uh.market_id = $1 AND u.name != $2
                 GROUP BY u.id, u.name, u.avatar
                 ORDER BY total_shares DESC
-                LIMIT $2
+                LIMIT $3
             "#,
             market_id,
+            admin_user,
             limit as i32
         )
         .fetch_all(db_pool)
         .await?;
 
         Ok(orders)
+    }
+
+    pub async fn get_user_holdings_by_market(
+        db_pool: &sqlx::PgPool,
+        user_id: Uuid,
+    ) -> Result<Vec<UserHoldingWithMarket>, sqlx::error::Error> {
+        sqlx::query_as!(
+            UserHoldingWithMarket,
+            r#"
+            SELECT 
+                uh.market_id,
+                uh.outcome AS "outcome: Outcome",
+                uh.shares,
+                
+                m.name AS market_name,
+                m.description AS market_description,
+                m.logo AS market_logo,
+                m.status AS "market_status: MarketStatus",
+                m.final_outcome AS "final_outcome: Outcome",
+                m.market_expiry AS market_expiry,
+                m.created_at AS market_created_at,
+                m.updated_at AS market_updated_at
+            FROM polymarket.user_holdings uh
+            JOIN polymarket.markets m ON uh.market_id = m.id
+            WHERE uh.user_id = $1;
+            "#,
+            user_id
+        )
+        .fetch_all(db_pool)
+        .await
     }
 }

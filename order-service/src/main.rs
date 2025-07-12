@@ -40,12 +40,18 @@ async fn initialize_app() -> Result<Arc<AppState>, Box<dyn std::error::Error>> {
     let open_orders_future = Order::get_order_by_status(&app_state.db_pool, OrderStatus::OPEN);
     let partially_updated_orders_future =
         Order::get_order_by_status(&app_state.db_pool, OrderStatus::PendingUpdate);
+    let unspecified_orders_future =
+        Order::get_order_by_status(&app_state.db_pool, OrderStatus::UNSPECIFIED);
 
-    let (mut open_orders, mut partially_updated_orders) =
-        tokio::try_join!(open_orders_future, partially_updated_orders_future)?;
+    let (mut open_orders, mut partially_updated_orders, mut unspecified_orders) = tokio::try_join!(
+        open_orders_future,
+        partially_updated_orders_future,
+        unspecified_orders_future
+    )?;
 
     // combine open and partially updated orders
     open_orders.append(&mut partially_updated_orders);
+    open_orders.append(&mut unspecified_orders);
 
     // synchronous block, to prevent guard from being blocked
     {

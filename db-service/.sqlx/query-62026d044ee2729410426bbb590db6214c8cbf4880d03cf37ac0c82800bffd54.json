@@ -1,6 +1,6 @@
 {
   "db_name": "PostgreSQL",
-  "query": "\n            SELECT\n                id,\n                user_id,\n                market_id,\n                outcome as \"outcome: Outcome\",\n                price,\n                quantity,\n                filled_quantity,\n                status as \"status: OrderStatus\",\n                side as \"side: OrderSide\",\n                created_at,\n                updated_at\n            FROM polymarket.orders\n            WHERE user_id = $1 AND status = $2\n            ORDER BY created_at DESC\n            LIMIT $3 OFFSET $4\n            ",
+  "query": "\n                    SELECT\n                        id, user_id, market_id,\n                        outcome as \"outcome: Outcome\",\n                        price, \n                        quantity, \n                        filled_quantity,\n                        status as \"status: OrderStatus\",\n                        side as \"side: OrderSide\",\n                        order_type as \"order_type: OrderType\",\n                        created_at, updated_at\n                    FROM polymarket.orders\n                    WHERE user_id = $1 AND market_id = $2 AND status = $3\n                    ORDER BY created_at DESC\n                    LIMIT $4 OFFSET $5\n                ",
   "describe": {
     "columns": [
       {
@@ -87,17 +87,35 @@
       },
       {
         "ordinal": 9,
+        "name": "order_type: OrderType",
+        "type_info": {
+          "Custom": {
+            "name": "polymarket.order_type",
+            "kind": {
+              "Enum": [
+                "limit",
+                "market",
+                "stop_loss",
+                "take_profit"
+              ]
+            }
+          }
+        }
+      },
+      {
+        "ordinal": 10,
         "name": "created_at",
         "type_info": "Timestamp"
       },
       {
-        "ordinal": 10,
+        "ordinal": 11,
         "name": "updated_at",
         "type_info": "Timestamp"
       }
     ],
     "parameters": {
       "Left": [
+        "Uuid",
         "Uuid",
         {
           "Custom": {
@@ -131,8 +149,9 @@
       false,
       false,
       false,
+      false,
       false
     ]
   },
-  "hash": "0bbb16f5a8d180bc37440f015520c7b6b55e158e20f163e4d8bfc83dad3ef189"
+  "hash": "62026d044ee2729410426bbb590db6214c8cbf4880d03cf37ac0c82800bffd54"
 }

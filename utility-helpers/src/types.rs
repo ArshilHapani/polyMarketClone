@@ -25,6 +25,7 @@ pub struct EnvVarConfig {
     pub clickhouse_url: String,
     pub clickhouse_password: String,
     pub shared_secret: String,
+    pub admin_username: String,
 }
 
 impl EnvVarConfig {
@@ -62,8 +63,12 @@ impl EnvVarConfig {
         let shared_secret =
             var("SHARED_SECRET").map_err(|_| "SHARED_SECRET variable not set".to_string())?;
 
+        let admin_username = var("ADMIN_USERNAME")
+            .map_err(|_| "ADMIN_USERNAME environment variable not set".to_string())?;
+
         Ok(EnvVarConfig {
             jwt_secret,
+            admin_username,
             secret_key,
             redis_url,
             database_url,

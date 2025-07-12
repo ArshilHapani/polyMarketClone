@@ -57,6 +57,14 @@ pub(crate) struct OrderBookMatchedOutput {
 
 impl OutcomeBook {
     pub(crate) fn add_order(&mut self, order: &Order) {
+        if order.status == OrderStatus::FILLED || order.status == OrderStatus::CANCELLED {
+            log_info!(
+                "Order with id {} is already filled or cancelled, not adding to book",
+                order.id
+            );
+            return; // no need to add filled or cancelled orders
+        }
+
         if order.price > Decimal::ONE {
             log_info!(
                 "Order price should be less than or equal to 1.0, but got: {}, not adding order",

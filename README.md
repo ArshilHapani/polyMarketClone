@@ -1,5 +1,11 @@
 ![Architecture v2](./assets/architecture_v3.png)
 
+# Sub sys architecture diagrams
+
+![Order book reading](./assets/order-book-reading-arch-1.png)
+
+![Order book ops](./assets/order-ops-arch-1.png)
+
 ## Important rpk commands
 
 - `rpk topic consume price-updates -n 10` - Consume the last 10 messages from the `price-updates` topic.

@@ -107,6 +107,7 @@ pub async fn update_service_state(
 
     let ts = current_time.to_rfc3339();
     let data_to_publish_for_price_update = serde_json::json!({
+        "user_id": order.user_id.to_string(),
         "market_id": market_id.to_string(),
         "yes_price":yes_price.to_string(),
         "no_price": no_price.to_string(),
@@ -115,6 +116,7 @@ pub async fn update_service_state(
     .to_string();
 
     let data_to_publish_for_order_book_update = serde_json::json!({
+        "user_id": order.user_id.to_string(),
         "market_id": market_id.to_string(),
         "yes_asks": yes_orders_data.asks,
         "yes_bids": yes_orders_data.bids,
@@ -125,6 +127,7 @@ pub async fn update_service_state(
     .to_string();
 
     let data_to_publish_for_volume_update = serde_json::json!({
+        "user_id": order.user_id.to_string(),
         "market_id": market_id,
         "order_id": order.id,
         "ts": ts,
@@ -186,11 +189,8 @@ pub async fn update_service_state(
         let message_pack_encoded = serialize_to_message_pack(&combined_data)?;
 
         // pushing message to queue
-
-        let publish_msg_future = js_guard.publish(
-            NatsSubjects::MarketBookUpdate(market_id).to_string(),
-            message_pack_encoded.into(),
-        );
+        let subject = NatsSubjects::MarketBookUpdate(market_id).to_string();
+        let publish_msg_future = js_guard.publish(subject, message_pack_encoded.into());
 
         nats_futures.push(publish_msg_future);
     }

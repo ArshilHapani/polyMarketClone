@@ -31,7 +31,7 @@ pub async fn update_matched_orders(
             OrderStatus::OPEN
         };
 
-        // need to update current order when it's get mutated from matching engine
+        // current order is updated previously, as it's get mutated from order matching engine
         Order::update_order_status_and_filled_quantity(
             &app_state.db_pool,
             opposite_order_id,

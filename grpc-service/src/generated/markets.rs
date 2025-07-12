@@ -14,6 +14,51 @@ pub struct OrderLevel {
 }
 #[derive(serde::Serialize, serde::Deserialize)]
 #[derive(Clone, PartialEq, ::prost::Message)]
+pub struct RequestWithMarketIdAndPageRequest {
+    /// ID of the market
+    #[prost(string, tag = "1")]
+    pub market_id: ::prost::alloc::string::String,
+    /// Pagination request
+    #[prost(message, optional, tag = "2")]
+    pub page_request: ::core::option::Option<super::common::PageRequest>,
+}
+#[derive(serde::Serialize, serde::Deserialize)]
+#[derive(Clone, PartialEq, ::prost::Message)]
+pub struct MarketTrade {
+    #[prost(string, tag = "1")]
+    pub id: ::prost::alloc::string::String,
+    #[prost(string, tag = "2")]
+    pub name: ::prost::alloc::string::String,
+    #[prost(string, tag = "3")]
+    pub avatar: ::prost::alloc::string::String,
+    #[prost(string, tag = "4")]
+    pub email: ::prost::alloc::string::String,
+    #[prost(enumeration = "TradeType", tag = "5")]
+    pub trade_type: i32,
+    #[prost(enumeration = "Outcome", tag = "6")]
+    pub outcome: i32,
+    #[prost(double, tag = "7")]
+    pub price: f64,
+    #[prost(double, tag = "8")]
+    pub quantity: f64,
+    #[prost(string, tag = "9")]
+    pub created_at: ::prost::alloc::string::String,
+}
+#[derive(serde::Serialize, serde::Deserialize)]
+#[derive(Clone, PartialEq, ::prost::Message)]
+pub struct GetMarketTradesResponse {
+    /// ID of the market
+    #[prost(string, tag = "1")]
+    pub market_id: ::prost::alloc::string::String,
+    /// List of trades for the market
+    #[prost(message, repeated, tag = "2")]
+    pub trades: ::prost::alloc::vec::Vec<MarketTrade>,
+    /// Pagination info
+    #[prost(message, optional, tag = "3")]
+    pub page_info: ::core::option::Option<super::common::PageInfo>,
+}
+#[derive(serde::Serialize, serde::Deserialize)]
+#[derive(Clone, PartialEq, ::prost::Message)]
 pub struct OrderBook {
     #[prost(message, repeated, tag = "1")]
     pub bids: ::prost::alloc::vec::Vec<OrderLevel>,
@@ -215,6 +260,38 @@ impl Outcome {
         }
     }
 }
+#[derive(serde::Serialize, serde::Deserialize)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Hash, PartialOrd, Ord, ::prost::Enumeration)]
+#[repr(i32)]
+pub enum TradeType {
+    UnspecifiedTradeType = 0,
+    /// Buy trade
+    Buy = 1,
+    /// Sell trade
+    Sell = 2,
+}
+impl TradeType {
+    /// String value of the enum field names used in the ProtoBuf definition.
+    ///
+    /// The values are not transformed in any way and thus are considered stable
+    /// (if the ProtoBuf definition does not change) and safe for programmatic use.
+    pub fn as_str_name(&self) -> &'static str {
+        match self {
+            Self::UnspecifiedTradeType => "UNSPECIFIED_TRADE_TYPE",
+            Self::Buy => "BUY",
+            Self::Sell => "SELL",
+        }
+    }
+    /// Creates an enum from field names used in the ProtoBuf definition.
+    pub fn from_str_name(value: &str) -> ::core::option::Option<Self> {
+        match value {
+            "UNSPECIFIED_TRADE_TYPE" => Some(Self::UnspecifiedTradeType),
+            "BUY" => Some(Self::Buy),
+            "SELL" => Some(Self::Sell),
+            _ => None,
+        }
+    }
+}
 /// Generated server implementations.
 pub mod market_service_server {
     #![allow(
@@ -254,6 +331,13 @@ pub mod market_service_server {
             request: tonic::Request<super::RequestWithMarketId>,
         ) -> std::result::Result<
             tonic::Response<super::GetTopHoldersResponse>,
+            tonic::Status,
+        >;
+        async fn get_market_trades(
+            &self,
+            request: tonic::Request<super::RequestWithMarketIdAndPageRequest>,
+        ) -> std::result::Result<
+            tonic::Response<super::GetMarketTradesResponse>,
             tonic::Status,
         >;
     }
@@ -499,6 +583,55 @@ pub mod market_service_server {
                     let inner = self.inner.clone();
                     let fut = async move {
                         let method = GetTopHoldersSvc(inner);
+                        let codec = tonic::codec::ProstCodec::default();
+                        let mut grpc = tonic::server::Grpc::new(codec)
+                            .apply_compression_config(
+                                accept_compression_encodings,
+                                send_compression_encodings,
+                            )
+                            .apply_max_message_size_config(
+                                max_decoding_message_size,
+                                max_encoding_message_size,
+                            );
+                        let res = grpc.unary(method, req).await;
+                        Ok(res)
+                    };
+                    Box::pin(fut)
+                }
+                "/markets.MarketService/GetMarketTrades" => {
+                    #[allow(non_camel_case_types)]
+                    struct GetMarketTradesSvc<T: MarketService>(pub Arc<T>);
+                    impl<
+                        T: MarketService,
+                    > tonic::server::UnaryService<
+                        super::RequestWithMarketIdAndPageRequest,
+                    > for GetMarketTradesSvc<T> {
+                        type Response = super::GetMarketTradesResponse;
+                        type Future = BoxFuture<
+                            tonic::Response<Self::Response>,
+                            tonic::Status,
+                        >;
+                        fn call(
+                            &mut self,
+                            request: tonic::Request<
+                                super::RequestWithMarketIdAndPageRequest,
+                            >,
+                        ) -> Self::Future {
+                            let inner = Arc::clone(&self.0);
+                            let fut = async move {
+                                <T as MarketService>::get_market_trades(&inner, request)
+                                    .await
+                            };
+                            Box::pin(fut)
+                        }
+                    }
+                    let accept_compression_encodings = self.accept_compression_encodings;
+                    let send_compression_encodings = self.send_compression_encodings;
+                    let max_decoding_message_size = self.max_decoding_message_size;
+                    let max_encoding_message_size = self.max_encoding_message_size;
+                    let inner = self.inner.clone();
+                    let fut = async move {
+                        let method = GetMarketTradesSvc(inner);
                         let codec = tonic::codec::ProstCodec::default();
                         let mut grpc = tonic::server::Grpc::new(codec)
                             .apply_compression_config(

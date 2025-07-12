@@ -432,8 +432,22 @@ impl Order {
         status: OrderStatus,
         page: u32,
         page_size: u32,
-    ) -> Result<Vec<Order>, sqlx::Error> {
+    ) -> Result<(Vec<Order>, u32), sqlx::Error> {
         let offset = (page - 1) * page_size;
+
+        let total_count = sqlx::query_scalar!(
+            r#"
+            SELECT COUNT(*) FROM polymarket.orders
+            WHERE user_id = $1 AND status = $2
+            "#,
+            user_id,
+            status as _
+        )
+        .fetch_one(pool)
+        .await?
+        .unwrap_or(0);
+
+        let total_pages = (total_count as u32 + page_size - 1) / page_size;
 
         let orders = sqlx::query_as!(
             Order,
@@ -464,7 +478,7 @@ impl Order {
         .fetch_all(pool)
         .await?;
 
-        Ok(orders)
+        Ok((orders, total_pages))
     }
 
     pub async fn get_user_orders_by_market_paginated(
@@ -474,8 +488,22 @@ impl Order {
         page: u32,
         page_size: u32,
         status: Option<OrderStatus>,
-    ) -> Result<Vec<Order>, sqlx::Error> {
+    ) -> Result<(Vec<Order>, u32), sqlx::Error> {
         let offset = (page - 1) * page_size;
+        let total_count = sqlx::query_scalar!(
+            r#"
+            SELECT COUNT(*) FROM polymarket.orders
+            WHERE user_id = $1 AND market_id = $2
+            "#,
+            user_id,
+            market_id
+        )
+        .fetch_one(pool)
+        .await?
+        .unwrap_or(0);
+
+        let total_pages = (total_count as u32 + page_size - 1) / page_size;
+
         if let Some(status) = status {
             let orders = sqlx::query_as!(
                 Order,
@@ -503,7 +531,7 @@ impl Order {
             )
             .fetch_all(pool)
             .await?;
-            Ok(orders)
+            Ok((orders, total_pages))
         } else {
             let orders = sqlx::query_as!(
                 Order,
@@ -530,7 +558,7 @@ impl Order {
             )
             .fetch_all(pool)
             .await?;
-            Ok(orders)
+            Ok((orders, total_pages))
         }
     }
 
@@ -578,8 +606,8 @@ impl Order {
                 Order,
                 r#"
                 INSERT INTO "polymarket"."orders"
-                (user_id, market_id, price, quantity, side, outcome, order_type)
-                VALUES ($1, $2, $3, $4, $5, $6, $7)
+                (user_id, market_id, price, quantity, side, outcome, order_type, status)
+                VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
                 RETURNING 
                 id, user_id, market_id,
                 outcome as "outcome: Outcome",
@@ -587,7 +615,7 @@ impl Order {
                 status as "status: OrderStatus",
                 side as "side: OrderSide",
                 created_at, updated_at,
-                order_type as "order_type: OrderType"
+                order_type as "order_type: OrderType"        
                 "#,
                 order.user_id,
                 order.market_id,
@@ -596,6 +624,7 @@ impl Order {
                 order.side as _,
                 order.outcome as _,
                 order.order_type as _,
+                order.status as _,
             )
             .fetch_one(&mut *transaction)
             .await?;

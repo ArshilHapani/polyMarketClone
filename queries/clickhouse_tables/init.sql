@@ -8,6 +8,7 @@ USE polyMarket;
 
 -- Core table
 CREATE TABLE market_price_data (
+    user_id UUID,
     market_id UUID,
     yes_price Float64,
     no_price Decimal(20, 8),
@@ -19,6 +20,7 @@ ORDER BY ts;
 
 -- kafka engine table
 CREATE TABLE market_price_data_kafka (
+    user_id UUID,
     market_id UUID,
     yes_price Decimal(20, 8),
     no_price Decimal(20, 8),
@@ -35,6 +37,7 @@ DROP TABLE IF EXISTS market_price_data_mv;
 CREATE MATERIALIZED VIEW market_price_data_mv
 TO market_price_data AS
 SELECT 
+    user_id,
     market_id,
     yes_price,
     no_price,
@@ -47,6 +50,7 @@ FROM market_price_data_kafka;
 
 --CORE TABLE
 CREATE TABLE market_order_book (
+    user_id UUID,
     market_id UUID,
     ts DateTime('UTC'),
 
@@ -60,8 +64,24 @@ CREATE TABLE market_order_book (
 ) ENGINE = MergeTree    
 ORDER BY (market_id, ts);
 
+CREATE TABLE market_order_book_analytical (
+    user_id UUID,
+    market_id UUID,
+    ts DateTime('UTC'),
+
+    created_at DateTime('UTC') DEFAULT now(),
+
+    yes_bids Array(Tuple(price Float64, shares Float64, users UInt32)),
+    yes_asks Array(Tuple(price Float64, shares Float64, users UInt32)),
+
+    no_bids Array(Tuple(price Float64, shares Float64, users UInt32)),
+    no_asks Array(Tuple(price Float64, shares Float64, users UInt32))
+) ENGINE = MergeTree
+ORDER BY (market_id, ts);
+
 -- KAFKA ENGINE TABLE
 CREATE TABLE market_order_book_kafka (
+    user_id UUID,
     market_id UUID,
     ts String,
 
@@ -81,6 +101,21 @@ DROP TABLE IF EXISTS market_order_book_mv;
 CREATE MATERIALIZED VIEW market_order_book_mv
 TO market_order_book AS
 SELECT
+    user_id,
+    market_id,
+    parseDateTimeBestEffort(ts) AS ts,
+    yes_bids,
+    yes_asks,
+    no_bids,
+    no_asks
+FROM market_order_book_kafka;
+
+-- materialize view to copy data from kafka to analytical table
+DROP TABLE IF EXISTS market_order_book_analytical_mv;
+CREATE MATERIALIZED VIEW market_order_book_analytical_mv
+TO market_order_book_analytical AS
+SELECT
+    user_id,
     market_id,
     parseDateTimeBestEffort(ts) AS ts,
     yes_bids,
@@ -95,6 +130,7 @@ FROM market_order_book_kafka;
 
 -- CORE TABLE
 CREATE TABLE market_volume_data (
+    user_id UUID,
     market_id UUID,
     order_id UUID,
     ts DateTime('UTC'),
@@ -113,6 +149,7 @@ ORDER BY (market_id, ts);
 
 -- KAFKA ENGINE TABLE
 CREATE TABLE market_volume_data_kafka (
+    user_id UUID,
     market_id UUID,
     order_id UUID,
     ts String,
@@ -133,6 +170,7 @@ DROP TABLE IF EXISTS market_volume_data_mv;
 CREATE MATERIALIZED VIEW market_volume_data_mv
 TO market_volume_data AS
 SELECT
+    user_id,
     market_id,
     order_id,
     parseDateTimeBestEffort(ts) AS ts,

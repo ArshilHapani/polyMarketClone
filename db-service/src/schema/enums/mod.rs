@@ -6,11 +6,11 @@ use serde::{Deserialize, Serialize};
 pub enum MarketStatus {
     #[default]
     #[serde(rename = "open")]
-    OPEN,
+    OPEN = 1,
     #[serde(rename = "closed")]
-    CLOSED,
+    CLOSED = 2,
     #[serde(rename = "settled")]
-    SETTLED,
+    SETTLED = 3,
 }
 
 #[derive(Debug, Serialize, Deserialize, sqlx::Type, Clone, PartialEq, Default, Copy, Eq, Hash)]
@@ -18,12 +18,12 @@ pub enum MarketStatus {
 #[sqlx(rename_all = "lowercase")]
 pub enum Outcome {
     #[serde(rename = "yes")]
-    YES,
+    YES = 1,
     #[serde(rename = "no")]
-    NO,
+    NO = 2,
     #[default]
     #[serde(rename = "unspecified")]
-    UNSPECIFIED,
+    UNSPECIFIED = 0,
 }
 
 #[derive(Debug, Serialize, Deserialize, sqlx::Type, Clone, PartialEq, Default, Copy, Eq, Hash)]
@@ -32,9 +32,9 @@ pub enum Outcome {
 pub enum OrderSide {
     #[default]
     #[serde(rename = "buy")]
-    BUY, // bids
+    BUY = 1, // bids
     #[serde(rename = "sell")]
-    SELL, // asks
+    SELL = 2, // asks
 }
 
 #[derive(Debug, Serialize, Deserialize, sqlx::Type, Clone, PartialEq, Default, Copy)]
@@ -43,22 +43,22 @@ pub enum OrderSide {
 pub enum OrderStatus {
     #[default]
     #[serde(rename = "open")]
-    OPEN,
+    OPEN = 1,
     #[serde(rename = "filled")]
-    FILLED,
+    FILLED = 2,
     #[serde(rename = "cancelled")]
-    CANCELLED,
+    CANCELLED = 3,
     #[serde(rename = "expired")]
-    EXPIRED,
+    EXPIRED = 4,
     #[serde(rename = "unspecified")]
-    UNSPECIFIED,
+    UNSPECIFIED = 5,
     #[sqlx(rename = "pending_update")]
-    PendingUpdate,
+    PendingUpdate = 6,
     #[sqlx(rename = "pending_cancel")]
-    PendingCancel,
+    PendingCancel = 7,
     // NOT USED!!!! and DON'T USE IT
     #[sqlx(rename = "partial_fill")]
-    PartialFill,
+    PartialFill = 8,
 }
 
 #[derive(Debug, Serialize, Deserialize, sqlx::Type, Clone, PartialEq, Default, Copy)]
@@ -67,11 +67,11 @@ pub enum OrderStatus {
 pub enum UserTransactionType {
     #[default]
     #[serde(rename = "deposit")]
-    DEPOSIT,
+    DEPOSIT = 1,
     #[serde(rename = "withdrawal")]
-    WITHDRAWAL,
+    WITHDRAWAL = 2,
     #[serde(rename = "trade")]
-    TRADE,
+    TRADE = 3,
 }
 
 #[derive(Debug, Serialize, Deserialize, sqlx::Type, Clone, PartialEq, Default, Copy)]
@@ -80,11 +80,11 @@ pub enum UserTransactionType {
 pub enum UserTransactionStatus {
     #[default]
     #[serde(rename = "pending")]
-    PENDING,
+    PENDING = 1,
     #[serde(rename = "completed")]
-    COMPLETED,
+    COMPLETED = 2,
     #[serde(rename = "failed")]
-    FAILED,
+    FAILED = 3,
 }
 
 #[derive(Debug, Serialize, Deserialize, sqlx::Type, Clone, PartialEq, Default, Copy)]
@@ -93,11 +93,11 @@ pub enum UserTransactionStatus {
 pub enum OrderType {
     #[default]
     #[serde(rename = "limit")]
-    LIMIT,
+    LIMIT = 1,
     #[serde(rename = "market")]
-    MARKET,
+    MARKET = 2,
     #[serde(rename = "stop_loss")]
-    StopLoss,
+    StopLoss = 3,
     #[serde(rename = "take_profit")]
-    TakeProfit,
+    TakeProfit = 4,
 }

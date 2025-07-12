@@ -113,8 +113,6 @@ impl Market {
         .total_count
         .unwrap_or(0);
 
-        let total_pages = (total_count as u64 + page_size - 1) / page_size;
-
         let markets = sqlx::query_as!(
             Market,
             r#"
@@ -143,7 +141,7 @@ impl Market {
             markets,
             page,
             page_size,
-            total_pages,
+            total_count as u64,
         ))
     }
 

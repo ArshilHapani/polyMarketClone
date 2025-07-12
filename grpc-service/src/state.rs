@@ -8,6 +8,7 @@ pub struct AppState {
     pub db_pool: PgPool,
     pub redis_helper: RedisHelper,
     pub clickhouse_client: clickhouse::Client,
+    pub admin_username: String,
 }
 
 impl AppState {
@@ -24,9 +25,11 @@ impl AppState {
             .with_database("polyMarket")
             .with_user("polyMarket")
             .with_password(env_config.clickhouse_password);
+        let admin_username = env_config.admin_username.clone();
         log_info!("Connected to ClickHouse");
 
         Ok(AppState {
+            admin_username,
             db_pool,
             redis_helper,
             clickhouse_client,

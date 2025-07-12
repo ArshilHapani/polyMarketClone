@@ -49,7 +49,7 @@ pub async fn get_all_users_orders(
 
     validate_paginated_fields!(page, page_size);
 
-    let user_orders = Order::get_user_orders_by_paginated(
+    let (user_orders, total_page) = Order::get_user_orders_by_paginated(
         &app_state.pg_pool,
         user_id,
         order_status,
@@ -69,6 +69,7 @@ pub async fn get_all_users_orders(
         "orders": user_orders,
         "page": page,
         "page_size": page_size,
+        "total_pages": total_page,
     }))
     .into_response())
 }

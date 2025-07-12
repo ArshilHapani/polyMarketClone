@@ -34,6 +34,39 @@ pub struct UserBalance {
     pub balance: Decimal,
 }
 
+#[derive(Debug, sqlx::FromRow, Serialize)]
+pub struct UserProfileInsights {
+    pub id: Uuid,
+    pub name: String,
+    pub email: String,
+    pub avatar: String,
+    pub public_key: String,
+    pub balance: Decimal,
+    pub last_login: NaiveDateTime,
+    pub created_at: NaiveDateTime,
+
+    // Orders
+    pub open_orders: Option<i64>,
+    pub partial_orders: Option<i64>,
+    pub total_orders: Option<i64>,
+    pub avg_fill_ratio: Option<Decimal>,
+
+    // Trades
+    pub total_trades: Option<i64>,
+    pub total_volume: Option<Decimal>,
+    pub avg_trade_price: Option<Decimal>,
+    pub max_trade_qty: Option<Decimal>,
+    pub first_trade_at: Option<NaiveDateTime>,
+    pub last_trade_at: Option<NaiveDateTime>,
+    pub markets_traded: Option<i64>,
+
+    // Transactions
+    pub total_deposit: Option<Decimal>,
+    pub total_withdraw: Option<Decimal>,
+    pub last_deposit: Option<NaiveDateTime>,
+    pub last_withdraw: Option<NaiveDateTime>,
+}
+
 impl User {
     pub async fn create_new_user(
         pool: &PgPool,
@@ -228,6 +261,7 @@ impl User {
         let admin_name = "Admin";
         let admin_avatar = "https://arshil.vercel.app/images/logo.png";
         let admin_google_id = "admin_google_id";
+        let admin_balance = Decimal::new(1_000_000, 2); // 10,000.00
 
         let admin = sqlx::query_as!(
             User,
@@ -238,25 +272,123 @@ impl User {
                 name,
                 avatar,
                 public_key, 
-                private_key
+                private_key,
+                balance
             ) VALUES (
-                $1, $2, $3, $4, 'no_puk', 'no_prk'
+                $1, $2, $3, $4, 'no_puk', 'no_prk', $5
             ) ON CONFLICT (google_id) DO UPDATE SET
                 email = EXCLUDED.email,
                 name = EXCLUDED.name,
                 avatar = EXCLUDED.avatar,
-                last_login = CURRENT_TIMESTAMP
+                last_login = CURRENT_TIMESTAMP,
+                balance = EXCLUDED.balance
             RETURNING *
             "#,
             admin_google_id,
             admin_email,
             admin_name,
-            admin_avatar
+            admin_avatar,
+            admin_balance
         )
         .fetch_one(pool)
         .await?;
 
         Ok(admin)
+    }
+
+    pub async fn get_user_metadata(
+        pool: &PgPool,
+        user_id: Uuid,
+    ) -> Result<UserProfileInsights, sqlx::Error> {
+        let user = sqlx::query_as!(
+            UserProfileInsights,
+            r#"
+                WITH 
+                holdings AS (
+                    SELECT 
+                        uh.market_id,
+                        uh.outcome,
+                        uh.shares
+                    FROM polymarket.user_holdings uh
+                    WHERE uh.user_id = $1
+                ),
+
+                orders AS (
+                    SELECT 
+                        COUNT(*) FILTER (WHERE status = 'open') AS open_orders,
+                        COUNT(*) FILTER (WHERE status = 'partial_fill') AS partial_orders,
+                        COUNT(*) AS total_orders,
+                        AVG(filled_quantity / NULLIF(quantity, 0)) AS avg_fill_ratio
+                    FROM polymarket.orders
+                    WHERE user_id = $1
+                ),
+
+                trades AS (
+                    SELECT 
+                        COUNT(*) AS total_trades,
+                        SUM(quantity) AS total_volume,
+                        AVG(price) AS avg_trade_price,
+                        MAX(quantity) AS max_trade_qty,
+                        MIN(created_at) AS first_trade_at,
+                        MAX(created_at) AS last_trade_at,
+                        COUNT(DISTINCT market_id) AS markets_traded
+                    FROM polymarket.user_trades
+                    WHERE user_id = $1
+                ),
+
+                txns AS (
+                    SELECT
+                        SUM(amount) FILTER (WHERE transaction_type = 'deposit') AS total_deposit,
+                        SUM(amount) FILTER (WHERE transaction_type = 'withdrawal') AS total_withdraw,
+                        MAX(created_at) FILTER (WHERE transaction_type = 'deposit') AS last_deposit,
+                        MAX(created_at) FILTER (WHERE transaction_type = 'withdrawal') AS last_withdraw
+                    FROM polymarket.user_transactions
+                    WHERE user_id = $1
+                )
+
+                SELECT
+                    u.id,
+                    u.name,
+                    u.email,
+                    u.avatar,
+                    u.public_key,
+                    u.balance,
+                    u.last_login,
+                    u.created_at,
+                    
+                    -- Orders
+                    o.open_orders,
+                    o.partial_orders,
+                    o.total_orders,
+                    o.avg_fill_ratio,
+
+                    -- Trades
+                    t.total_trades::bigint,
+                    t.total_volume,
+                    t.avg_trade_price,
+                    t.max_trade_qty,
+                    t.first_trade_at,
+                    t.last_trade_at,
+                    t.markets_traded::bigint,
+
+                    -- Txns
+                    x.total_deposit,
+                    x.total_withdraw,
+                    x.last_deposit,
+                    x.last_withdraw
+
+                FROM polymarket.users u
+                LEFT JOIN orders o ON true
+                LEFT JOIN trades t ON true
+                LEFT JOIN txns x ON true
+                WHERE u.id = $1;
+            "#,
+            user_id
+        )
+        .fetch_one(pool)
+        .await?;
+
+        Ok(user)
     }
 }
 

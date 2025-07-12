@@ -67,7 +67,7 @@ pub async fn get_user_orders_by_market(
     let (user_orders_result, user_holdings_result) =
         tokio::join!(user_orders_future, user_holdings_future,);
 
-    let user_orders = user_orders_result.map_err(|e| {
+    let (user_orders, total_page) = user_orders_result.map_err(|e| {
         log_error!("Failed to fetch user orders {e:?}");
         (
             StatusCode::INTERNAL_SERVER_ERROR,
@@ -90,6 +90,7 @@ pub async fn get_user_orders_by_market(
         "orders": user_orders,
         "page": page,
         "page_size": page_size,
+        "total_pages": total_page,
     }))
     .into_response())
 }
