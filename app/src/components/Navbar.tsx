@@ -62,10 +62,10 @@ const LINKS = [
     name: "Home",
     href: "/",
   },
-  {
-    name: "Browse",
-    href: "/browse",
-  },
+  // {
+  //   name: "Browse",
+  //   href: "/browse",
+  // },
   {
     name: "Profile",
     href: "/profile",

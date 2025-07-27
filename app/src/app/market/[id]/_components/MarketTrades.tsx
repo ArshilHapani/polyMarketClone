@@ -156,7 +156,7 @@ export default function MarketTrades({ market_id }: Props) {
                   Avg Price
                 </Stat.Label>
                 <Stat.ValueText fontSize="2xl">
-                  {formatPrice(avgPrice)}
+                  {formatPrice(avgPrice || 0)}
                 </Stat.ValueText>
               </Stat.Root>
             </Card.Body>

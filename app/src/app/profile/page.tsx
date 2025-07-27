@@ -77,7 +77,6 @@ export default function ProfilePage() {
             gradientFrom="blue.500"
             gradientTo="purple.600"
             color="white"
-            shadow="xl"
             borderRadius="xl"
             overflow="hidden"
           >
@@ -139,7 +138,7 @@ export default function ProfilePage() {
 
           {/* Stats Grid */}
           <SimpleGrid columns={{ base: 1, md: 2, lg: 4 }} gap={4}>
-            <Card.Root bg={cardBg} shadow="md" borderRadius="lg">
+            <Card.Root bg={cardBg} borderRadius="lg">
               <Card.Body p={6}>
                 <Flex justify="space-between" align="center">
                   <VStack align="start" gap={1}>
@@ -155,7 +154,7 @@ export default function ProfilePage() {
               </Card.Body>
             </Card.Root>
 
-            <Card.Root bg={cardBg} shadow="md" borderRadius="lg">
+            <Card.Root bg={cardBg} borderRadius="lg">
               <Card.Body p={6}>
                 <Flex justify="space-between" align="center">
                   <VStack align="start" gap={1}>
@@ -173,7 +172,7 @@ export default function ProfilePage() {
               </Card.Body>
             </Card.Root>
 
-            <Card.Root bg={cardBg} shadow="md" borderRadius="lg">
+            <Card.Root bg={cardBg} borderRadius="lg">
               <Card.Body p={6}>
                 <Flex justify="space-between" align="center">
                   <VStack align="start" gap={1}>
@@ -191,7 +190,7 @@ export default function ProfilePage() {
               </Card.Body>
             </Card.Root>
 
-            <Card.Root bg={cardBg} shadow="md" borderRadius="lg">
+            <Card.Root bg={cardBg} borderRadius="lg">
               <CardBody p={6}>
                 <Flex justify="space-between" align="center">
                   <VStack align="start" gap={1}>
@@ -213,7 +212,7 @@ export default function ProfilePage() {
           {/* Detailed Information */}
           <Grid templateColumns={{ base: "1fr", lg: "1fr 1fr" }} gap={6}>
             {/* Trading Statistics */}
-            <Card.Root bg={cardBg} shadow="md" borderRadius="lg">
+            <Card.Root bg={cardBg} borderRadius="lg">
               <Card.Header>
                 <HStack>
                   <Icon>
@@ -280,7 +279,7 @@ export default function ProfilePage() {
             </Card.Root>
 
             {/* Account Information */}
-            <Card.Root bg={cardBg} shadow="md" borderRadius="lg">
+            <Card.Root bg={cardBg} borderRadius="lg">
               <CardHeader>
                 <HStack>
                   <Icon>
@@ -357,7 +356,7 @@ export default function ProfilePage() {
           </Grid>
 
           {/* Action Buttons */}
-          <Card.Root bg={cardBg} shadow="md" borderRadius="lg">
+          <Card.Root bg={cardBg} borderRadius="lg">
             <CardBody p={6}>
               <Stack
                 direction={{ base: "column", sm: "row" }}

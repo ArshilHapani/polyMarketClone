@@ -1,7 +1,17 @@
 "use client";
 
 import React, { useEffect, useState } from "react";
-import { Box, Table, Badge, Text } from "@chakra-ui/react";
+import {
+  Box,
+  Table,
+  Badge,
+  Text,
+  Card,
+  HStack,
+  VStack,
+  Heading,
+  Icon,
+} from "@chakra-ui/react";
 import { useQuery } from "@tanstack/react-query";
 
 import { MarketGetters } from "@/utils/interactions/dataGetter";
@@ -13,6 +23,7 @@ import {
 import useSubscription from "@/hooks/useSubscription";
 import { MarketBook } from "@/generated/service_types/ws_server/order_book";
 import { formatPriceString } from "@/utils";
+import { BarChart } from "lucide-react";
 
 type Props = {
   tradeType: "yes" | "no";
@@ -73,6 +84,25 @@ const OrderBook = ({ tradeType, marketId }: Props) => {
 
   return (
     <Box>
+      <Card.Root borderRadius="lg" py={4} mb={6}>
+        <Card.Header>
+          <HStack justify="space-between" align="center">
+            <VStack align="start" gap={1}>
+              <Heading size="lg">
+                {tradeType === "yes" ? "Yes Orders" : "No Orders"}
+              </Heading>
+              <Text color="gray.500" fontSize="sm">
+                {tradeType === "yes"
+                  ? "Orders for Yes side of the market"
+                  : "Orders for No side of the market"}
+              </Text>
+            </VStack>
+            <Icon boxSize={6} color="blue.500">
+              <BarChart />
+            </Icon>
+          </HStack>
+        </Card.Header>
+      </Card.Root>
       <Table.ScrollArea borderWidth="1px" rounded="md">
         <Table.Root size="sm" stickyHeader bg="transparent" variant="outline">
           <Table.Header>

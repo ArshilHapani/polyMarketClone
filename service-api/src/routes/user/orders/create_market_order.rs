@@ -127,7 +127,17 @@ pub async fn create_limit_order(
             ));
         }
     } else {
-        let balance = User::get_user_balance(&app_state.pg_pool, user_id)
+        let mut tx = app_state.pg_pool.begin().await.map_err(|e| {
+            log_error!("Failed to begin transaction - {:?}", e);
+            (
+                StatusCode::INTERNAL_SERVER_ERROR,
+                Json(json!({
+                    "error": "Failed to begin transaction"
+                }))
+                .into_response(),
+            )
+        })?;
+        let balance = User::get_user_balance(&mut *tx, user_id)
             .await
             .map_err(|e| {
                 log_error!("Failed to get user balance: {}", e);
@@ -136,6 +146,37 @@ pub async fn create_limit_order(
                     Json(json!({"error": "Failed to retrieve user balance"})).into_response(),
                 )
             })?;
+
+        let total_user_locked_funds = Order::get_user_order_locked_funds(&mut *tx, claims.user_id)
+            .await
+            .map_err(|e| {
+                log_error!("Failed to get user orders total amount - {:?}", e);
+                (
+                    StatusCode::INTERNAL_SERVER_ERROR,
+                    Json(json!({
+                        "error": "Failed to get user orders total amount"
+                    }))
+                    .into_response(),
+                )
+            })?;
+
+        tx.commit().await.map_err(|e| {
+            log_error!("Failed to commit transaction - {:?}", e);
+            (
+                StatusCode::INTERNAL_SERVER_ERROR,
+                Json(json!({
+                    "error": "Failed to commit transaction"
+                }))
+                .into_response(),
+            )
+        })?;
+
+        if total_user_locked_funds + budget > balance {
+            return Err((
+                StatusCode::BAD_REQUEST,
+                Json(json!({"error": "Insufficient balance to place a buy order"})).into_response(),
+            ));
+        }
 
         if balance < budget {
             return Err((

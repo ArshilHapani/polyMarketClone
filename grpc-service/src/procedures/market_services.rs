@@ -55,7 +55,7 @@ impl MarketService for MarketServiceStub {
         validate_numbers!(page_no);
         validate_numbers!(page_size);
 
-        let key = RedisKey::Markets(page_no, page_size);
+        let key = RedisKey::Markets(page_no, page_size, market_status as u64);
         if page_no == 0 || page_size == 0 {
             return Err(Status::invalid_argument(
                 "Page number and size must be greater than 0",
@@ -76,7 +76,7 @@ impl MarketService for MarketServiceStub {
                     )
                     .await?)
                 },
-                None,
+                Some(60), // Cache for 60 seconds
             )
             .await
             .map_err(|e| Status::internal(format!("Failed to get market {e}")))?;
@@ -113,7 +113,7 @@ impl MarketService for MarketServiceStub {
                 || async {
                     Ok(SchemaMarket::get_market_by_id(&self.state.db_pool, &market_id).await?)
                 },
-                None,
+                Some(60), // Cache for 60 seconds
             )
             .await
             .map_err(|e| Status::internal(format!("Failed to get market id {e}")))?;

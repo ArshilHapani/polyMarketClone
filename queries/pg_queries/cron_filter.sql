@@ -3,7 +3,7 @@ select * from cron.job;
 SELECT * FROM cron.job_run_details ORDER BY start_time DESC LIMIT 10;
 
 
-
+̇
 -- CREATE OR REPLACE FUNCTION polymarket.close_market(market_id UUID)
 -- RETURNS VOID AS $$
 -- BEGIN

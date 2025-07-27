@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import {
+  ListChecks,
   LucideChevronLeft,
   LucideChevronRight,
   PenBoxIcon,
@@ -12,14 +13,20 @@ import {
   Badge,
   Button,
   ButtonGroup,
+  Card,
   createListCollection,
   Flex,
+  Heading,
+  HStack,
+  Icon,
   IconButton,
   Pagination,
   Portal,
   Select,
   Stack,
   Table,
+  Text,
+  VStack,
 } from "@chakra-ui/react";
 
 import EmptyStateCustom from "@/components/EmptyStateCustom";
@@ -57,10 +64,6 @@ const MyOrders = ({ marketId }: Props) => {
       ),
   });
   function handleCancelOrder(orderId: string) {
-    // const cnf = confirm(
-    //   "Are you sure you want to cancel this order? This action cannot be undone.",
-    // );
-    // if (!cnf) return;
     toaster.promise(mutateAsync(orderId), {
       loading: { title: "Cancelling order..." },
       success: () => {
@@ -108,37 +111,54 @@ const MyOrders = ({ marketId }: Props) => {
   );
 
   const filterDropdown = (
-    <Flex gap={3} alignItems="center" justifyContent="space-between">
-      <Select.Root
-        collection={orderFilters}
-        size="sm"
-        width="320px"
-        onValueChange={(value) => setFilter(value.value[0] as OrderCategory)}
-      >
-        <Select.HiddenSelect />
-        <Select.Control>
-          <Select.Trigger>
-            <Select.ValueText placeholder="Select order type" />
-          </Select.Trigger>
-          <Select.IndicatorGroup>
-            <Select.Indicator />
-          </Select.IndicatorGroup>
-        </Select.Control>
-        <Portal>
-          <Select.Positioner>
-            <Select.Content>
-              {orderFilters.items.map((filter) => (
-                <Select.Item item={filter} key={filter.value}>
-                  {filter.label}
-                  <Select.ItemIndicator />
-                </Select.Item>
-              ))}
-            </Select.Content>
-          </Select.Positioner>
-        </Portal>
-      </Select.Root>
-      {filter !== "open" && clearFilterButton}
-    </Flex>
+    <>
+      <Card.Root borderRadius="lg" py={4} mb={6}>
+        <Card.Header>
+          <HStack justify="space-between" align="center">
+            <VStack align="start" gap={1}>
+              <Heading size="lg"> My orders</Heading>
+              <Text color="gray.500" fontSize="sm">
+                {data?.orders.length || 0} orders found
+              </Text>
+            </VStack>
+            <Icon boxSize={6} color="blue.500">
+              <ListChecks />
+            </Icon>
+          </HStack>
+        </Card.Header>
+      </Card.Root>
+      <Flex gap={3} alignItems="center" justifyContent="space-between">
+        <Select.Root
+          collection={orderFilters}
+          size="sm"
+          width="320px"
+          onValueChange={(value) => setFilter(value.value[0] as OrderCategory)}
+        >
+          <Select.HiddenSelect />
+          <Select.Control>
+            <Select.Trigger>
+              <Select.ValueText placeholder="Select order type" />
+            </Select.Trigger>
+            <Select.IndicatorGroup>
+              <Select.Indicator />
+            </Select.IndicatorGroup>
+          </Select.Control>
+          <Portal>
+            <Select.Positioner>
+              <Select.Content>
+                {orderFilters.items.map((filter) => (
+                  <Select.Item item={filter} key={filter.value}>
+                    {filter.label}
+                    <Select.ItemIndicator />
+                  </Select.Item>
+                ))}
+              </Select.Content>
+            </Select.Positioner>
+          </Portal>
+        </Select.Root>
+        {filter !== "open" && clearFilterButton}
+      </Flex>
+    </>
   );
 
   if (!data?.orders || data?.orders.length === 0) {

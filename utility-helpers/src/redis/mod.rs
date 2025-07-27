@@ -27,6 +27,11 @@ impl RedisHelper {
     /// If the data is not found in the cache, it will call the callback to get
     ///
     /// It uses MessagePack for serialization and deserialization.
+    ///
+    /// Parameters
+    /// - `key`: The key to retrieve data from the cache.
+    /// - `callback`: A function that computes the data if it's not found in the cache
+    /// - `cache_expiry`: Optional cache expiry time in seconds. If not provided, uses the default expiry set during initialization.
     pub async fn get_or_set_cache<T, F, Fut>(
         &self,
         key: RedisKey,

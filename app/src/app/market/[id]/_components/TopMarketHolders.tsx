@@ -14,9 +14,18 @@ import {
   Progress,
   Flex,
   Icon,
+  Card,
+  Heading,
 } from "@chakra-ui/react";
 
-import { TrendingUp, TrendingDown, Users, Award } from "lucide-react";
+import {
+  TrendingUp,
+  TrendingDown,
+  Users,
+  Award,
+  Activity,
+  Usb,
+} from "lucide-react";
 import { useColorModeValue } from "@/components/ui/color-mode";
 import { useQuery } from "@tanstack/react-query";
 
@@ -85,9 +94,21 @@ const TopMarketHolders = ({ marketId, noPrice, yesPrice }: Props) => {
 
   return (
     <Box>
-      <Text fontSize="lg" fontWeight="bold" mb={4}>
-        Top Holders
-      </Text>
+      <Card.Root borderRadius="lg" py={4} mb={6}>
+        <Card.Header>
+          <HStack justify="space-between" align="center">
+            <VStack align="start" gap={1}>
+              <Heading size="lg"> Top Holders</Heading>
+              <Text color="gray.500" fontSize="sm">
+                Top market holders ranked by total shares held
+              </Text>
+            </VStack>
+            <Icon boxSize={6} color="blue.500">
+              <Usb />
+            </Icon>
+          </HStack>
+        </Card.Header>
+      </Card.Root>
       <Box>
         {/* from here--- */}
         <VStack gap={6} align="stretch">

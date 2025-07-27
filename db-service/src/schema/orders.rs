@@ -1,7 +1,7 @@
 use chrono::NaiveDateTime;
 use rust_decimal::Decimal;
 use serde::{Deserialize, Serialize};
-use sqlx::PgPool;
+use sqlx::{Executor, PgPool, Postgres};
 use utility_helpers::log_info;
 use uuid::Uuid;
 
@@ -635,6 +635,48 @@ impl Order {
 
         transaction.commit().await?;
         Ok(inserted_orders)
+    }
+
+    pub async fn get_user_order_locked_funds(
+        executor: impl Executor<'_, Database = Postgres>,
+        user_id: Uuid,
+    ) -> Result<Decimal, sqlx::Error> {
+        let total_amount = sqlx::query_scalar!(
+            r#"
+            SELECT SUM((price * quantity) * 100) FROM polymarket.orders 
+                WHERE user_id = $1 
+                AND side = 'buy'::polymarket.order_side
+                AND status = 'open'::polymarket.order_status
+            "#,
+            user_id,
+        )
+        .fetch_one(executor)
+        .await?
+        .unwrap_or(Decimal::ZERO);
+
+        Ok(total_amount)
+    }
+
+    pub async fn get_user_locked_stokes(
+        executor: impl Executor<'_, Database = Postgres>,
+        user_id: Uuid,
+        outcome_side: Outcome,
+    ) -> Result<Decimal, sqlx::Error> {
+        let locked_stokes = sqlx::query_scalar!(
+            r#"
+            SELECT SUM(quantity) FROM polymarket.orders 
+                WHERE user_id = $1
+                AND outcome = $2
+                AND side = 'sell'::polymarket.order_side
+                AND status = 'open'::polymarket.order_status
+            "#,
+            user_id,
+            outcome_side as _
+        )
+        .fetch_one(executor)
+        .await?
+        .unwrap_or(Decimal::ZERO);
+        Ok(locked_stokes)
     }
 }
 

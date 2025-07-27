@@ -157,7 +157,17 @@ pub async fn create_limit_order(
             ));
         }
     } else {
-        let balance = User::get_user_balance(&app_state.pg_pool, user_id)
+        let mut tx = app_state.pg_pool.begin().await.map_err(|e| {
+            log_error!("Failed to begin transaction - {:?}", e);
+            (
+                StatusCode::INTERNAL_SERVER_ERROR,
+                Json(json!({
+                    "error": "Failed to begin transaction"
+                }))
+                .into_response(),
+            )
+        })?;
+        let balance = User::get_user_balance(&mut *tx, user_id)
             .await
             .map_err(|e| {
                 log_error!("Failed to get user - {:?}", e);
@@ -169,7 +179,43 @@ pub async fn create_limit_order(
                     .into_response(),
                 )
             })?;
+
+        let total_user_locked_funds = Order::get_user_order_locked_funds(&mut *tx, claims.user_id)
+            .await
+            .map_err(|e| {
+                log_error!("Failed to get user orders total amount - {:?}", e);
+                (
+                    StatusCode::INTERNAL_SERVER_ERROR,
+                    Json(json!({
+                        "error": "Failed to get user orders total amount"
+                    }))
+                    .into_response(),
+                )
+            })?;
+
+        tx.commit().await.map_err(|e| {
+            log_error!("Failed to commit transaction - {:?}", e);
+            (
+                StatusCode::INTERNAL_SERVER_ERROR,
+                Json(json!({
+                    "error": "Failed to commit transaction"
+                }))
+                .into_response(),
+            )
+        })?;
+
+        let balance = balance - total_user_locked_funds;
         let required_price = from_u8(price) * from_f64(quantity);
+        if balance < Decimal::ZERO || balance < required_price {
+            return Err((
+                StatusCode::BAD_REQUEST,
+                Json(json!({
+                    "error": "You do not have enough balance to create order"
+                }))
+                .into_response(),
+            ));
+        }
+
         if balance <= required_price {
             return Err((
                 StatusCode::BAD_REQUEST,

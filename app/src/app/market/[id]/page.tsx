@@ -1,25 +1,15 @@
-import React from "react";
-import {
-  Avatar,
-  Badge,
-  Box,
-  Container,
-  Flex,
-  Tabs,
-  Text,
-} from "@chakra-ui/react";
+import { Avatar, Badge, Box, Container, Flex, Text } from "@chakra-ui/react";
 import { Bookmark, Clock5, Link } from "lucide-react";
 
 import EmptyStateCustom from "@/components/EmptyStateCustom";
 import { MarketGetters } from "@/utils/interactions/dataGetter";
+
 import PriceChart from "./_components/PriceChart";
 import PurchaseNowActionBar from "./_components/PurchaseNowActionBar";
-import OrderBook from "./_components/OrderBook";
-import MyOrders from "./_components/MyOrders";
 import VolumeInfoCard from "./_components/VolumeInfoCard";
 import HoldingsInfoClient from "./_components/HoldingsInfoClient";
-import TopMarketHolders from "./_components/TopMarketHolders";
-import MarketTrades from "./_components/MarketTrades";
+import TabsClient from "./TabsClient";
+
 import { MarketStatus } from "@/generated/grpc_service_types/markets";
 
 type Props = {
@@ -30,6 +20,7 @@ type Props = {
 
 const MarketPage = async ({ params }: Props) => {
   const id = (await params).id;
+
   const marketWithVolume = await MarketGetters.getMarketById(id);
 
   if (
@@ -112,37 +103,12 @@ const MarketPage = async ({ params }: Props) => {
           />
         )}
 
-        {/* order book */}
-        <Box mt={10}>
-          <Tabs.Root defaultValue="yes_book">
-            <Tabs.List>
-              <Tabs.Trigger value="yes_book">Trade yes</Tabs.Trigger>
-              <Tabs.Trigger value="no_book">Trade no</Tabs.Trigger>
-              <Tabs.Trigger value="my_orders">My orders</Tabs.Trigger>
-              <Tabs.Trigger value="top_holders">Top holders</Tabs.Trigger>
-              <Tabs.Trigger value="trades">Trades</Tabs.Trigger>
-            </Tabs.List>
-            <Tabs.Content value="yes_book">
-              <OrderBook tradeType="yes" marketId={id} />
-            </Tabs.Content>
-            <Tabs.Content value="no_book">
-              <OrderBook tradeType="no" marketId={id} />
-            </Tabs.Content>
-            <Tabs.Content value="my_orders">
-              <MyOrders marketId={id} />
-            </Tabs.Content>
-            <Tabs.Content value="top_holders">
-              <TopMarketHolders
-                marketId={id}
-                yesPrice={marketPrice.latestYesPrice}
-                noPrice={marketPrice.latestNoPrice}
-              />
-            </Tabs.Content>
-            <Tabs.Content value="trades">
-              <MarketTrades market_id={id} />
-            </Tabs.Content>
-          </Tabs.Root>
-        </Box>
+        {/* TABS */}
+        <TabsClient
+          marketId={id}
+          yesPrice={marketPrice.latestYesPrice}
+          noPrice={marketPrice.latestNoPrice}
+        />
       </Box>
     </Container>
   );

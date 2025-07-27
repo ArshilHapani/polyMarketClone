@@ -9,6 +9,18 @@
 -- truncate table polymarket.orders CASCADE;
 select * from polymarket.orders order by created_at DESC;
 
+-- for buy
+SELECT SUM((price * quantity) * 100) FROM polymarket.orders
+            WHERE user_id = 'def7d541-6c70-4571-abff-311574ce43ce'::uuid
+			AND status = 'open'::polymarket.order_status;
+
+-- for sell check
+SELECT SUM(quantity) FROM polymarket.orders
+				WHERE user_id = 'def7d541-6c70-4571-abff-311574ce43ce'::uuid 
+				AND side = 'sell'::polymarket.order_side
+				AND outcome = 'yes'::polymarket.outcome
+				AND status = 'open'::polymarket.order_status;
+
 -- select * from polymarket.orders where status = 'open'::polymarket.order_status ORDER BY created_at DESC;
 
 
