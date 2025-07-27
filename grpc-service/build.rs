@@ -11,6 +11,7 @@ fn main() -> Result<(), Box<dyn Error>> {
 
     tonic_build::configure()
         .protoc_arg("--proto_path=proto")
+        .protoc_arg("--experimental_allow_proto3_optional")
         .file_descriptor_set_path(out_dir.join("descriptor.bin"))
         .out_dir(&out_dir)
         .type_attribute(".", "#[derive(serde::Serialize, serde::Deserialize)]")

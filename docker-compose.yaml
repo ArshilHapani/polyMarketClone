@@ -89,6 +89,103 @@ services:
       timeout: 10s
       retries: 10
 
+  service-api:
+    build:
+      context: .
+    command: ["./service-api"]
+    ports:
+      - "8080:8080"
+    restart: unless-stopped
+    env_file: .env
+    networks:
+      - polyMarket_network
+
+    container_name: polyMarket_service_api
+
+    depends_on:
+      - postgres
+      - redis
+      - nats
+      - clickhouse
+      - redpanda
+      - order-service
+
+  grpc-service:
+    build:
+      context: .
+    command: ["./grpc-service"]
+    ports:
+      - "5010:5010"
+    restart: unless-stopped
+
+    container_name: polyMarket_grpc_service
+
+    env_file: .env
+    networks:
+      - polyMarket_network
+
+    depends_on:
+      - postgres
+      - redis
+      - nats
+      - clickhouse
+      - redpanda
+
+  websocket-service:
+    build:
+      context: .
+    command: ["./websocket-service"]
+    ports:
+      - "4010:4010"
+
+    container_name: polyMarket_websocket_service
+
+    restart: unless-stopped
+    env_file: .env
+    networks:
+      - polyMarket_network
+
+    depends_on:
+      - postgres
+      - redis
+      - nats
+      - clickhouse
+      - redpanda
+
+  order-service:
+    build:
+      context: .
+    command: ["./order-service"]
+
+    container_name: polyMarket_order_service
+
+    restart: unless-stopped
+    env_file: .env
+    networks:
+      - polyMarket_network
+
+    depends_on:
+      - postgres
+      - redis
+      - nats
+      - clickhouse
+      - redpanda
+      - websocket-service
+
+  client:
+    build:
+      context: ./app
+      dockerfile: client.Dockerfile
+
+    container_name: polyMarket_client
+    ports:
+      - "3000:3000"
+
+    env_file: ./app/.env
+
+    networks:
+      - polyMarket_network
+
 networks:
   polyMarket_network:
     driver: bridge

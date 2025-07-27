@@ -13,6 +13,7 @@ pub fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     config
         .protoc_arg("--proto_path=proto")
+        .protoc_arg("--experimental_allow_proto3_optional")
         .out_dir(&out_dir)
         .type_attribute(".", "#[derive(serde::Serialize, serde::Deserialize)]")
         .compile_protos(

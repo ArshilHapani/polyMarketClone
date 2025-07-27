@@ -50,4 +50,4 @@ futures = "0.3.31"
 bloom = "0.3.2"
 parking_lot = { version = "0.12.3" }
 rmp-serde = "1.3.0"
-rdkafka = { version = "0.25", features = ["cmake-build"] }
+rdkafka = { version = "0.38.0", features = ["cmake-build"] }
