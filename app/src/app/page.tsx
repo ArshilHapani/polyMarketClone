@@ -8,6 +8,7 @@ import TrendingMarketCard from "@/components/TrendingMarketCard";
 import { MarketStatus } from "@/generated/grpc_service_types/markets";
 
 export default function Home() {
+  console.log("Variables", process.env);
   const [{ data }, { data: closedMarkets }] = useQueries({
     queries: [
       {

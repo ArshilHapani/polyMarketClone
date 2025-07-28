@@ -18,6 +18,8 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     let addr = format!("[::]:{}", PORT);
 
     let state = AppState::new().await?;
+    state.run_migrations().await?;
+
     let cors = CorsLayer::new()
         .allow_origin(Any)
         .allow_headers(Any)

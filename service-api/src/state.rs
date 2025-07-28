@@ -5,7 +5,8 @@ use async_nats::{
     jetstream::{self, Context},
 };
 use auth_service::AuthService;
-use utility_helpers::{redis::RedisHelper, types::EnvVarConfig};
+use db_service::DbService;
+use utility_helpers::{log_info, redis::RedisHelper, types::EnvVarConfig};
 
 use crate::bloom_f::BloomFilterWrapper;
 
@@ -46,5 +47,15 @@ impl AppState {
         };
 
         Ok(state)
+    }
+
+    pub async fn run_migrations(&self) -> Result<(), Box<dyn StdError>> {
+        DbService::run_migrations(&self.pg_pool)
+            .await
+            .map_err(|e| format!("Migration failed: {}", e))?;
+
+        log_info!("Database migrations completed successfully.");
+
+        Ok(())
     }
 }

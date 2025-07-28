@@ -3,8 +3,6 @@ FROM rust:1.88-bullseye AS chef
 
 WORKDIR /app
 ARG DATABASE_URL
-ENV DATABASE_URL=$DATABASE_URL
-
 
 RUN cargo install cargo-chef
 COPY . .
@@ -15,7 +13,7 @@ RUN cargo chef prepare --recipe-path recipe.json
 
 FROM rust:1.88-bullseye AS builder
 
-# install necessary tools for lib rdkafka
+# install necessary tools for lib rdkafka and protobuf compilation
 RUN apt-get update && apt-get install -y \
     build-essential \
     cmake \
@@ -33,7 +31,6 @@ COPY --from=chef /app/recipe.json recipe.json
 RUN cargo chef cook --release --recipe-path recipe.json
 ENV DATABASE_URL=$DATABASE_URL
 ENV SQLX_OFFLINE=true
-
 
 COPY . .
 

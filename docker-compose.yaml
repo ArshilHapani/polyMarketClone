@@ -108,7 +108,6 @@ services:
       - nats
       - clickhouse
       - redpanda
-      - order-service
 
   grpc-service:
     build:
@@ -130,6 +129,7 @@ services:
       - nats
       - clickhouse
       - redpanda
+      - service-api
 
   websocket-service:
     build:
@@ -151,6 +151,7 @@ services:
       - nats
       - clickhouse
       - redpanda
+      - grpc-service
 
   order-service:
     build:
@@ -181,7 +182,9 @@ services:
     ports:
       - "3000:3000"
 
-    env_file: ./app/.env
+    env_file:
+      - ./app/.env
+      - .env
 
     networks:
       - polyMarket_network

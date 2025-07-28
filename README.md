@@ -23,3 +23,9 @@
 NATS can produce multiple messages parallelly, it have multiple streams, each stream acts as separate queue, so we have to use different streams for different services
 
 This project is not focused on frontend, so the frontend codebase may be not well structured, but it is functional and can be used to test the backend services.
+
+# Internal service dependencies sequence (For service orchestration and startup)
+
+- order-service -> websocket-service -> grpc-service -> service-api
+
+Order service depends on websocket service, websocket service depends on grpc service, grpc service depends on service api...
