@@ -67,6 +67,10 @@ export default function ProfilePage() {
   }
   const profileData = data.profile_insight;
 
+  function handleDepositFunds() {
+    // TODO
+  }
+
   return (
     <Box minH="100vh" p={{ base: 4, md: 6, lg: 8 }}>
       <Container maxW="7xl" mx="auto">
@@ -363,7 +367,11 @@ export default function ProfilePage() {
                 gap={4}
                 justify="center"
               >
-                <Button size="lg" colorScheme="blue">
+                <Button
+                  size="lg"
+                  colorScheme="blue"
+                  onClick={handleDepositFunds}
+                >
                   <Icon>
                     <Wallet />
                   </Icon>
