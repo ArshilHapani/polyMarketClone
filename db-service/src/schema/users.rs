@@ -390,6 +390,26 @@ impl User {
 
         Ok(user)
     }
+
+    pub async fn deposit_funds(
+        pool: &PgPool,
+        user_id: Uuid,
+        amount: Decimal,
+    ) -> Result<(), sqlx::Error> {
+        sqlx::query!(
+            r#"
+            UPDATE "polymarket"."users"
+            SET balance = balance + $1
+            WHERE id = $2
+            "#,
+            amount,
+            user_id
+        )
+        .execute(pool)
+        .await?;
+
+        Ok(())
+    }
 }
 
 #[cfg(test)]

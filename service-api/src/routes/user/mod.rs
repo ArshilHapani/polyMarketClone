@@ -1,7 +1,11 @@
-use axum::{Router, routing::get};
+use axum::{
+    Router,
+    routing::{get, post},
+};
 
 use crate::state::AppState;
 
+pub mod deposit;
 pub mod holdings;
 pub mod metadata;
 pub mod orders;
@@ -15,4 +19,5 @@ pub fn router() -> Router<AppState> {
         .route("/profile", get(profile::get_profile))
         .route("/metadata", get(metadata::get_metadata))
         .route("/holdings", get(holdings::get_user_holdings))
+        .route("/deposit", post(deposit::deposit_funds_handler))
 }
