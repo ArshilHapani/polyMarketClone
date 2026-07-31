@@ -9,6 +9,9 @@ on:
       notification-email:
         required: false
         type: string
+      nightly-job-task-id:
+        required: false
+        type: string
 
 permissions:
   contents: read
@@ -21,3 +24,4 @@ jobs:
       api-url: ${{ inputs.api-url }}
       notify-on-complete: ${{ inputs.notification-email != '' }}
       notification-email: ${{ inputs.notification-email }}
+      nightly-job-task-id: ${{ inputs.nightly-job-task-id }}
